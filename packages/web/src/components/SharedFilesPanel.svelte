@@ -33,7 +33,7 @@
 
 <main class="view">
   <h2>Shared files</h2>
-  <div class="drop" class:over role="region" aria-label="Share a file with agents"
+  <div class="drop" class:over role="region" aria-label="Share a file with squadmates"
     ondragover={(e) => { if (e.dataTransfer?.types.includes("Files")) { e.preventDefault(); over = true; } }}
     ondragleave={() => (over = false)}
     ondrop={(e) => { e.preventDefault(); over = false; upload(e.dataTransfer?.files); }}>
@@ -46,7 +46,7 @@
     <input placeholder="Note (what this is)" bind:value={note} />
     <label class="pick">{busy ? "Uploading…" : "Drop files here or choose…"}
       <input type="file" multiple onchange={(e) => upload((e.target as HTMLInputElement).files)} hidden /></label>
-    <p class="hint">Agents receive the path; tell them about it in the chat.</p>
+    <p class="hint">Squadmates receive the path; tell them about it in the chat.</p>
   </div>
   {#if !list.length}<p class="hint">Nothing shared yet.</p>{/if}
   <table>

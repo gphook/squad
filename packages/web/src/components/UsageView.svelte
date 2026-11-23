@@ -91,12 +91,12 @@
 
   {#if report}
     <section>
-      <h3>Current windows by agent</h3>
-      {#if !report.windows.length}<p class="hint">No agent turns in the last 7 days.</p>
+      <h3>Current windows by squadmate</h3>
+      {#if !report.windows.length}<p class="hint">No squadmate turns in the last 7 days.</p>
       {:else}
         <table>
           <thead><tr>
-            <th>Agent</th><th class="n">Turns</th><th class="n">Tokens in / out</th><th class="n">Est. cost</th>
+            <th>Squadmate</th><th class="n">Turns</th><th class="n">Tokens in / out</th><th class="n">Est. cost</th>
             <th class="n">Share 5h</th><th class="n">Share 7d</th><th class="n">Max % of 5h</th><th class="n">Max % of 7d</th>
           </tr></thead>
           <tbody>
@@ -111,14 +111,14 @@
           </tbody>
         </table>
         <p class="hint">Costs are API-equivalent estimates. Shares split Squad's own usage. "Max % of" is an upper bound:
-          it gives each agent its share of the whole window, but other Claude use on your account (claude.ai, Claude Code
-          outside Squad) also counts toward the limits, so an agent's real part can be lower.</p>
+          it gives each squadmate its share of the whole window, but other Claude use on your account (claude.ai, Claude Code
+          outside Squad) also counts toward the limits, so a squadmate's real part can be lower.</p>
       {/if}
     </section>
 
     <section>
       <header class="sub">
-        <h3>Daily by agent</h3>
+        <h3>Daily by squadmate</h3>
         <div class="seg" role="group" aria-label="Measure">
           <button class:on={metric === "cost"} onclick={() => (metric = "cost")}>Cost</button>
           <button class:on={metric === "tokens"} onclick={() => (metric = "tokens")}>Tokens</button>
@@ -143,7 +143,7 @@
       {#if !report.top.length}<p class="hint">Nothing in this range.</p>
       {:else}
         <table>
-          <thead><tr><th>When</th><th>Agent</th><th>Model</th><th class="n">Tokens in / out</th><th class="n">Est. cost</th></tr></thead>
+          <thead><tr><th>When</th><th>Squadmate</th><th>Model</th><th class="n">Tokens in / out</th><th class="n">Est. cost</th></tr></thead>
           <tbody>
             {#each report.top as t}
               {@const live = agentById(t.agentId)}

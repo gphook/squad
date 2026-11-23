@@ -19,12 +19,12 @@
 <main class="view">
   <header>
     <h2>Messages</h2>
-    <select bind:value={filter} aria-label="Filter by agent">
-      <option value="">All agents</option>
+    <select bind:value={filter} aria-label="Filter by squadmate">
+      <option value="">All squadmates</option>
       {#each ui.s.agents as a}<option value={a.name}>{a.name}</option>{/each}
     </select>
   </header>
-  {#if !list.length}<p class="hint">No messages between agents yet.</p>{/if}
+  {#if !list.length}<p class="hint">No messages between squadmates yet.</p>{/if}
   <ul>
     {#each list as m (m.id)}
       <li>

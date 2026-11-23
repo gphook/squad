@@ -52,7 +52,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <main class="workspace" ondragover={accepts} ondrop={dropOnArea}>
   {#if !mainId}
-    <p class="hint center">Add an agent to get started.</p>
+    <p class="hint center">Add a squadmate to get started.</p>
   {:else if layout.mode === "tiled" && tiles.length}
     <div class="grid" style="--cols: {Math.ceil(Math.sqrt(tiles.length))}">
       {#each tiles as [slot, id] (id)}

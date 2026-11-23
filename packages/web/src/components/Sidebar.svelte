@@ -20,8 +20,8 @@
   }
 </script>
 
-<nav class="sidebar" aria-label="Agents" role="list">
-  <div class="head">Agents</div>
+<nav class="sidebar" aria-label="Squadmates" role="list">
+  <div class="head">Squadmates</div>
   {#each ui.s.agents as a (a.id)}
     {@const st = ui.s.states[a.id]?.status ?? "stopped"}
     <div class="row" role="listitem" class:active={current.main === a.id} draggable="true"
@@ -49,7 +49,7 @@
       {/if}
     </div>
   {/each}
-  <button class="add" onclick={() => onedit(null)}>+ Add agent</button>
+  <button class="add" onclick={() => onedit(null)}>+ Add squadmate</button>
 </nav>
 
 <style>

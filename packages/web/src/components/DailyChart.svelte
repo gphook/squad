@@ -29,7 +29,7 @@
   <p class="hint">No usage recorded in this range yet.</p>
 {:else}
   <figure>
-    <svg viewBox="0 0 {width} {H}" preserveAspectRatio="none" role="img" aria-label="Daily usage by agent">
+    <svg viewBox="0 0 {width} {H}" preserveAspectRatio="none" role="img" aria-label="Daily usage by squadmate">
       {#each bars as b}
         {#each b.segs as s}<rect x={b.x} y={s.y} width={barW} height={s.h} fill={s.color}><title>{s.title}</title></rect>{/each}
       {/each}

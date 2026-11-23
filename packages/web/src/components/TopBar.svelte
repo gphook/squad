@@ -53,7 +53,7 @@
     <button class:on={mode === "tiled"} onclick={() => setMode("tiled")}>Tiled</button>
   </div>
   <button class="icon" class:on={ui.view === "messages"} aria-pressed={ui.view === "messages"}
-    aria-label="Messages" title="Messages between agents" onclick={() => toggleView("messages")}><Icon name="messages" /></button>
+    aria-label="Messages" title="Messages between squadmates" onclick={() => toggleView("messages")}><Icon name="messages" /></button>
   <button class="icon" class:on={ui.view === "shares"} aria-pressed={ui.view === "shares"}
     aria-label="Shared files" title="Shared files" onclick={() => toggleView("shares")}><Icon name="files" /></button>
   <button class="icon" aria-label={themeLabel} title={themeLabel} onclick={cycleTheme}><Icon name={theme} /></button>

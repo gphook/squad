@@ -31,9 +31,9 @@
   }
 </script>
 
-<div class="modal" role="dialog" aria-label="Agent">
+<div class="modal" role="dialog" aria-label="Squadmate">
   <form onsubmit={save}>
-    <h2>{agent ? `Edit ${agent.name}` : "Add agent"}</h2>
+    <h2>{agent ? `Edit ${agent.name}` : "Add squadmate"}</h2>
     <label>Name <span class="hint">Lowercase letters, digits and dashes. Must be unique on this machine: other sessions message it by this name.</span>
       <input bind:value={name} required aria-invalid={!nameOk && name !== ""} /></label>
     <label>Role <span class="hint">What it owns and does (markdown). The first line is shown to squadmates.</span>
@@ -44,7 +44,7 @@
       <label class="check"><input type="checkbox" bind:checked={createFolder} /> Create this folder and run git init</label>
     {/if}
     <label>Model <span class="hint">Optional, e.g. opus, sonnet, haiku</span><input bind:value={model} /></label>
-    <p class="hint">Changes apply the next time the agent launches.</p>
+    <p class="hint">Changes apply the next time this squadmate launches.</p>
     <div class="actions">
       {#if agent}<button type="button" class="danger" onclick={remove}>Remove</button>{/if}
       <span class="grow"></span>

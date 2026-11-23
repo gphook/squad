@@ -16,7 +16,7 @@
     onclose();
   }
   function remove() {
-    if (project && confirm(`Delete project ${project.name}? Its agents stop and its settings are removed. Repos are not touched.`)) {
+    if (project && confirm(`Delete project ${project.name}? Its squadmates stop and its settings are removed. Repos are not touched.`)) {
       send({ t: "project.delete", projectId: project.id });
       onclose();
     }
@@ -27,9 +27,9 @@
   <form onsubmit={save}>
     <h2>{project ? "Edit project" : "New project"}</h2>
     <label>Name <input bind:value={name} required /></label>
-    <label>Project rules <span class="hint">Given to every agent at launch (markdown)</span>
+    <label>Project rules <span class="hint">Given to every squadmate at launch (markdown)</span>
       <textarea bind:value={rules} rows="10"></textarea></label>
-    <label>Permission mode <span class="hint">Shared by every agent in the project</span>
+    <label>Permission mode <span class="hint">Shared by every squadmate in the project</span>
       <select bind:value={permissionMode}>
         {#each PERMISSION_MODES as m}<option value={m}>{m}</option>{/each}
       </select></label>

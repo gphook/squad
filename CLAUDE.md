@@ -16,8 +16,9 @@ Each agent runs in its own separate session, and communicates using the gphook/s
 ## Terminology
 
 An agent's fellow agents in the same project are its **squadmates**. Use "squadmate(s)", never "teammate(s)" or
-"team members", in UI copy, docs, skills, tool descriptions and launch prompts. Tool names such as `squad_team` stay as
-they are.
+"team members", in UI copy, docs, skills, tool descriptions and launch prompts. The web UI calls every agent a
+squadmate ("Squadmates", "+ Add squadmate"). Code identifiers and tool names (`Agent`, `agentId`, `squad_team`) stay
+as they are.
 
 ## Agent skills
 
