@@ -105,5 +105,5 @@ describe("runShell", () => {
     const r = run("Write-Output hi", undefined, { ...resolveShell("/usr/bin/pwsh"), path: pwsh });
     await r.done;
     expect(r.text("stdout").trim()).toBe("hi");
-  });
+  }, 30_000); // pwsh's cold start alone can take several seconds on CI
 });
