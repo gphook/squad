@@ -9,8 +9,10 @@
   import StatusDot from "./StatusDot.svelte";
   import ContextRing from "./ContextRing.svelte";
 
-  let { agentId, focused = false, maximised = false, slot, onclose, onmaximise }: {
+  let { agentId, focused = false, maximised = false, slot, onclose, onmaximise, ondragstart }: {
     agentId: string; focused?: boolean; maximised?: boolean; slot?: string; onclose?: () => void; onmaximise?: () => void;
+    /** Dragging starts from the header only, so text in the chat can still be selected. */
+    ondragstart?: (e: DragEvent) => void;
   } = $props();
 
   const agent = $derived(agentById(agentId));
@@ -61,7 +63,7 @@
   <section class="pane" class:focused aria-label={agent.name}>
     <!-- The double-click is a mouse shortcut; the maximise button is the keyboard and screen-reader path. -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <header ondblclick={(e) => { if (onmaximise && !(e.target as Element).closest("button")) onmaximise(); }}>
+    <header draggable={ondragstart ? "true" : undefined} {ondragstart} ondblclick={(e) => { if (onmaximise && !(e.target as Element).closest("button")) onmaximise(); }}>
       {#if slot}<span class="slot">{slot}</span>{/if}
       <StatusDot status={agentState.status} />
       <strong title={modelSummary(agent)}>{agent.name}</strong>
@@ -100,6 +102,7 @@
   .pane.focused { border-color: var(--accent); }
   .icon { display: inline-grid; place-items: center; padding: 2px 5px; }
   header { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-bottom: 1px solid var(--line); min-width: 0; }
+  header[draggable="true"] { cursor: grab; }
   header button { padding: 2px 8px; font-size: 12px; }
   .slot { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
   .st { color: var(--muted); font-size: 12px; white-space: nowrap; }

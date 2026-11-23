@@ -3,6 +3,7 @@ import {
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
   type AuthStatus, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, appendShellOutput,
 } from "@squad/shared";
+import { pruneLayout } from "./layout.ts";
 
 export interface UiState {
   projects: Project[];
@@ -58,9 +59,13 @@ function addEvent(list: AgentEvent[] = [], ev: AgentEvent): AgentEvent[] {
   return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
 }
 
-/** The layout lives on its project; this reads it for the selected one. */
+/**
+ * The layout lives on its project; this reads it for the selected one, without tiles of squadmates that no longer
+ * exist (so nothing built on it saves a deleted squadmate back, or treats one as maximised).
+ */
 export function currentLayout(s: UiState): Layout {
-  return s.projects.find((p) => p.id === s.projectId)?.layout ?? defaultLayout();
+  const layout = s.projects.find((p) => p.id === s.projectId)?.layout ?? defaultLayout();
+  return pruneLayout(layout, s.agents.map((a) => a.id));
 }
 
 export function withLayout(s: UiState, projectId: string, layout: Layout): UiState {
