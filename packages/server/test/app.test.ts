@@ -132,6 +132,16 @@ describe("websocket", () => {
     expect(await decision).toMatchObject({ behavior: "allow" });
   });
 
+  it("passes agent.shellKill to the supervisor", async () => {
+    const calls: string[][] = [];
+    sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };
+    const c = await connect();
+    send(c.ws, { t: "agent.shellKill", agentId, id: "s1" });
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    expect(calls).toEqual([[agentId, "s1"]]);
+  });
+
   it("reports a duplicate agent name as an error", async () => {
     const c = await connect();
     send(c.ws, { t: "agent.save", agent: { projectId, name: "starfade", role: "", folder, model: null } });

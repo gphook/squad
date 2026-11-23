@@ -35,4 +35,9 @@ describe("buildLaunchPrompt", () => {
     expect(out).toContain("## Project rules\n\nOnly starfade edits the game repo.");
     expect(buildLaunchPrompt({ ...project, rules: "" }, me, team, "/s")).not.toContain("## Project rules");
   });
+  it("adds the user's shell output when there is some, and omits the section otherwise", () => {
+    const withShell = buildLaunchPrompt(project, me, team, "/s", ["<bash-input>ls</bash-input>"]);
+    expect(withShell).toContain("## Shell output from the user\n\nThe user ran these commands in your folder before you started:\n\n<bash-input>ls</bash-input>");
+    expect(out).not.toContain("## Shell output from the user");
+  });
 });

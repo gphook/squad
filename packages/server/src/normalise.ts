@@ -1,4 +1,4 @@
-import { SQUAD_TOOL_PREFIX, type AgentEvent } from "@squad/shared";
+import { SQUAD_TOOL_PREFIX, parseAgentShellPrompt, parseBashContext, type AgentEvent } from "@squad/shared";
 
 // SDK messages are handled structurally: only the fields we read are typed, so SDK minor
 // changes to unrelated fields don't break the build.
@@ -23,6 +23,21 @@ const isHarnessMessage = (m: SdkMsg) => Boolean(m.isReplay || m.isSynthetic || m
 /** Slash commands are stored as `<command-name>/x</command-name>…`; their output as `<local-command-stdout>`. */
 const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
 const COMMAND_OUTPUT_PREFIX = "<local-command-stdout>";
+
+/** History ids for `$ cmd` blocks read back from a transcript; live ones are UUIDs. */
+let historyShellSeq = 0;
+
+/** A user message that starts with delivered `$ cmd` blocks: the blocks as shell events, then the rest. */
+function withShellBlocks(raw: string): { shells: AgentEvent[]; rest: string } {
+  const parsed = parseBashContext(raw);
+  if (!parsed) return { shells: [], rest: raw };
+  const shells: AgentEvent[] = parsed.shells.map((s) => ({
+    kind: "shell", id: `hist-${++historyShellSeq}`, command: s.command,
+    chunks: [{ stream: "stdout" as const, text: s.stdout }, { stream: "stderr" as const, text: s.stderr }].filter((c) => c.text),
+    running: false, code: null, signal: null,
+  }));
+  return { shells, rest: parsed.rest };
+}
 
 const MAX_SUMMARY = 80;
 const clip = (s: string) => (s.length > MAX_SUMMARY ? s.slice(0, MAX_SUMMARY - 1) + "…" : s);
@@ -100,13 +115,15 @@ export function normalise(raw: unknown): AgentEvent[] {
             };
           });
       }
-      const raw = blockText(content);
-      if (raw.startsWith(COMMAND_OUTPUT_PREFIX)) return [];
+      const { shells, rest: raw } = withShellBlocks(blockText(content));
+      if (raw.startsWith(COMMAND_OUTPUT_PREFIX)) return shells;
       const text = COMMAND_RE.exec(raw)?.[1] ?? raw;
       const peer = parsePeerMessage(text);
-      if (peer) return [{ kind: "peer_in", from: peer.from, text: peer.body }];
+      if (peer) return [...shells, { kind: "peer_in", from: peer.from, text: peer.body }];
       const images = Array.isArray(content) ? blockImages(content) : [];
-      return text || images.length ? [{ kind: "user_text", text, ...(images.length ? { images } : {}) }] : [];
+      const agentShell = parseAgentShellPrompt(text);
+      const shown = agentShell === null ? text : `!${agentShell}`;
+      return shown || images.length ? [...shells, { kind: "user_text", text: shown, ...(images.length ? { images } : {}) }] : shells;
     }
     case "system":
       return msg.subtype === "compact_boundary" ? [{ kind: "compacted" }] : [];

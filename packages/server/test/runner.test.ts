@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Agent, AgentStatus, Project } from "@squad/shared";
+import { agentShellPrompt, bashContextBlock, type Agent, type AgentEvent, type AgentStatus, type Project } from "@squad/shared";
+import type { ShellHandlers } from "../src/shellCommand.ts";
 import { AgentRunner } from "../src/runner.ts";
 import { fakeFactory, tick, type FakeQuery } from "./fakeQuery.ts";
 
@@ -252,5 +253,93 @@ describe("AgentRunner usage", () => {
     expect(runner.usageSource).toBeNull();
     await runner.launch();
     expect(runner.usageSource).not.toBeNull();
+  });
+});
+
+describe("AgentRunner shell commands", () => {
+  let shells: { command: string; cwd: string; h: ShellHandlers; killed: boolean }[];
+  let events: AgentEvent[];
+  beforeEach(() => {
+    shells = [];
+    events = [];
+    runner = new AgentRunner(project, agent, [agent], {
+      queryFactory: f.factory, mcpServer: { type: "sdk", name: "squad" } as any, kitPluginPath: "/kit", shareDir: "/share",
+      runShell: (command, cwd, h) => {
+        const s = { command, cwd, h, killed: false };
+        shells.push(s);
+        return { kill: () => { s.killed = true; } };
+      },
+    });
+    runner.on("event", (e: AgentEvent) => events.push(e));
+  });
+  const finish = (i: number, out: string, code = 0) => { shells[i].h.onChunk("stdout", out); shells[i].h.onEnd(code, null); };
+  const block = (command: string, stdout: string) => bashContextBlock({ command, stdout, stderr: "", code: 0, signal: null });
+
+  it("runs $ cmd in the folder without starting a session, streaming its events", async () => {
+    await runner.send("$ ls");
+    expect(f.queries).toHaveLength(0);
+    expect(shells[0]).toMatchObject({ command: "ls", cwd: folder });
+    finish(0, "a\n");
+    const id = (events[0] as { id: string }).id;
+    expect(events).toEqual([
+      { kind: "shell", id, command: "ls", chunks: [], running: true, code: null, signal: null },
+      { kind: "shell_output", id, stream: "stdout", text: "a\n" },
+      { kind: "shell_end", id, code: 0, signal: null },
+    ]);
+  });
+
+  it("hands a finished $ cmd to the squadmate with the user's next message, once", async () => {
+    await runner.send("$ ls");
+    finish(0, "a\n");
+    await runner.send("hi");
+    await init();
+    expect(q().inputs.at(-1).message.content).toBe(`${block("ls", "a\n")}\n\nhi`);
+    expect(events.at(-1)).toEqual({ kind: "user_text", text: "hi" });
+    await runner.send("again");
+    await tick();
+    expect(q().inputs.at(-1).message.content).toBe("again");
+  });
+
+  it("holds a still-running command until it finishes", async () => {
+    await runner.send("$ make");
+    await runner.send("hi");
+    await init();
+    expect(q().inputs.at(-1).message.content).toBe("hi");
+    finish(0, "done");
+    await runner.send("next");
+    await tick();
+    expect(q().inputs.at(-1).message.content).toBe(`${block("make", "done")}\n\nnext`);
+  });
+
+  it("asks the squadmate to run !cmd, showing what the user typed", async () => {
+    await runner.send("!ls");
+    await init();
+    expect(q().inputs.at(-1).message.content).toBe(agentShellPrompt("ls"));
+    expect(events.at(-1)).toEqual({ kind: "user_text", text: "!ls" });
+  });
+
+  it("kills a shell by id, and all of them", async () => {
+    await runner.send("$ a");
+    await runner.send("$ b");
+    runner.killShell((events[0] as { id: string }).id);
+    expect(shells.map((s) => s.killed)).toEqual([true, false]);
+    runner.killAllShells();
+    expect(shells[1].killed).toBe(true);
+  });
+
+  it("takeShellContext returns and clears; discardShellContext drops", async () => {
+    await runner.send("$ ls");
+    finish(0, "a");
+    expect(runner.takeShellContext()).toEqual([block("ls", "a")]);
+    expect(runner.takeShellContext()).toEqual([]);
+    await runner.send("$ pwd");
+    finish(1, "/x");
+    runner.discardShellContext();
+    expect(runner.takeShellContext()).toEqual([]);
+  });
+
+  it("puts shell context given at launch into the launch prompt", async () => {
+    await runner.launch({ shellContext: [block("ls", "a")] });
+    expect(q().options.systemPrompt.append).toContain(block("ls", "a"));
   });
 });

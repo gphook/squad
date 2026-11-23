@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fx from "./fixtures/sdk-messages.json" with { type: "json" };
+import { agentShellPrompt, bashContextBlock } from "@squad/shared";
 import { normalise, parsePeerMessage, summariseTool } from "../src/normalise.ts";
 
 const n = (m: unknown) => normalise(m as never);
@@ -82,5 +83,27 @@ describe("summariseTool", () => {
     expect(summariseTool("Edit", { file_path: "scenes/hud.tscn" })).toBe("scenes/hud.tscn");
     expect(summariseTool("Glob", { pattern: "*" })).toBe("Glob");
     expect(summariseTool("Bash", { command: "x".repeat(200) })).toHaveLength(80);
+  });
+});
+
+describe("normalise shell commands", () => {
+  const user = (text: string) => ({ type: "user", message: { role: "user", content: text } });
+  it("turns delivered $ cmd output back into shell blocks, then the message", () => {
+    const block = bashContextBlock({ command: "ls", stdout: "a", stderr: "e", code: 0, signal: null });
+    const ev = n(user(`${block}\n\nhi`));
+    expect(ev).toEqual([
+      { kind: "shell", id: expect.any(String), command: "ls", chunks: [{ stream: "stdout", text: "a" }, { stream: "stderr", text: "e" }], running: false, code: null, signal: null },
+      { kind: "user_text", text: "hi" },
+    ]);
+  });
+  it("leaves out empty streams and gives each block its own id", () => {
+    const block = bashContextBlock({ command: "true", stdout: "", stderr: "", code: 0, signal: null });
+    const [a] = n(user(block)), [b] = n(user(block));
+    expect(a).toMatchObject({ kind: "shell", chunks: [] });
+    expect((a as { id: string }).id).not.toBe((b as { id: string }).id);
+    expect(n(user(block))).toHaveLength(1);
+  });
+  it("shows an !cmd request as the user typed it", () => {
+    expect(n(user(agentShellPrompt("ls")))).toEqual([{ kind: "user_text", text: "!ls" }]);
   });
 });

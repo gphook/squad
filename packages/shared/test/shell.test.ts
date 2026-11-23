@@ -55,9 +55,15 @@ describe("bashContextBlock", () => {
     expect(block).toContain(`<bash-stdout>[… 5 earlier characters]\n${"x".repeat(30_000)}</bash-stdout>`);
   });
 
+  it("counts characters dropped while buffering", () => {
+    const block = bashContextBlock(result({ stdout: "x".repeat(30_000), omitted: { stdout: 7, stderr: 0 } }));
+    expect(block).toContain("<bash-stdout>[… 7 earlier characters]\n");
+  });
+
   it("keepTail leaves short text alone", () => {
     expect(keepTail("abc", 5)).toBe("abc");
     expect(keepTail("abcdef", 2)).toBe("[… 4 earlier characters]\nef");
+    expect(keepTail("ab", 5, 3)).toBe("[… 3 earlier characters]\nab");
   });
 });
 

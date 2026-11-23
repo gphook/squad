@@ -1,6 +1,6 @@
 import { firstLine, type Agent, type Project } from "@squad/shared";
 
-export function buildLaunchPrompt(project: Project, agent: Agent, team: Agent[], shareDir: string): string {
+export function buildLaunchPrompt(project: Project, agent: Agent, team: Agent[], shareDir: string, shellContext: string[] = []): string {
   const parts: string[] = [];
   parts.push(`# You are ${agent.name}\n\nYou are one agent in the "${project.name}" squad, run by Squad. Your repo is ${agent.folder}.\n\n${agent.role.trim()}`);
 
@@ -20,5 +20,8 @@ export function buildLaunchPrompt(project: Project, agent: Agent, team: Agent[],
       `- Use squad_show to put an image or file in front of the user.\n` +
       `- Do work outside your own repo by asking its owner.`,
   );
+  if (shellContext.length) {
+    parts.push(`## Shell output from the user\n\nThe user ran these commands in your folder before you started:\n\n${shellContext.join("\n")}`);
+  }
   return parts.join("\n\n");
 }

@@ -139,6 +139,7 @@ export class Supervisor extends EventEmitter {
       case "compact": return r.compact();
       case "clear": {
         await r.stop();
+        r.discardShellContext();
         const agent = this.store.getAgent(agentId)!;
         this.store.setSessionId(agentId, null);
         for (const s of this.store.sharesFrom(agent.projectId, agent.name)) await this.removeShare(s.id);
@@ -148,8 +149,13 @@ export class Supervisor extends EventEmitter {
     }
   }
 
+  killShell(agentId: string, id: string): void {
+    this.runners.get(agentId)?.killShell(id);
+  }
+
   /** Forget an agent's runner (after it is deleted). */
   async forget(agentId: string): Promise<void> {
+    this.runners.get(agentId)?.killAllShells();
     await this.runners.get(agentId)?.stop();
     this.runners.delete(agentId);
   }
@@ -167,7 +173,8 @@ export class Supervisor extends EventEmitter {
     if (!target) return `No agent named ${targetName} in this project`;
     const r = this.runner(target.id);
     if (r.running) return `${targetName} is already running (${r.state.status})`;
-    await r.launch();
+    // Output from the user's `$ cmd`s would otherwise wait for their next message.
+    await r.launch({ shellContext: r.takeShellContext() });
     const status = await r.waitUntilReady(SUMMON_TIMEOUT_MS);
     if (status === "error") return `${targetName} failed to start: ${r.state.error ?? "unknown error"}`;
     return `${targetName} is running; message it with SendMessage to "${targetName}"`;
