@@ -13,6 +13,7 @@ import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
 import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
 import { runShell } from "./shellCommand.ts";
+import { userShell } from "./shells/adapters.ts";
 
 export type QueryFactory = (args: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
 
@@ -277,7 +278,8 @@ export class AgentRunner extends EventEmitter {
       pending = [];
     };
     let ended = false;
-    const start: ShellEvent = { kind: "shell", id, command, chunks: [], running: true, code: null, signal: null };
+    const shell = userShell();
+    const start: ShellEvent = { kind: "shell", id, command, chunks: [], running: true, code: null, signal: null, shellName: shell.name };
     this.snapshots.set(id, start);
     this.emit("event", start);
     const handle = (this.deps.runShell ?? runShell)(command, this.agent.folder, {
@@ -304,7 +306,7 @@ export class AgentRunner extends EventEmitter {
         }
         this.emit("event", { kind: "shell_end", id, code, signal });
       },
-    });
+    }, shell);
     if (!ended) this.shells.set(id, handle);
     return id;
   }

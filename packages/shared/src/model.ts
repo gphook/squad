@@ -65,7 +65,11 @@ export type AgentEvent =
   | { kind: "compacted" }
   | { kind: "turn_end"; ok: boolean; error?: string }
   /** A `$ cmd` Squad ran; live ones grow through shell_output and shell_end with the same id. */
-  | { kind: "shell"; id: string; command: string; chunks: ShellChunk[]; running: boolean; code: number | null; signal: string | null }
+  | {
+      kind: "shell"; id: string; command: string; chunks: ShellChunk[]; running: boolean; code: number | null; signal: string | null;
+      /** The shell that ran it, e.g. "zsh"; absent for blocks read back from history. */
+      shellName?: string;
+    }
   | { kind: "shell_output"; id: string; stream: ShellChunk["stream"]; text: string }
   | { kind: "shell_end"; id: string; code: number | null; signal: string | null };
 
