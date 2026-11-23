@@ -29,14 +29,13 @@ export interface AuthSource {
   refresh(): Promise<AuthStatus>;
 }
 
-const addressKey = (projectId: string, address: string) => `${projectId}\0${address}`;
+/** A Claude Code cross-session address, e.g. `uds:/run/user/1000/cc-socks/574797.sock`, and the pid in it. */
+const SOCKET_PID_RE = /^uds:.*\/(\d+)\.sock$/;
 
 export class Supervisor extends EventEmitter {
   private auth: AuthSource | null = null;
   private runners = new Map<string, AgentRunner>();
   private recentOutbound: { to: string; from: string; at: number }[] = [];
-  /** Squadmates' session addresses (learned from the messages they send) to their names, per project. */
-  private addresses = new Map<string, string>();
 
   constructor(
     private store: Store,
@@ -88,7 +87,6 @@ export class Supervisor extends EventEmitter {
     r.on("event", (ev: AgentEvent) => this.onEvent(pid, agentId, nameOf, ev));
     r.on("result", (res: TurnResult) => this.recordUsage(pid, agentId, res));
     r.on("rateLimit", (info: unknown) => this.emit("rateLimit", info));
-    r.on("peerAddress", (p: { name: string; address: string }) => this.addresses.set(addressKey(pid, p.address), p.name));
     this.runners.set(agentId, r);
     return r;
   }
@@ -120,7 +118,7 @@ export class Supervisor extends EventEmitter {
   /** `nameOf` is a lookup, called only for peer messages so streamed tokens don't each query the store. */
   private onEvent(projectId: string, agentId: string, nameOf: () => string, raw: AgentEvent): void {
     const mayName = raw.kind === "peer_out" || (raw.kind === "tool_use" && raw.name === "SendMessage");
-    const ev = mayName ? renamePeers([raw], this.projectAddresses(projectId))[0] : raw;
+    const ev = mayName ? renamePeers([raw], (address) => this.squadmateAt(projectId, address))[0] : raw;
     this.emit("event", projectId, agentId, ev);
     if (ev.kind !== "peer_out" && ev.kind !== "peer_in") return;
     const agentName = nameOf();
@@ -138,12 +136,11 @@ export class Supervisor extends EventEmitter {
     }
   }
 
-  /** This project's squadmate addresses, for renamePeers. */
-  private projectAddresses(projectId: string): Map<string, string> {
-    const prefix = addressKey(projectId, "");
-    const out = new Map<string, string>();
-    for (const [k, name] of this.addresses) if (k.startsWith(prefix)) out.set(k.slice(prefix.length), name);
-    return out;
+  /** The squadmate whose Claude Code session owns this cross-session address (its socket is named after its pid). */
+  private squadmateAt(projectId: string, address: string): string | undefined {
+    const pid = Number(SOCKET_PID_RE.exec(address)?.[1]);
+    if (!pid) return undefined;
+    return this.store.listAgents(projectId).find((a) => this.runners.get(a.id)?.sessionPid === pid)?.name;
   }
 
   private logMessage(m: Omit<LoggedMessage, "id">): void {
