@@ -7,6 +7,7 @@ import { buildApp } from "./app.ts";
 import { squadHome } from "./paths.ts";
 import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
+import { AuthTracker } from "./auth.ts";
 import { Store } from "./store.ts";
 import { Supervisor } from "./supervisor.ts";
 
@@ -20,8 +21,11 @@ const supervisor = new Supervisor(store, query, join(repoRoot, "kit"));
 const webDist = join(repoRoot, "packages/web/dist");
 const key = process.env.SQUAD_KEY ?? randomBytes(32).toString("hex");
 const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });
+const auth = new AuthTracker();
+supervisor.setAuth(auth);
+void auth.refresh();
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
-const app = buildApp({ store, supervisor, key, plan, models, webDist: existsSync(webDist) ? webDist : undefined });
+const app = buildApp({ store, supervisor, key, plan, models, auth, webDist: existsSync(webDist) ? webDist : undefined });
 
 await app.listen({ port, host: "127.0.0.1" });
 console.log(`Squad: http://localhost:${port}/?key=${key}`);

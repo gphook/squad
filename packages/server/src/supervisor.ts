@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import {
   errorMessage, firstLine, isExternalUrl, shareFileName,
-  type AgentAction, type AgentEvent, type AgentState, type Approval, type ApprovalDecision, type LoggedMessage, type SharedFile,
+  type AgentAction, type AgentEvent, type AgentState, type AuthStatus, type Approval, type ApprovalDecision, type LoggedMessage, type SharedFile,
 } from "@squad/shared";
 import { shareDir } from "./paths.ts";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
@@ -23,7 +23,13 @@ const PEER_MATCH_WINDOW_MS = 60_000;
  * "message"(p, LoggedMessage) "share"(p, SharedFile) "shareRemoved"(p, id)
  * "usage"(p) after a turn's usage is stored, "turnEnd"() after any turn, "rateLimit"(rate_limit_info).
  */
+export interface AuthSource {
+  current: AuthStatus | null;
+  refresh(): Promise<AuthStatus>;
+}
+
 export class Supervisor extends EventEmitter {
+  private auth: AuthSource | null = null;
   private runners = new Map<string, AgentRunner>();
   private recentOutbound: { to: string; from: string; at: number }[] = [];
 
@@ -33,6 +39,11 @@ export class Supervisor extends EventEmitter {
     private kitPluginPath: string,
   ) {
     super();
+  }
+
+  /** Where the Claude account is read from; launches are refused while it says signed out. */
+  setAuth(auth: AuthSource): void {
+    this.auth = auth;
   }
 
   /** The runner for an agent, created on first use and refreshed with current store data. */
@@ -53,8 +64,13 @@ export class Supervisor extends EventEmitter {
       mcpServer: createSquadTools(this, pid, nameOf),
       kitPluginPath: this.kitPluginPath,
       shareDir: shareDir(pid),
+      signedOut: () => this.auth?.current?.state === "signedOut",
     });
-    r.on("status", (s: AgentState) => this.emit("status", pid, s));
+    r.on("status", (s: AgentState) => {
+      this.emit("status", pid, s);
+      // A failed start may mean the sign-in expired; check so the top bar says so.
+      if (s.status === "error") void this.auth?.refresh();
+    });
     r.on("approval", (a: Approval) => this.emit("approval", pid, a));
     r.on("approvalResolved", (id: string) => this.emit("approvalResolved", pid, id));
     r.on("session", (sid: string) => this.store.setSessionId(agentId, sid));

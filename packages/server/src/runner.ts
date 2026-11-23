@@ -29,6 +29,8 @@ export interface RunnerDeps {
   mcpServer: McpServerConfig;
   kitPluginPath: string;
   shareDir: string;
+  /** True when nobody is signed in to Claude, so a launch would only fail. */
+  signedOut?: () => boolean;
   /** Runs `$ cmd`; tests swap in a fake. */
   runShell?: typeof runShell;
 }
@@ -44,6 +46,7 @@ type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
 /** How often a running `$ cmd`'s output is sent to the page. */
 const SHELL_FLUSH_MS = 50;
 
+export const NOT_SIGNED_IN = "Not signed in to Claude: click the account in the top bar";
 const DENY_MESSAGE = "Denied by user in Squad";
 /** Squad's own tools only touch Squad state and the share folder, so they never need approval. */
 export const SQUAD_TOOLS = SQUAD_TOOL_NAMES.map((t) => `${SQUAD_TOOL_PREFIX}${t}`);
@@ -132,6 +135,10 @@ export class AgentRunner extends EventEmitter {
     } catch {}
     if (!isDir) {
       this.setStatus("error", `Folder not found: ${this.agent.folder}`);
+      return;
+    }
+    if (this.deps.signedOut?.()) {
+      this.setStatus("error", NOT_SIGNED_IN);
       return;
     }
     this.stopping = false;
