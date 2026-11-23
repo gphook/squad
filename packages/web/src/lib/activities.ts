@@ -33,3 +33,17 @@ export function keepNewer<T extends { id?: string }>(edited: T[], idsAtOpen: str
   const known = new Set(idsAtOpen);
   return [...edited, ...live.filter((a) => !known.has(a.id))];
 }
+
+/** Reviewer names as one line, in the order given; "nobody" when there are none. */
+export function reviewerLabel(ids: string[], names: Map<string, string>): string {
+  const known = ids.flatMap((id) => (names.has(id) ? [names.get(id)!] : []));
+  return known.length ? known.join(", ") : "nobody";
+}
+
+/** Above this many options, PickList shows a filter box. */
+export const PICKLIST_FILTER_THRESHOLD = 6;
+
+export function filterOptions<T extends { name: string }>(options: T[], query: string): T[] {
+  const q = query.trim().toLowerCase();
+  return q ? options.filter((o) => o.name.toLowerCase().includes(q)) : options;
+}
