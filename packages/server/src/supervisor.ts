@@ -167,8 +167,13 @@ export class Supervisor extends EventEmitter {
 
   teamSummary(projectId: string, callerName: string): string {
     const states = new Map(this.states(projectId).map((s) => [s.agentId, s.status]));
+    const activities = this.store.getProject(projectId)?.activities ?? [];
     return this.store.listAgents(projectId)
-      .map((a) => `- ${a.name}${a.name === callerName ? " (you)" : ""}: ${firstLine(a.role)} — ${states.get(a.id)}`)
+      .map((a) => {
+        const owns = activities.filter((x) => x.ownerId === a.id).map((x) => x.name);
+        const ownsText = owns.length ? ` — owns: ${owns.join(", ")}` : "";
+        return `- ${a.name}${a.name === callerName ? " (you)" : ""}: ${firstLine(a.role)}${ownsText} — ${states.get(a.id)}`;
+      })
       .join("\n");
   }
 
