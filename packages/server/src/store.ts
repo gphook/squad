@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   FIVE_HOUR_MS, SEVEN_DAY_MS, defaultLayout,
-  type Activity, type ActivityInput, type Agent, type Layout, type LoggedMessage, type PermissionMode, type Project, type SharedFile, type UsageReport,
+  type Activity, type ActivityInput, type Agent, type EffortLevel, type Layout, type LoggedMessage, type PermissionMode, type Project, type SharedFile, type UsageReport,
   type UsageTurnRow,
 } from "@squad/shared";
 
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, role TEXT NOT NULL, folder TEXT NOT NULL, model TEXT, session_id TEXT,
+  name TEXT NOT NULL, role TEXT NOT NULL, folder TEXT NOT NULL, model TEXT, session_id TEXT, effort TEXT,
   UNIQUE(project_id, name)
 );
 CREATE TABLE IF NOT EXISTS activities (
@@ -60,7 +60,8 @@ const toActivity = (r: Row): Activity => ({
 const nameKey = (name: string) => name.trim().toLowerCase();
 const toAgent = (r: Row): Agent => ({
   id: r.id as string, projectId: r.project_id as string, name: r.name as string, role: r.role as string,
-  folder: r.folder as string, model: (r.model as string | null) ?? null, sessionId: (r.session_id as string | null) ?? null,
+  folder: r.folder as string, model: (r.model as string | null) ?? null,
+  effort: (r.effort as EffortLevel | null) ?? null, sessionId: (r.session_id as string | null) ?? null,
 });
 const toMessage = (r: Row): LoggedMessage => ({
   id: r.id as string, projectId: r.project_id as string, from: r.sender as string, to: r.recipient as string,
@@ -88,6 +89,13 @@ export class Store {
     mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new DatabaseSync(dbPath);
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Brings a database made by an older Squad up to the current schema, keeping its rows. */
+  private migrate(): void {
+    const columns = (this.db.prepare("PRAGMA table_info(agents)").all() as Row[]).map((c) => c.name);
+    if (!columns.includes("effort")) this.db.exec("ALTER TABLE agents ADD COLUMN effort TEXT");
   }
 
   listProjects(): Project[] {
@@ -211,13 +219,15 @@ export class Store {
     return r ? toAgent(r) : null;
   }
 
-  saveAgent(a: { id?: string; projectId: string; name: string; role: string; folder: string; model: string | null }): Agent {
+  saveAgent(a: {
+    id?: string; projectId: string; name: string; role: string; folder: string; model: string | null; effort?: EffortLevel | null;
+  }): Agent {
     const clash = this.getAgentByName(a.projectId, a.name);
     if (clash && clash.id !== a.id) throw new StoreError("Agent name already used in this project");
     const existing = a.id ? this.getAgent(a.id) : null;
     if (existing) {
-      this.db.prepare("UPDATE agents SET name = ?, role = ?, folder = ?, model = ? WHERE id = ?")
-        .run(a.name, a.role, a.folder, a.model, existing.id);
+      this.db.prepare("UPDATE agents SET name = ?, role = ?, folder = ?, model = ?, effort = ? WHERE id = ?")
+        .run(a.name, a.role, a.folder, a.model, a.effort ?? null, existing.id);
       if (existing.name !== a.name) {
         this.db.prepare("UPDATE shares SET from_agent = ? WHERE project_id = ? AND from_agent = ?")
           .run(a.name, existing.projectId, existing.name);
@@ -225,8 +235,8 @@ export class Store {
       return this.getAgent(existing.id)!;
     }
     const id = a.id ?? randomUUID();
-    this.db.prepare("INSERT INTO agents (id, project_id, name, role, folder, model) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(id, a.projectId, a.name, a.role, a.folder, a.model);
+    this.db.prepare("INSERT INTO agents (id, project_id, name, role, folder, model, effort) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(id, a.projectId, a.name, a.role, a.folder, a.model, a.effort ?? null);
     return this.getAgent(id)!;
   }
 

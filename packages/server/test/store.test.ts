@@ -245,3 +245,28 @@ describe("Store activities", () => {
       .toEqual([["Mine", null, [b.id]], ["Reviewed", b.id, []], ["Other", b.id, []]]);
   });
 });
+
+describe("Store effort", () => {
+  it("round-trips a squadmate's effort, defaulting to null", () => {
+    const p = newProject();
+    const a = store.saveAgent({ projectId: p.id, name: "a", role: "", folder: "/tmp", model: "haiku", effort: "low" });
+    expect(store.getAgent(a.id)).toMatchObject({ model: "haiku", effort: "low" });
+    expect(newAgent(p.id, "b").effort).toBeNull();
+  });
+
+  it("adds the effort column to an older database and keeps its squadmates", async () => {
+    const { DatabaseSync } = await import("node:sqlite");
+    const path = join(mkdtempSync(join(tmpdir(), "squad-old-")), "squad.db");
+    const old = new DatabaseSync(path);
+    old.exec(`CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, rules TEXT NOT NULL, permission_mode TEXT NOT NULL, layout TEXT NOT NULL);
+      CREATE TABLE agents (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        name TEXT NOT NULL, role TEXT NOT NULL, folder TEXT NOT NULL, model TEXT, session_id TEXT, UNIQUE(project_id, name));
+      INSERT INTO projects VALUES ('p', 'Starfade', '', 'default', '{"mode":"focussed","slots":{},"main":null}');
+      INSERT INTO agents VALUES ('a', 'p', 'starfade', 'code', '/tmp', NULL, 's1');`);
+    old.close();
+    const reopened = new Store(path);
+    expect(reopened.listAgents("p")).toEqual([
+      { id: "a", projectId: "p", name: "starfade", role: "code", folder: "/tmp", model: null, effort: null, sessionId: "s1" },
+    ]);
+  });
+});

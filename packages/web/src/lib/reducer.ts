@@ -1,7 +1,7 @@
 import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
-  type PlanUsage, type ServerMsg, type SharedFile, appendShellOutput,
+  type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, appendShellOutput,
 } from "@squad/shared";
 
 export interface UiState {
@@ -15,19 +15,21 @@ export interface UiState {
   shares: SharedFile[];
   /** Account-wide plan limits: kept when the project changes. */
   plan: PlanUsage | null;
+  /** The account's models: undefined until asked for, null when they couldn't be loaded. */
+  models: ModelOption[] | null | undefined;
   error: string | null;
 }
 
 export function emptyState(): UiState {
   return {
     projects: [], projectId: null, agents: [], states: {}, events: {},
-    approvals: [], messages: [], shares: [], plan: null, error: null,
+    approvals: [], messages: [], shares: [], plan: null, models: undefined, error: null,
   };
 }
 
 /** Fresh state for another project, keeping what isn't tied to a project. */
 export function forProject(s: UiState, projectId: string): UiState {
-  return { ...emptyState(), projects: s.projects, plan: s.plan, projectId };
+  return { ...emptyState(), projects: s.projects, plan: s.plan, models: s.models, projectId };
 }
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
@@ -100,6 +102,8 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, shares: s.shares.filter((x) => x.id !== m.shareId) };
     case "layout":
       return withLayout(s, m.projectId, m.layout);
+    case "models":
+      return { ...s, models: m.models };
     case "usage.plan":
       return { ...s, plan: m.plan };
     case "error":
