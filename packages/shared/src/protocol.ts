@@ -4,15 +4,14 @@ import type {
   Agent, AuthStatus, ModelOption, AgentEvent, AgentState, Approval, Layout, LoggedMessage, Project, SharedFile,
 } from "./model.ts";
 import {
-  AGENT_ACTIONS, AGENT_NAME_RE, EFFORT_LEVELS, APPROVAL_DECISIONS, LAYOUT_MODES, PERMISSION_MODES, SLOT_ORDER,
+  AGENT_ACTIONS, AGENT_NAME_RE, EFFORT_LEVELS, APPROVAL_DECISIONS, PERMISSION_MODES, SLOT_ORDER,
 } from "./model.ts";
 
 const id = z.string().min(1);
 const slotKey = z.enum(SLOT_ORDER);
 const layout = z.object({
-  mode: z.enum(LAYOUT_MODES),
   slots: z.partialRecord(slotKey, z.string()),
-  main: z.string().nullable(),
+  maximised: z.string().nullable(),
 });
 
 const activityInput = z.object({

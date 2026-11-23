@@ -19,10 +19,21 @@ describe("Store", () => {
     const p = newProject();
     expect(store.getProject(p.id)).toEqual({
       id: p.id, name: "Starfade", rules: "be nice", permissionMode: "default",
-      layout: { mode: "focussed", slots: {}, main: null }, activities: [],
+      layout: { slots: {}, maximised: null }, activities: [],
     });
-    store.saveLayout(p.id, { mode: "tiled", slots: { "1": "a" }, main: "a" });
-    expect(store.getProject(p.id)!.layout).toEqual({ mode: "tiled", slots: { "1": "a" }, main: "a" });
+    store.saveLayout(p.id, { slots: { "1": "a" }, maximised: "a" });
+    expect(store.getProject(p.id)!.layout).toEqual({ slots: { "1": "a" }, maximised: "a" });
+  });
+
+  it("reads a layout saved by an older Squad in the new shape", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "squad-layout-")), "squad.db");
+    const first = new Store(path);
+    const p = first.saveProject({ name: "Old", rules: "", permissionMode: "default" });
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(path);
+    db.prepare("UPDATE projects SET layout = ? WHERE id = ?").run(JSON.stringify({ mode: "focussed", slots: { "1": "a" }, main: "a" }), p.id);
+    db.close();
+    expect(new Store(path).getProject(p.id)!.layout).toEqual({ slots: { "1": "a" }, maximised: "a" });
   });
 
   it("rejects a duplicate agent name within a project", () => {

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import {
-  FIVE_HOUR_MS, SEVEN_DAY_MS, defaultLayout,
+  FIVE_HOUR_MS, SEVEN_DAY_MS, defaultLayout, normaliseLayout,
   type Activity, type ActivityInput, type Agent, type EffortLevel, type Layout, type LoggedMessage, type PermissionMode, type Project, type SharedFile, type UsageReport,
   type UsageTurnRow,
 } from "@squad/shared";
@@ -51,8 +51,15 @@ type Row = Record<string, unknown>;
 
 const toProject = (r: Row, activities: Activity[]): Project => ({
   id: r.id as string, name: r.name as string, rules: r.rules as string,
-  permissionMode: r.permission_mode as PermissionMode, layout: JSON.parse(r.layout as string), activities,
+  permissionMode: r.permission_mode as PermissionMode, layout: readLayout(r.layout as string), activities,
 });
+const readLayout = (json: string): Layout => {
+  try {
+    return normaliseLayout(JSON.parse(json));
+  } catch {
+    return defaultLayout();
+  }
+};
 const toActivity = (r: Row): Activity => ({
   id: r.id as string, name: r.name as string, ownerId: (r.owner_id as string | null) ?? null,
   reviewerIds: JSON.parse(r.reviewer_ids as string), description: r.description as string,

@@ -7,7 +7,7 @@ import type { ShellHandlers } from "../src/shellCommand.ts";
 import { AgentRunner } from "../src/runner.ts";
 import { fakeFactory, tick, type FakeQuery } from "./fakeQuery.ts";
 
-const project: Project = { id: "p", name: "P", rules: "", permissionMode: "default", layout: { mode: "focussed", slots: {}, main: null }, activities: [] };
+const project: Project = { id: "p", name: "P", rules: "", permissionMode: "default", layout: { slots: {}, maximised: null }, activities: [] };
 let folder: string;
 let agent: Agent;
 let f: ReturnType<typeof fakeFactory>;

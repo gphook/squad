@@ -52,8 +52,12 @@ describe("SLOT_ORDER", () => {
 describe("layout.save", () => {
   it("accepts a layout with only some slots filled", () => {
     const m = parseClientMsg(JSON.stringify({
-      t: "layout.save", projectId: "p", layout: { mode: "tiled", slots: { "1": "a", "0": "b" }, main: null },
+      t: "layout.save", projectId: "p", layout: { slots: { "1": "a", "0": "b" }, maximised: "b" },
     }));
     expect(m).not.toHaveProperty("error");
+  });
+  it("rejects the old mode-based layout", () => {
+    const m = parseClientMsg(JSON.stringify({ t: "layout.save", projectId: "p", layout: { mode: "tiled", slots: {}, main: null } }));
+    expect(m).toHaveProperty("error");
   });
 });
