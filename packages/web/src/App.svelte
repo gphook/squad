@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Agent, Project } from "@squad/shared";
   import { layout, saveLayout, ui } from "./lib/state.svelte.ts";
-  import { openTile, showSquadmate } from "./lib/layout.ts";
+  import { openTile, showSquadmate, slotOf } from "./lib/layout.ts";
   import TopBar from "./components/TopBar.svelte";
   import Sidebar from "./components/Sidebar.svelte";
   import Workspace from "./components/Workspace.svelte";
@@ -17,7 +17,13 @@
   const show = (id: string) => {
     ui.view = "chat";
     ui.focus = id;
-    saveLayout(showSquadmate(layout(), id));
+    const next = showSquadmate(layout(), id);
+    if (!slotOf(next, id)) {
+      const name = ui.s.agents.find((a) => a.id === id)?.name ?? "that squadmate";
+      ui.s = { ...ui.s, error: `All 10 tiles are open: close one to open ${name}.` };
+      return;
+    }
+    saveLayout(next);
   };
 </script>
 

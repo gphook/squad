@@ -43,6 +43,10 @@ describe("reduce", () => {
     expect(s.projects[0].layout.maximised).toBe("a");
     expect(currentLayout(s).maximised).toBe("a");
   });
+  it("reads the layout without squadmates that no longer exist", () => {
+    const s = reduce(subscribed(), { t: "layout", projectId: "p", layout: { slots: { "1": "a", "2": "gone" }, maximised: "gone" } });
+    expect(currentLayout(s)).toEqual({ slots: { "1": "a" }, maximised: null });
+  });
   it("gives a default layout when no project is selected", () => {
     expect(currentLayout(emptyState())).toEqual({ slots: {}, maximised: null });
   });

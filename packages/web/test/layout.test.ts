@@ -58,6 +58,11 @@ describe("layout", () => {
     expect(showSquadmate(toggleMaximise(withTiles("a"), "a"), "z")).toEqual({ slots: { "1": "a", "2": "z" }, maximised: "z" });
     expect(showSquadmate(withTiles("a"), "a")).toEqual(withTiles("a"));
   });
+  it("never maximises a squadmate that has no tile because all 10 slots are taken", () => {
+    const full = toggleMaximise(withTiles(..."abcdefghij".split("")), "a");
+    expect(showSquadmate(full, "k")).toEqual(full);
+    expect(toggleMaximise(full, "k")).toEqual(full);
+  });
   it("closing the maximised tile restores the grid", () => {
     const l = closeTile(toggleMaximise(withTiles("a", "b"), "a"), "a");
     expect(l).toEqual({ slots: { "2": "b" }, maximised: null });

@@ -38,7 +38,8 @@ export function moveTile(l: Layout, agentId: string, slot: SlotKey): Layout {
 /** Maximises a squadmate's tile (opening it if needed), or restores the grid when it's already maximised. */
 export function toggleMaximise(l: Layout, agentId: string): Layout {
   if (l.maximised === agentId) return { ...l, maximised: null };
-  return { ...openTile(l, agentId), maximised: agentId };
+  const opened = openTile(l, agentId);
+  return slotOf(opened, agentId) ? { ...opened, maximised: agentId } : l; // all 10 slots taken: no tile to maximise
 }
 
 /** Alt+N: with a tile maximised, tile N takes its place; either way the cursor goes to tile N. */
@@ -52,6 +53,7 @@ export function pressAlt(l: Layout, slot: SlotKey): { layout: Layout; focus: str
 /** A sidebar click: open the squadmate's tile, and while a tile is maximised, swap this one in. */
 export function showSquadmate(l: Layout, agentId: string): Layout {
   const opened = openTile(l, agentId);
+  if (!slotOf(opened, agentId)) return l; // all 10 slots taken
   return l.maximised && l.maximised !== agentId ? { ...opened, maximised: agentId } : opened;
 }
 

@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import EditableText from "../src/components/EditableText.svelte";
 import PickList from "../src/components/PickList.svelte";
+import PromptBox from "../src/components/PromptBox.svelte";
 import { reactive } from "./reactive.svelte.ts";
 
 let cleanup: (() => void)[] = [];
@@ -146,5 +147,21 @@ describe("PickList", () => {
     document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     flushSync();
     expect(t.target.querySelector("input[type=checkbox]")).toBeNull();
+  });
+});
+
+describe("PromptBox", () => {
+  it("keeps an unsent message when its tile is remounted (maximise, restore, swap)", () => {
+    const first = render(PromptBox as never, { agentId: "keep-me", name: "alpha", focused: false });
+    const box = first.querySelector("textarea")!;
+    box.value = "half a thought";
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    for (const c of cleanup) c();
+    cleanup = [];
+    const second = render(PromptBox as never, { agentId: "keep-me", name: "alpha", focused: false });
+    expect(second.querySelector("textarea")!.value).toBe("half a thought");
+    const other = render(PromptBox as never, { agentId: "someone-else", name: "bravo", focused: false });
+    expect(other.querySelector("textarea")!.value).toBe("");
   });
 });

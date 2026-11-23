@@ -11,7 +11,11 @@
   const tiles = $derived(openAgents(layout));
   const big = $derived(layout.maximised);
   const side = $derived(tiles.filter(([, id]) => id !== big));
-  const maximise = (id: string) => saveLayout(toggleMaximise(layout, id));
+  // The cursor follows the tile you maximise (a header double-click doesn't move focus by itself).
+  const maximise = (id: string) => {
+    saveLayout(toggleMaximise(layout, id));
+    ui.focus = id;
+  };
 
   function onkeydown(e: KeyboardEvent) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
@@ -51,10 +55,9 @@
 
 {#snippet tile(slot: SlotKey, id: string)}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tile" draggable="true" ondragstart={(e) => dragTile(e, id)} ondragover={accepts} ondrop={(e) => dropOnTile(e, slot)}
-    onfocusin={() => (ui.focus = id)}>
+  <div class="tile" ondragover={accepts} ondrop={(e) => dropOnTile(e, slot)} onfocusin={() => (ui.focus = id)}>
     <ChatPane agentId={id} {slot} focused={ui.focus === id} maximised={big === id}
-      onmaximise={() => maximise(id)} onclose={() => close(id)} />
+      onmaximise={() => maximise(id)} onclose={() => close(id)} ondragstart={(e) => dragTile(e, id)} />
   </div>
 {/snippet}
 

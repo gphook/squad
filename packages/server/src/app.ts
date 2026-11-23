@@ -8,7 +8,7 @@ import { createReadStream, mkdirSync } from "node:fs";
 import { basename, extname } from "node:path";
 import type { WebSocket } from "ws";
 import {
-  MAX_EVENTS, USAGE_RANGES, errorMessage, parseClientMsg, type ClientMsg, type ServerMsg, type UsageRange,
+  MAX_EVENTS, USAGE_RANGES, errorMessage, normaliseLayout, parseClientMsg, type ClientMsg, type ServerMsg, type UsageRange,
 } from "@squad/shared";
 import { loadHistory } from "./history.ts";
 import { shareDir } from "./paths.ts";
@@ -133,8 +133,12 @@ export function buildApp(opts: {
       case "approval.answer":
         return sup.answer(m.approvalId, m.decision);
       case "layout.save":
-        store.saveLayout(m.projectId, m.layout);
-        return broadcast(m.projectId, { t: "layout", projectId: m.projectId, layout: m.layout });
+      {
+        // Stored and sent back in the shape every page can render (e.g. no maximised tile that isn't open).
+        const layout = normaliseLayout(m.layout);
+        store.saveLayout(m.projectId, layout);
+        return broadcast(m.projectId, { t: "layout", projectId: m.projectId, layout });
+      }
       case "share.delete":
         return sup.removeShare(m.shareId);
     }

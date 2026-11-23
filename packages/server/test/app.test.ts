@@ -170,6 +170,15 @@ describe("websocket", () => {
     expect(await c.next("auth")).toMatchObject({ status: { state: "unknown" } });
   });
 
+  it("saves and broadcasts a layout in the current shape, whatever the page sent", async () => {
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    send(c.ws, { t: "layout.save", projectId, layout: { slots: { "1": agentId }, maximised: "not-a-tile" } });
+    expect(await c.next("layout")).toMatchObject({ layout: { slots: { "1": agentId }, maximised: null } });
+    expect(store.getProject(projectId)!.layout.maximised).toBeNull();
+  });
+
   it("passes agent.shellKill to the supervisor", async () => {
     const calls: string[][] = [];
     sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };
