@@ -170,6 +170,9 @@ export class Store {
       let position = list.length;
       for (const raw of owns.newActivities) {
         const key = nameKey(raw);
+        // A name that already exists is claimed if nobody owns it, rather than duplicated.
+        const match = list.find((a) => nameKey(a.name) === key);
+        if (match && match.ownerId === null) set.run(agentId, JSON.stringify(match.reviewerIds.filter((r) => r !== agentId)), match.id);
         if (!key || names.has(key)) continue;
         names.add(key);
         this.db.prepare("INSERT INTO activities (id, project_id, name, owner_id, reviewer_ids, description, position) VALUES (?, ?, ?, ?, '[]', '', ?)")
