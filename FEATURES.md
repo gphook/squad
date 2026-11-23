@@ -24,7 +24,8 @@
 ### Running agents
 - Launch on demand by the user, or by another agent via `squad_summon`, if not already running.
 - Resume the previous conversation by default.
-- User actions per agent: launch, stop, interrupt, compact, clear (start fresh).
+- User actions per agent: launch, stop, interrupt, compact, clear (start fresh). Clear all (sidebar) clears every
+  squadmate in the project and empties its message log.
 - No automatic restarts.
 - Live status: stopped, starting, working, idle, awaiting approval, error, plus a context window ring for each running squadmate in the sidebar and its pane header.
 
