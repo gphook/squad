@@ -154,15 +154,15 @@ export function normalise(raw: unknown): AgentEvent[] {
 
 /**
  * Shows squadmates' session addresses as their names: a reply sent to an address (as Claude Code tends to) reads
- * "to starfade", in its peer_out event and in its SendMessage tool line. Addresses not in `names` stay as written.
+ * "to starfade", in its peer_out event and in its SendMessage tool line. Addresses `nameOf` doesn't know stay as written.
  */
-export function renamePeers(events: AgentEvent[], names: ReadonlyMap<string, string>): AgentEvent[] {
-  if (!names.size) return events;
+export function renamePeers(events: AgentEvent[], nameOf: (address: string) => string | undefined): AgentEvent[] {
   return events.map((ev) => {
-    if (ev.kind === "peer_out" && names.has(ev.to)) return { ...ev, to: names.get(ev.to)! };
+    const peerName = ev.kind === "peer_out" ? nameOf(ev.to) : undefined;
+    if (ev.kind === "peer_out" && peerName) return { ...ev, to: peerName };
     if (ev.kind === "tool_use" && ev.name === "SendMessage") {
       const input = (ev.input ?? {}) as Record<string, unknown>;
-      const name = typeof input.to === "string" ? names.get(input.to) : undefined;
+      const name = typeof input.to === "string" ? nameOf(input.to) : undefined;
       if (name) return { ...ev, summary: summariseTool(ev.name, { ...input, to: name }) };
     }
     return ev;
@@ -176,5 +176,5 @@ export function historyEvents(msgs: unknown[]): AgentEvent[] {
     const sender = peerAddress(m);
     if (sender) names.set(sender.address, sender.name);
   }
-  return renamePeers(msgs.flatMap((m) => normalise(m)), names);
+  return renamePeers(msgs.flatMap((m) => normalise(m)), (a) => names.get(a));
 }

@@ -85,27 +85,29 @@ describe("message log", () => {
     expect(store.listMessages(project.id)).toMatchObject([{ from: "starfade", to: "sf-modeller", text: "build a ship", external: false }]);
     expect(events).toContainEqual({ agentId: b.id, ev: { kind: "peer_in", from: "starfade", text: "build a ship" } });
   });
-  it("logs a reply sent to a squadmate's session address under its name, once", async () => {
-    const ADDR = "uds:/run/user/1000/cc-socks/574797.sock";
+  it("names a reply sent to a squadmate's session socket, live, from the first reply", async () => {
+    // What the live stream really carries: no incoming message reaches it, only the reply's SendMessage.
+    const ADDR = "uds:/run/user/1000/cc-socks/4242.sock";
     const paneEvents: { agentId: string; ev: AgentEvent }[] = [];
     sup.on("event", (_p: string, agentId: string, ev: AgentEvent) => paneEvents.push({ agentId, ev }));
     await sup.action(a.id, "launch"); // starfade
     await sup.action(b.id, "launch"); // sf-modeller
     const [starfade, modeller] = f.queries;
-    // starfade asks; sf-modeller's session receives it with starfade's address
+    starfade.initialize({ pid: 4242 }); // its socket is named after its process
+    modeller.initialize({ pid: 5151 });
+    await tick();
     starfade.emit({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "SendMessage", input: { to: "sf-modeller", message: "one word?" } }] } });
-    modeller.emit({ type: "user", isMeta: true, message: { content: `Another Claude session sent a message: <cross-session-message from="${ADDR}" from-name="starfade" from-mode="prompting">one word?</cross-session-message>` } });
-    await tick();
-    // sf-modeller replies to the address, as Claude Code does
     modeller.emit({ type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "SendMessage", input: { to: ADDR, message: "Received." } }] } });
-    starfade.emit({ type: "user", isMeta: true, message: { content: 'Another Claude session sent a message: <cross-session-message from="uds:/other.sock" from-name="sf-modeller" from-mode="prompting">Received.</cross-session-message>' } });
     await tick();
-    expect(store.listMessages(project.id).map((m) => [m.from, m.to, m.text, m.external])).toEqual([
-      ["starfade", "sf-modeller", "one word?", false],
-      ["sf-modeller", "starfade", "Received.", false],
+    expect(store.listMessages(project.id).map((m) => [m.from, m.to, m.text])).toEqual([
+      ["starfade", "sf-modeller", "one word?"],
+      ["sf-modeller", "starfade", "Received."],
     ]);
-    // and the replying squadmate's own pane shows the name too
-    expect(paneEvents.filter((e) => e.agentId === b.id).map((e) => e.ev)).toContainEqual({ kind: "peer_out", to: "starfade", text: "Received." });
+    const modellerPane = paneEvents.filter((e) => e.agentId === b.id).map((e) => e.ev);
+    expect(modellerPane).toContainEqual({ kind: "peer_out", to: "starfade", text: "Received." });
+    expect(modellerPane).toContainEqual(expect.objectContaining({ kind: "tool_use", name: "SendMessage", summary: "starfade: Received." }));
+    // and the reply reaches starfade's pane
+    expect(paneEvents).toContainEqual({ agentId: a.id, ev: { kind: "peer_in", from: "sf-modeller", text: "Received." } });
   });
 
   it("keeps an address it hasn't learned as written", async () => {

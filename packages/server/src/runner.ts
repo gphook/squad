@@ -11,7 +11,7 @@ import {
 } from "@squad/shared";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
-import { normalise, peerAddress, summariseTool, type SdkMsg } from "./normalise.ts";
+import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
 import { runShell } from "./shellCommand.ts";
 import { userShell } from "./shells/adapters.ts";
 
@@ -67,7 +67,7 @@ function userMessage(text: string, images: string[] = []): SDKUserMessage {
 /**
  * One agent's Claude Code session. Events: "status"(AgentState) "event"(AgentEvent)
  * "approval"(Approval) "approvalResolved"(id) "session"(sessionId)
- * "result"({ sessionId, modelUsage, resumed }) "rateLimit"(rate_limit_info) "peerAddress"({ name, address }).
+ * "result"({ sessionId, modelUsage, resumed }) "rateLimit"(rate_limit_info).
  */
 export class AgentRunner extends EventEmitter {
   state: AgentState;
@@ -77,6 +77,8 @@ export class AgentRunner extends EventEmitter {
   private stopping = false;
   /** The session id this launch resumed, to tell a resumed session's first turn from a new one. */
   private resumedFrom: string | null = null;
+  /** The Claude Code process id; its cross-session socket is named after it (`uds:…/<pid>.sock`). */
+  sessionPid: number | null = null;
   /** True while a launch is checking whether it can start, so a second click doesn't start a second session. */
   private launching = false;
   /** `$ cmd` commands still running, by id, so they can be killed. */
@@ -179,7 +181,12 @@ export class AgentRunner extends EventEmitter {
     // Ready once Claude Code has started. Its first system message only comes with the first prompt, so waiting for
     // that left summoned squadmates "starting" until a summon timed out.
     q.initializationResult().then(
-      () => { if (this.query === q && this.state.status === "starting") this.setStatus("idle"); },
+      (init) => {
+        if (this.query !== q) return;
+        const pid = (init as { pid?: unknown } | undefined)?.pid;
+        if (typeof pid === "number") this.sessionPid = pid;
+        if (this.state.status === "starting") this.setStatus("idle");
+      },
       () => {}, // a failed start ends the session, which consume() reports
     );
     void this.consume(q);
@@ -198,6 +205,7 @@ export class AgentRunner extends EventEmitter {
     if (this.query !== q) return; // a newer session replaced this one
     this.query = null;
     this.input = null;
+    this.sessionPid = null;
     this.denyAll();
     if (this.stopping) this.setStatus("stopped");
     else this.setStatus("error", failure ?? "Session ended");
@@ -212,8 +220,6 @@ export class AgentRunner extends EventEmitter {
     }
     for (const ev of normalise(m)) this.emit("event", ev);
     if (m.type === "rate_limit_event") this.emit("rateLimit", m.rate_limit_info);
-    const sender = peerAddress(m);
-    if (sender) this.emit("peerAddress", sender);
     if (m.type === "system" && m.subtype === "compact_boundary") void this.refreshContext();
     if (m.type === "result") {
       const sessionId = m.session_id ?? "";
@@ -387,6 +393,7 @@ export class AgentRunner extends EventEmitter {
     if (!q) return;
     this.stopping = true;
     this.query = null;
+    this.sessionPid = null;
     this.denyAll();
     this.input?.end();
     this.input = null;

@@ -134,11 +134,11 @@ describe("squadmate addresses shown as names", () => {
 
   it("renamePeers rewrites a reply's recipient and its tool summary", () => {
     const names = new Map([[ADDR, "starfade"]]);
-    expect(renamePeers(n(reply), names)).toEqual([
+    expect(renamePeers(n(reply), (a) => names.get(a))).toEqual([
       { kind: "tool_use", id: "t", name: "SendMessage", summary: "starfade: Received.", input: { to: ADDR, message: "Received." } },
       { kind: "peer_out", to: "starfade", text: "Received." },
     ]);
-    expect(renamePeers(n(reply), new Map())).toEqual(n(reply));
+    expect(renamePeers(n(reply), () => undefined)).toEqual(n(reply));
   });
 
   it("history names a reply's recipient from the address in the same transcript", () => {

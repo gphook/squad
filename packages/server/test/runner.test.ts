@@ -154,6 +154,16 @@ describe("AgentRunner", () => {
     expect(runner.state.status).toBe("idle");
   });
 
+  it("knows its Claude Code process id once started", async () => {
+    await runner.launch();
+    expect(runner.sessionPid).toBeNull();
+    q().initialize({ pid: 4242 });
+    await tick();
+    expect(runner.sessionPid).toBe(4242);
+    await runner.stop();
+    expect(runner.sessionPid).toBeNull();
+  });
+
   it("goes to error when the session ends unexpectedly", async () => {
     await runner.launch();
     await init();
