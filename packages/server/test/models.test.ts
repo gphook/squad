@@ -40,6 +40,13 @@ describe("ModelCatalog", () => {
     expect(f.queries[0].closed).toBe(true); // the probe session is closed afterwards
   });
 
+  it("treats an empty or unreadable list as a failure, not a list to keep", async () => {
+    f.models.response = [{ nothing: true }];
+    expect(await catalog.get()).toBeNull();
+    f.models.response = RAW;
+    expect(await catalog.get()).toHaveLength(3);
+  });
+
   it("answers null on failure and tries again next time", async () => {
     f.models.response = () => Promise.reject(new Error("offline"));
     expect(await catalog.get()).toBeNull();
