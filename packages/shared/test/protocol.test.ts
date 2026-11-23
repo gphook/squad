@@ -2,6 +2,22 @@ import { describe, it, expect } from "vitest";
 import { parseClientMsg, SLOT_ORDER } from "../src/index.ts";
 
 describe("parseClientMsg", () => {
+  it("accepts project.save with or without activities, and rejects a blank activity name", () => {
+    const base = { t: "project.save", project: { name: "P", rules: "", permissionMode: "default" } };
+    expect(parseClientMsg(JSON.stringify(base))).not.toHaveProperty("error");
+    const act = { name: "UI", ownerId: null, reviewerIds: [], description: "" };
+    expect(parseClientMsg(JSON.stringify({ ...base, project: { ...base.project, activities: [act] } })))
+      .toMatchObject({ project: { activities: [act] } });
+    expect(parseClientMsg(JSON.stringify({ ...base, project: { ...base.project, activities: [{ ...act, name: "  " }] } })))
+      .toHaveProperty("error");
+  });
+  it("accepts agent.save with owns", () => {
+    const m = parseClientMsg(JSON.stringify({
+      t: "agent.save", agent: { projectId: "p", name: "a", role: "", folder: "/tmp", model: null },
+      owns: { activityIds: ["x"], newActivities: ["Shaders"] },
+    }));
+    expect(m).toMatchObject({ owns: { activityIds: ["x"], newActivities: ["Shaders"] } });
+  });
   it("accepts a valid agent.send", () => {
     const m = parseClientMsg(JSON.stringify({ t: "agent.send", agentId: "a1", text: "hi" }));
     expect(m).toEqual({ t: "agent.send", agentId: "a1", text: "hi" });

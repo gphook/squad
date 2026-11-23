@@ -4,7 +4,7 @@ import { buildLaunchPrompt } from "../src/launchPrompt.ts";
 
 const project: Project = {
   id: "p", name: "Starfade", rules: "Only starfade edits the game repo.", permissionMode: "default",
-  layout: { mode: "focussed", slots: {}, main: null },
+  layout: { mode: "focussed", slots: {}, main: null }, activities: [],
 };
 const agent = (name: string, role: string, folder = `/dev/${name}`): Agent =>
   ({ id: name, projectId: "p", name, role, folder, model: null, sessionId: null });

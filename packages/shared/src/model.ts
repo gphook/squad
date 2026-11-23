@@ -34,7 +34,20 @@ export interface Project {
   rules: string;
   permissionMode: PermissionMode;
   layout: Layout;
+  /** What the squad does and who owns each part, in display order. */
+  activities: Activity[];
 }
+
+/** A piece of the project's work, owned by one squadmate and optionally reviewed by others. */
+export interface Activity {
+  id: string;
+  name: string;
+  ownerId: string | null;
+  reviewerIds: string[];
+  description: string;
+}
+
+export type ActivityInput = Omit<Activity, "id"> & { id?: string };
 
 export interface Agent {
   id: string;
