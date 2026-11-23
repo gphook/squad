@@ -87,6 +87,8 @@ describe("message log", () => {
   });
   it("logs a reply sent to a squadmate's session address under its name, once", async () => {
     const ADDR = "uds:/run/user/1000/cc-socks/574797.sock";
+    const paneEvents: { agentId: string; ev: AgentEvent }[] = [];
+    sup.on("event", (_p: string, agentId: string, ev: AgentEvent) => paneEvents.push({ agentId, ev }));
     await sup.action(a.id, "launch"); // starfade
     await sup.action(b.id, "launch"); // sf-modeller
     const [starfade, modeller] = f.queries;
@@ -102,6 +104,8 @@ describe("message log", () => {
       ["starfade", "sf-modeller", "one word?", false],
       ["sf-modeller", "starfade", "Received.", false],
     ]);
+    // and the replying squadmate's own pane shows the name too
+    expect(paneEvents.filter((e) => e.agentId === b.id).map((e) => e.ev)).toContainEqual({ kind: "peer_out", to: "starfade", text: "Received." });
   });
 
   it("keeps an address it hasn't learned as written", async () => {

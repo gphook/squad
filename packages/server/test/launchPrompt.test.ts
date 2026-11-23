@@ -28,6 +28,9 @@ describe("buildLaunchPrompt", () => {
   it("does not list the agent itself in the team", () => {
     expect(out).not.toContain("- **starfade**");
   });
+  it("asks squadmates to reply by name, not session address", () => {
+    expect(out).toContain("Message and reply to squadmates by name with SendMessage");
+  });
   it("includes the share folder", () => {
     expect(out).toContain("/home/u/.squad/projects/p/share");
   });

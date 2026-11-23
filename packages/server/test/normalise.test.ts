@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fx from "./fixtures/sdk-messages.json" with { type: "json" };
 import { agentShellPrompt, bashContextBlock } from "@squad/shared";
-import { normalise, parsePeerMessage, peerAddress, summariseTool } from "../src/normalise.ts";
+import { historyEvents, normalise, parsePeerMessage, peerAddress, renamePeers, summariseTool } from "../src/normalise.ts";
 
 const n = (m: unknown) => normalise(m as never);
 
@@ -121,5 +121,27 @@ describe("normalise shell commands", () => {
   });
   it("shows an !cmd request as the user typed it", () => {
     expect(n(user(agentShellPrompt("ls")))).toEqual([{ kind: "user_text", text: "!ls" }]);
+  });
+});
+
+describe("squadmate addresses shown as names", () => {
+  const ADDR = "uds:/run/user/1000/cc-socks/590830.sock";
+  const delivered = {
+    type: "user", isMeta: true,
+    message: { content: `Another Claude session sent a message: <cross-session-message from="${ADDR}" from-name="starfade" from-mode="prompting">one word?</cross-session-message>` },
+  };
+  const reply = { type: "assistant", message: { content: [{ type: "tool_use", id: "t", name: "SendMessage", input: { to: ADDR, message: "Received." } }] } };
+
+  it("renamePeers rewrites a reply's recipient and its tool summary", () => {
+    const names = new Map([[ADDR, "starfade"]]);
+    expect(renamePeers(n(reply), names)).toEqual([
+      { kind: "tool_use", id: "t", name: "SendMessage", summary: "starfade: Received.", input: { to: ADDR, message: "Received." } },
+      { kind: "peer_out", to: "starfade", text: "Received." },
+    ]);
+    expect(renamePeers(n(reply), new Map())).toEqual(n(reply));
+  });
+
+  it("history names a reply's recipient from the address in the same transcript", () => {
+    expect(historyEvents([delivered, reply]).find((e) => e.kind === "peer_out")).toEqual({ kind: "peer_out", to: "starfade", text: "Received." });
   });
 });
