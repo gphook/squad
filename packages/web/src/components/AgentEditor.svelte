@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { AGENT_NAME_RE, EFFORT_LEVELS, type Agent, type EffortLevel } from "@squad/shared";
-  import { EFFORT_LABELS, effortAfterModelChange, modelChoices } from "../lib/models.ts";
+  import { effortAfterModelChange, effortOptions, modelChoices } from "../lib/models.ts";
   import { send, ui } from "../lib/state.svelte.ts";
   import { ownedAfterEdit, ownedBy, ownsPayload, unowned } from "../lib/activities.ts";
 
@@ -19,6 +19,7 @@
   const choices = $derived(ui.s.models ? modelChoices(ui.s.models, initial?.model ?? null) : []);
   const choice = $derived(choices.find((c) => (c.model ?? "") === model));
   const effortLevels = $derived(ui.s.models === null ? [...EFFORT_LEVELS] : (choice?.effortLevels ?? []));
+  const efforts = $derived(effortOptions(effortLevels, effort));
   function pickModel(value: string) {
     model = value;
     effort = effortAfterModelChange(effort, choices.find((c) => (c.model ?? "") === value));
@@ -86,11 +87,11 @@
         </select>
         {#if choice?.description}<span class="hint">{choice.description}</span>{/if}</label>
     {/if}
-    {#if effortLevels.length}
+    {#if efforts.length}
       <label>Effort <span class="hint">How hard it thinks. Lower is faster and uses less of your plan.</span>
         <select value={effort ?? ""} onchange={(e) => (effort = ((e.target as HTMLSelectElement).value || null) as EffortLevel | null)}>
           <option value="">Default</option>
-          {#each effortLevels as l (l)}<option value={l}>{EFFORT_LABELS[l]}</option>{/each}
+          {#each efforts as o (o.level)}<option value={o.level}>{o.label}</option>{/each}
         </select></label>
     {/if}
     <p class="hint">Changes apply the next time this squadmate launches.</p>

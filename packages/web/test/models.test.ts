@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Agent, ModelOption } from "@squad/shared";
-import { EFFORT_LABELS, effortAfterModelChange, modelChoices, modelSummary } from "../src/lib/models.ts";
+import { EFFORT_LABELS, effortAfterModelChange, effortOptions, modelChoices, modelSummary } from "../src/lib/models.ts";
 import { emptyState, reduce } from "../src/lib/reducer.ts";
 
 const MODELS: ModelOption[] = [
@@ -32,6 +32,15 @@ describe("model choices", () => {
     expect(effortAfterModelChange("low", haiku)).toBeNull();
     expect(effortAfterModelChange("xhigh", def)).toBe("xhigh");
     expect(effortAfterModelChange("low", undefined)).toBeNull();
+  });
+
+  it("shows a saved effort the model doesn't offer, rather than hiding it", () => {
+    expect(effortOptions(["low", "high"], "high")).toEqual([{ level: "low", label: "Low" }, { level: "high", label: "High" }]);
+    expect(effortOptions(["low", "high"], "max")).toEqual([
+      { level: "low", label: "Low" }, { level: "high", label: "High" }, { level: "max", label: "Max (not offered for this model)" },
+    ]);
+    expect(effortOptions([], "low")).toEqual([{ level: "low", label: "Low (not offered for this model)" }]);
+    expect(effortOptions([], null)).toEqual([]);
   });
 
   it("labels effort levels and summarises a squadmate's model", () => {

@@ -33,3 +33,10 @@ export function modelSummary(agent: Pick<Agent, "model" | "effort">): string {
   const model = agent.model ?? "default model";
   return agent.effort ? `${model} · ${agent.effort} effort` : model;
 }
+
+/** The effort dropdown's entries: the model's levels, plus a saved level it doesn't offer, marked, so it isn't hidden. */
+export function effortOptions(levels: EffortLevel[], saved: EffortLevel | null): { level: EffortLevel; label: string }[] {
+  const options = levels.map((level) => ({ level, label: EFFORT_LABELS[level] }));
+  if (saved && !levels.includes(saved)) options.push({ level: saved, label: `${EFFORT_LABELS[saved]} (not offered for this model)` });
+  return options;
+}

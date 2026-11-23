@@ -26,7 +26,12 @@ export class ModelCatalog {
   get(): Promise<ModelOption[] | null> {
     if (this.models) return Promise.resolve(this.models);
     this.inFlight ??= withSession(this.deps, (q) => q.supportedModels(), MODELS_TIMEOUT_MS)
-      .then((raw) => (this.models = toModelOptions(raw)))
+      .then((raw) => {
+        const models = toModelOptions(raw);
+        // An empty list (say the SDK changed shape) would leave nothing to pick: treat it as a failure.
+        if (!models.length) throw new Error("No usable models in the SDK's list");
+        return (this.models = models);
+      })
       .catch(() => null)
       .finally(() => (this.inFlight = null));
     return this.inFlight;
