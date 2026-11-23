@@ -39,12 +39,12 @@ describe("reduce", () => {
     expect(s.events.a).toEqual([{ kind: "user_text", text: "hi" }]);
   });
   it("keeps layout on the project and reads it back for the current project", () => {
-    const s = reduce(subscribed(), { t: "layout", projectId: "p", layout: { mode: "tiled", slots: { "1": "a" }, main: null } });
-    expect(s.projects[0].layout.mode).toBe("tiled");
-    expect(currentLayout(s).mode).toBe("tiled");
+    const s = reduce(subscribed(), { t: "layout", projectId: "p", layout: { slots: { "1": "a" }, maximised: "a" } });
+    expect(s.projects[0].layout.maximised).toBe("a");
+    expect(currentLayout(s).maximised).toBe("a");
   });
   it("gives a default layout when no project is selected", () => {
-    expect(currentLayout(emptyState())).toEqual({ mode: "focussed", slots: {}, main: null });
+    expect(currentLayout(emptyState())).toEqual({ slots: {}, maximised: null });
   });
 });
 

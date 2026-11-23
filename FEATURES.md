@@ -43,9 +43,12 @@
   load only on click.
 
 ### Layout
-- Default: sidebar of all agents + one chat.
-- Focussed mode: main pane + side stack of open tiles; `Alt+N` swaps tile N into main.
-- Tiled mode: grid of open tiles; `Alt+N` moves input focus.
+- Sidebar of all squadmates, beside the workspace of open tiles.
+- Open tiles sit in a grid, each a full chat with its own message box. Clicking a squadmate in the sidebar opens
+  its tile and puts the cursor in it.
+- Maximise a tile (double-click its header, or its maximise button) to give it most of the screen, with the other
+  tiles in a column on the right. `Alt+N` swaps tile N into the maximised spot; with nothing maximised it moves the
+  cursor to tile N.
 - Up to 10 tiles (slots 1–9, 0), stable numbering, opened via drag from the sidebar or menu.
 
 ### Messages

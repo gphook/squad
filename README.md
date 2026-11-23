@@ -11,7 +11,7 @@ Each agent works in its own repo, in its own Claude Code session, with its own c
 
 - **Projects and teams.** Create any number of projects. Each has as many agents as you like, each with a name, a role and a repo, plus rules shared by the whole team. List the project's activities and who owns and reviews each, and Squad tells every squadmate who owns what.
 - **Agents on demand.** Launch an agent yourself, or let a squadmate start it with `squad_summon`. By default it resumes its previous conversation. Squad never restarts agents on its own.
-- **One place to watch them all.** A chat for each agent with streamed replies, tool calls, inline Allow/Deny approvals and live status. Use focussed or tiled layouts, with `Alt+1`…`Alt+0` to switch between up to 10 tiles.
+- **One place to watch them all.** A chat for each agent with streamed replies, tool calls, inline Allow/Deny approvals and live status. Tiles sit in a grid; maximise one to give it most of the screen, and use `Alt+1`…`Alt+0` to move between up to 10 tiles.
 - **Team messaging.** Agents talk with Claude Code's own `SendMessage`. Squad logs every message in a Messages view.
 - **Shared files.** Agents hand over large specs and files with `squad_share` instead of pasting them into messages. You can drop files in too.
 - **Shell commands.** In a squadmate's prompt box, `!cmd` asks the squadmate to run it with its Bash tool. `$ cmd` runs it straight away in the squadmate's folder, streams the output into the pane, and passes it to the squadmate with your next message, like the Claude CLI's `!`.
@@ -57,7 +57,7 @@ browser (Svelte) ──WebSocket──► Squad server (Node, Fastify)
 
 | Key | Does |
 |---|---|
-| `Alt+1` … `Alt+9`, `Alt+0` | Focussed mode: swap that tile into the main pane. Tiled mode: move typing focus to it. |
+| `Alt+1` … `Alt+9`, `Alt+0` | With a tile maximised: swap that tile into its place. Otherwise: move typing focus to it. |
 | `Enter` / `Shift+Enter` | Send / new line |
 | Paste or drop an image | Attach it to your message |
 

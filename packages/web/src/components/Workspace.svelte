@@ -1,17 +1,17 @@
 <script lang="ts">
   import type { SlotKey } from "@squad/shared";
-  import { closeTile, moveTile, openAgents, openTile, pressAlt, showInMain, slotOf } from "../lib/layout.ts";
+  import { closeTile, moveTile, openAgents, openTile, pressAlt, pruneLayout, toggleMaximise } from "../lib/layout.ts";
   import { layout as currentLayout, saveLayout, ui } from "../lib/state.svelte.ts";
   import ChatPane from "./ChatPane.svelte";
 
   const AGENT = "text/squad-agent";
   const TILE = "text/squad-tile";
-  const layout = $derived(currentLayout());
-  const tiles = $derived(openAgents(layout).filter(([, id]) => ui.s.agents.some((a) => a.id === id)));
-  const mainId = $derived(
-    (layout.main && ui.s.agents.some((a) => a.id === layout.main) ? layout.main : null) ?? tiles[0]?.[1] ?? ui.s.agents[0]?.id ?? null,
-  );
-  const side = $derived(tiles.filter(([, id]) => id !== mainId));
+  // Tiles of deleted squadmates are dropped from view; the saved layout catches up on its next save.
+  const layout = $derived(pruneLayout(currentLayout(), ui.s.agents.map((a) => a.id)));
+  const tiles = $derived(openAgents(layout));
+  const big = $derived(layout.maximised);
+  const side = $derived(tiles.filter(([, id]) => id !== big));
+  const maximise = (id: string) => saveLayout(toggleMaximise(layout, id));
 
   function onkeydown(e: KeyboardEvent) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
@@ -49,35 +49,32 @@
 
 <svelte:window {onkeydown} />
 
+{#snippet tile(slot: SlotKey, id: string)}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="tile" draggable="true" ondragstart={(e) => dragTile(e, id)} ondragover={accepts} ondrop={(e) => dropOnTile(e, slot)}
+    onfocusin={() => (ui.focus = id)}>
+    <ChatPane agentId={id} {slot} focused={ui.focus === id} maximised={big === id}
+      onmaximise={() => maximise(id)} onclose={() => close(id)} />
+  </div>
+{/snippet}
+
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <main class="workspace" ondragover={accepts} ondrop={dropOnArea}>
-  {#if !mainId}
+  {#if !ui.s.agents.length}
     <p class="hint center">Add a squadmate to get started.</p>
-  {:else if layout.mode === "tiled" && tiles.length}
-    <div class="grid" style="--cols: {Math.ceil(Math.sqrt(tiles.length))}">
-      {#each tiles as [slot, id] (id)}
-        <div class="tile" draggable="true" ondragstart={(e) => dragTile(e, id)} ondragover={accepts} ondrop={(e) => dropOnTile(e, slot)}
-          onfocusin={() => (ui.focus = id)}>
-          <ChatPane agentId={id} {slot} focused={ui.focus === id} onclose={() => close(id)} />
-        </div>
-      {/each}
+  {:else if !tiles.length}
+    <p class="hint center">Click a squadmate to open it here.</p>
+  {:else if big}
+    <div class="maximised">
+      <!-- Keyed so a different squadmate gets a fresh pane (focus, scroll) rather than the last one's. -->
+      <div class="big">{#key big}{@render tile(tiles.find(([, id]) => id === big)![0], big)}{/key}</div>
+      {#if side.length}
+        <div class="side">{#each side as [slot, id] (id)}{@render tile(slot, id)}{/each}</div>
+      {/if}
     </div>
   {:else}
-    <div class="focussed">
-      <div class="main" onfocusin={() => (ui.focus = mainId)}>
-        <ChatPane agentId={mainId} slot={slotOf(layout, mainId)} focused={ui.focus === mainId || !ui.focus}
-          onclose={slotOf(layout, mainId) ? () => close(mainId!) : undefined} />
-      </div>
-      {#if side.length}
-        <div class="side">
-          {#each side as [slot, id] (id)}
-            <div class="tile small" draggable="true" ondragstart={(e) => dragTile(e, id)} ondragover={accepts} ondrop={(e) => dropOnTile(e, slot)}>
-              <button class="swap" aria-label="Show {slot} in main" onclick={() => { saveLayout(showInMain(layout, id)); ui.focus = id; }}></button>
-              <ChatPane agentId={id} {slot} compact onclose={() => close(id)} />
-            </div>
-          {/each}
-        </div>
-      {/if}
+    <div class="grid" style="--cols: {Math.ceil(Math.sqrt(tiles.length))}">
+      {#each tiles as [slot, id] (id)}{@render tile(slot, id)}{/each}
     </div>
   {/if}
 </main>
@@ -86,12 +83,12 @@
   .workspace { flex: 1; min-width: 0; display: flex; padding: 8px; }
   .center { margin: auto; }
   .grid { flex: 1; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; }
-  .focussed { flex: 1; display: flex; gap: 8px; min-width: 0; }
-  .main { flex: 2; min-width: 0; }
-  .side { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 420px; }
-  .tile { min-height: 0; min-width: 0; position: relative; }
-  .tile.small { flex: 1; }
-  .swap { position: absolute; inset: 34px 0 0 0; background: transparent; border: 0; z-index: 1; cursor: pointer; border-radius: 0; }
-  .swap:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-  @media (max-width: 800px) { .focussed { flex-direction: column; } .side { max-width: none; } }
+  .maximised { flex: 1; display: flex; gap: 8px; min-width: 0; }
+  .big { flex: 3; min-width: 0; display: flex; }
+  .big > .tile { flex: 1; }
+  /* The other tiles stay full chats; the column scrolls once they'd get too short to use. */
+  .side { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 460px; overflow-y: auto; }
+  .side > .tile { flex: 1 0 220px; }
+  .tile { min-height: 0; min-width: 0; }
+  @media (max-width: 800px) { .maximised { flex-direction: column; } .side { max-width: none; } }
 </style>

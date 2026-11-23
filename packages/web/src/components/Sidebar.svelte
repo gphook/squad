@@ -32,7 +32,7 @@
   {/if}
   {#each ui.s.agents as a (a.id)}
     {@const st = ui.s.states[a.id]?.status ?? "stopped"}
-    <div class="row" role="listitem" class:active={current.main === a.id} draggable="true"
+    <div class="row" role="listitem" class:active={(current.maximised ?? ui.focus) === a.id} draggable="true"
       ondragstart={(e) => e.dataTransfer?.setData("text/squad-agent", a.id)}>
       <button class="name" onclick={() => onshow(a.id)}>
         <span class="slot">{slotOf(current, a.id) ?? ""}</span>

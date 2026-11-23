@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Agent, Project } from "@squad/shared";
   import { layout, saveLayout, ui } from "./lib/state.svelte.ts";
-  import { openTile, showInMain } from "./lib/layout.ts";
+  import { openTile, showSquadmate } from "./lib/layout.ts";
   import TopBar from "./components/TopBar.svelte";
   import Sidebar from "./components/Sidebar.svelte";
   import Workspace from "./components/Workspace.svelte";
@@ -17,7 +17,7 @@
   const show = (id: string) => {
     ui.view = "chat";
     ui.focus = id;
-    saveLayout(showInMain(layout(), id));
+    saveLayout(showSquadmate(layout(), id));
   };
 </script>
 
