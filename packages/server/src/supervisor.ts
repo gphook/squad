@@ -46,6 +46,12 @@ export class Supervisor extends EventEmitter {
     this.auth = auth;
   }
 
+  /** Signed out, checked again first: the cached status may predate a sign-in in a terminal. */
+  private async isSignedOut(): Promise<boolean> {
+    if (this.auth?.current?.state !== "signedOut") return false;
+    return (await this.auth.refresh()).state === "signedOut";
+  }
+
   /** The runner for an agent, created on first use and refreshed with current store data. */
   runner(agentId: string): AgentRunner {
     const agent = this.store.getAgent(agentId);
@@ -64,7 +70,7 @@ export class Supervisor extends EventEmitter {
       mcpServer: createSquadTools(this, pid, nameOf),
       kitPluginPath: this.kitPluginPath,
       shareDir: shareDir(pid),
-      signedOut: () => this.auth?.current?.state === "signedOut",
+      signedOut: () => this.isSignedOut(),
     });
     r.on("status", (s: AgentState) => {
       this.emit("status", pid, s);
