@@ -84,9 +84,11 @@ export function buildApp(opts: {
         if (!store.getProject(m.projectId)) return out(ws, { t: "error", message: "Unknown project" });
         sockets.get(ws)!.projectId = m.projectId;
         out(ws, stateMsg(m.projectId));
-        await Promise.all(store.listAgents(m.projectId).filter((a) => a.sessionId).map(async (a) => {
-          const events = await loadHistory(a.sessionId!, a.folder);
-          out(ws, { t: "agent.history", agentId: a.id, events: events.slice(-MAX_EVENTS) });
+        await Promise.all(store.listAgents(m.projectId).map(async (a) => {
+          const events = a.sessionId ? await loadHistory(a.sessionId, a.folder) : [];
+          // `$ cmd` blocks still running or not yet handed over aren't in the transcript yet.
+          const shells = sup.shellSnapshots(a.id);
+          if (events.length || shells.length) out(ws, { t: "agent.history", agentId: a.id, events: [...events, ...shells].slice(-MAX_EVENTS) });
         }));
         return;
       }

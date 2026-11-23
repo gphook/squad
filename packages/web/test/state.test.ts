@@ -83,6 +83,13 @@ describe("shell blocks", () => {
     expect(s.events.a).toHaveLength(2);
   });
 
+  it("keeps live blocks when history arrives, without duplicating ones history includes", () => {
+    let s = reduce(subscribed(), ev(start("live")));
+    s = reduce(s, ev(start("both")));
+    s = reduce(s, { t: "agent.history", agentId: "a", events: [{ kind: "user_text", text: "old" }, start("both")] });
+    expect(s.events.a.map((e) => (e.kind === "shell" ? e.id : e.kind))).toEqual(["user_text", "both", "live"]);
+  });
+
   it("drops output for an unknown block", () => {
     const s = reduce(subscribed(), ev({ kind: "shell_output", id: "nope", stream: "stdout", text: "a" }));
     expect(s.events.a ?? []).toEqual([]);

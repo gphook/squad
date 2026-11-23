@@ -1,7 +1,7 @@
 import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
-  type PlanUsage, type ServerMsg, type SharedFile, type ShellChunk,
+  type PlanUsage, type ServerMsg, type SharedFile, appendShellOutput,
 } from "@squad/shared";
 
 export interface UiState {
@@ -32,36 +32,13 @@ export function forProject(s: UiState, projectId: string): UiState {
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
 
-/** Output kept per `$ cmd` block in the browser; older output is trimmed. */
-export const SHELL_UI_CAP = 200_000;
-const TRIMMED = "[… earlier output trimmed]\n";
-
-function appendOutput(chunks: ShellChunk[], stream: ShellChunk["stream"], text: string): ShellChunk[] {
-  const last = chunks.at(-1);
-  let next = last?.stream === stream ? [...chunks.slice(0, -1), { stream, text: last.text + text }] : [...chunks, { stream, text }];
-  if (next[0]?.text === TRIMMED) next = next.slice(1);
-  let total = next.reduce((n, c) => n + c.text.length, 0);
-  if (total <= SHELL_UI_CAP) return next;
-  while (total > SHELL_UI_CAP) {
-    const over = total - SHELL_UI_CAP;
-    if (next[0].text.length <= over) {
-      total -= next[0].text.length;
-      next = next.slice(1);
-    } else {
-      next = [{ ...next[0], text: next[0].text.slice(over) }, ...next.slice(1)];
-      total -= over;
-    }
-  }
-  return [{ stream: "stdout", text: TRIMMED }, ...next];
-}
-
 /** Streams a `$ cmd`'s output and end into its shell event; anything for an unknown block is dropped. */
 function foldShell(list: AgentEvent[], ev: Extract<AgentEvent, { kind: "shell_output" | "shell_end" }>): AgentEvent[] {
   const i = list.findLastIndex((e) => e.kind === "shell" && e.id === ev.id);
   if (i < 0) return list;
   const block = list[i] as ShellEvent;
   const next: ShellEvent = ev.kind === "shell_output"
-    ? { ...block, chunks: appendOutput(block.chunks, ev.stream, ev.text) }
+    ? { ...block, chunks: appendShellOutput(block.chunks, ev.stream, ev.text) }
     : { ...block, running: false, code: ev.code, signal: ev.signal };
   return list.with(i, next);
 }
@@ -104,8 +81,13 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, states: { ...s.states, [m.state.agentId]: m.state } };
     case "agent.event":
       return { ...s, events: { ...s.events, [m.agentId]: addEvent(s.events[m.agentId], m.event) } };
-    case "agent.history":
-      return { ...s, events: { ...s.events, [m.agentId]: m.events.filter((e) => e.kind !== "text_delta") } };
+    case "agent.history": {
+      // `$ cmd` blocks that arrived live while history loaded are kept unless history has them too.
+      const incoming = m.events.filter((e) => e.kind !== "text_delta");
+      const have = new Set(incoming.flatMap((e) => (e.kind === "shell" ? [e.id] : [])));
+      const live = (s.events[m.agentId] ?? []).filter((e) => e.kind === "shell" && !e.id.startsWith("hist-") && !have.has(e.id));
+      return { ...s, events: { ...s.events, [m.agentId]: [...incoming, ...live] } };
+    }
     case "approval.request":
       return s.approvals.some((a) => a.id === m.approval.id) ? s : { ...s, approvals: [...s.approvals, m.approval] };
     case "approval.resolved":

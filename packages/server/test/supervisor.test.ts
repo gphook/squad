@@ -237,6 +237,23 @@ describe("$ cmd output", () => {
     expect(f.queries[0].inputs.at(-1).message.content).toBe("hi");
   });
 
+  it("clear kills a running command and its output never reaches the fresh session", async () => {
+    const done = ended(a.id);
+    await sup.send(a.id, "$ sleep 30; echo late");
+    await sup.action(a.id, "clear");
+    expect(await done).toMatchObject({ signal: "SIGTERM" });
+    await sup.send(a.id, "hi");
+    await tick();
+    expect(f.queries[0].inputs.at(-1).message.content).toBe("hi");
+  });
+
+  it("stopAll kills running commands at once", async () => {
+    const done = ended(a.id);
+    await sup.send(a.id, "$ trap '' TERM; sleep 30");
+    await sup.stopAll();
+    expect(await done).toMatchObject({ signal: "SIGKILL" });
+  });
+
   it("kills a running command by id, and when the squadmate is deleted", async () => {
     const shells: string[] = [];
     sup.on("event", (_p: string, _id: string, ev: AgentEvent) => { if (ev.kind === "shell") shells.push(ev.id); });

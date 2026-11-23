@@ -132,6 +132,15 @@ describe("websocket", () => {
     expect(await decision).toMatchObject({ behavior: "allow" });
   });
 
+  it("sends running $ cmd blocks on subscribe, even for a squadmate with no session", async () => {
+    await sup.send(agentId, "$ sleep 30");
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    const h = (await c.next("agent.history")) as Extract<ServerMsg, { t: "agent.history" }>;
+    expect(h).toMatchObject({ agentId, events: [{ kind: "shell", command: "sleep 30", running: true }] });
+    sup.runner(agentId).killAllShells(true);
+  });
+
   it("passes agent.shellKill to the supervisor", async () => {
     const calls: string[][] = [];
     sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };
