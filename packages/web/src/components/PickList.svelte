@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { PICKLIST_FILTER_THRESHOLD, filterOptions, reviewerLabel } from "../lib/activities.ts";
 
   /** A comma-separated choice that opens a dropdown checklist when clicked. */
@@ -14,6 +15,12 @@
 
   function toggle(id: string) {
     selected = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
+  }
+  // Opening moves the keyboard into the list: the filter when there is one, else the first box.
+  async function openList() {
+    open = true;
+    await tick();
+    root?.querySelector<HTMLInputElement>(".drop input")?.focus();
   }
   function close() {
     open = false;
@@ -39,14 +46,13 @@
 </script>
 
 <div class="picklist" bind:this={root} role="group" aria-label={label}>
-  <button type="button" class="summary" aria-expanded={open} onclick={() => (open ? close() : (open = true))}>
+  <button type="button" class="summary" aria-expanded={open} onclick={() => (open ? close() : openList())}>
     <span class="hint">{label}:</span> <span>{reviewerLabel(selected, names)}</span><span class="pen" aria-hidden="true">✎</span>
   </button>
   {#if open}
     <div class="drop">
       {#if options.length > PICKLIST_FILTER_THRESHOLD}
-        <!-- svelte-ignore a11y_autofocus -->
-        <input type="search" bind:value={query} placeholder="Filter…" aria-label="Filter {label}" autofocus />
+        <input type="search" bind:value={query} placeholder="Filter…" aria-label="Filter {label}" />
       {/if}
       {#each shown as o (o.id)}
         <label class="check"><input type="checkbox" checked={selected.includes(o.id)} onchange={() => toggle(o.id)} /> {o.name}</label>

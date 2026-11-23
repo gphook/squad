@@ -4,6 +4,8 @@
   import { PERMISSION_MODE_OPTIONS } from "../lib/permissionModes.ts";
   import { send, ui } from "../lib/state.svelte.ts";
   import { keepNewer, move } from "../lib/activities.ts";
+  import EditableText from "./EditableText.svelte";
+  import PickList from "./PickList.svelte";
 
   let { project, onclose }: { project: Project | null; onclose: () => void } = $props();
   // The form edits a copy taken when it opens.
@@ -29,8 +31,10 @@
   });
   const blank = $derived(activities.some((a) => !a.name.trim()));
   const addActivity = () => (activities = [...activities, { key: nextKey++, name: "", ownerId: null, reviewerIds: [], description: "" }]);
-  function toggleReviewer(row: Row, id: string) {
-    row.reviewerIds = row.reviewerIds.includes(id) ? row.reviewerIds.filter((r) => r !== id) : [...row.reviewerIds, id];
+  // An owner can't also review their own activity.
+  function setOwner(row: Row, ownerId: string | null) {
+    row.ownerId = ownerId;
+    row.reviewerIds = row.reviewerIds.filter((r) => r !== ownerId);
   }
 
   function save(e: SubmitEvent) {
@@ -65,9 +69,12 @@
       {#each activities as a, i (a.key)}
         <div class="act">
           <div class="line">
-            <input class="aname" bind:value={a.name} placeholder="Activity, e.g. UI design" aria-label="Activity name" />
-            <select bind:value={a.ownerId} aria-label="Owner of {a.name || 'activity'}">
-              <option value={null}>No owner</option>
+            <span class="aname">
+              {#if a.id}<EditableText bind:value={a.name} label="Activity name" placeholder="Name this activity" />
+              {:else}<input bind:value={a.name} placeholder="Activity, e.g. UI design" aria-label="Activity name" />{/if}
+            </span>
+            <select value={a.ownerId ?? ""} onchange={(e) => setOwner(a, ((e.target as HTMLSelectElement).value) || null)} aria-label="Owner of {a.name || 'activity'}">
+              <option value="">No owner</option>
               {#each squadmates as m (m.id)}<option value={m.id}>{m.name}</option>{/each}
             </select>
             {#if !a.ownerId}<span class="chip" title="Squadmates are told to ask you">No owner</span>{/if}
@@ -75,14 +82,10 @@
             <button type="button" class="mini" aria-label="Move down" disabled={i === activities.length - 1} onclick={() => (activities = move(activities, i, 1))}>↓</button>
             <button type="button" class="mini" aria-label="Remove {a.name || 'activity'}" onclick={() => (activities = activities.filter((x) => x !== a))}>×</button>
           </div>
-          <input class="desc" bind:value={a.description} placeholder="Description (optional)" aria-label="Description of {a.name || 'activity'}" />
-          {#if squadmates.some((m) => m.id !== a.ownerId)}
-            <div class="reviewers"><span class="hint">Reviewed by</span>
-              {#each squadmates.filter((m) => m.id !== a.ownerId) as m (m.id)}
-                <label class="check"><input type="checkbox" checked={a.reviewerIds.includes(m.id)} onchange={() => toggleReviewer(a, m.id)} /> {m.name}</label>
-              {/each}
-            </div>
-          {/if}
+          {#if a.id}<EditableText bind:value={a.description} label="Description of {a.name}" placeholder="Add a description" />
+          {:else}<input class="desc" bind:value={a.description} placeholder="Description (optional)" aria-label="Description of {a.name || 'activity'}" />{/if}
+          <PickList bind:selected={a.reviewerIds} label="Reviewed by"
+            options={squadmates.filter((m) => m.id !== a.ownerId).map((m) => ({ id: m.id, name: m.name }))} />
         </div>
       {/each}
       {#if clash}<p class="err" role="alert">Two activities are called "{clash}".</p>{/if}
@@ -108,11 +111,10 @@
   .activities > .hint { margin: 0; }
   .act { display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .line { display: flex; gap: 6px; align-items: center; }
-  .aname { flex: 1; min-width: 0; }
+  .aname { flex: 1; min-width: 0; font-weight: 600; }
+  .aname input { width: 100%; font-weight: normal; }
   .mini { padding: 2px 7px; }
   .chip { font-size: 11px; color: var(--warn); border: 1px solid var(--warn); border-radius: 10px; padding: 0 6px; white-space: nowrap; }
-  .reviewers { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
-  .reviewers .check { font-weight: normal; gap: 4px; }
   .err { color: var(--bad); margin: 0; font-size: 12px; }
   .add { align-self: flex-start; background: none; border: 1px dashed var(--line); color: var(--muted); }
 </style>

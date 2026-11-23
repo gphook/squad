@@ -100,6 +100,17 @@ describe("PickList", () => {
     expect(seven.target.querySelectorAll("input[type=checkbox]")).toHaveLength(1);
   });
 
+  it("puts the keyboard in the dropdown when it opens: the filter, else the first box", async () => {
+    const seven = setup(7);
+    open(seven.target);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement).toBe(seven.target.querySelector("input[type=search]"));
+    const three = setup(3);
+    open(three.target);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement).toBe(three.target.querySelector("input[type=checkbox]"));
+  });
+
   it("closes on Escape and on a click outside", () => {
     const t = setup(3);
     open(t.target);
