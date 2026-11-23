@@ -3,7 +3,7 @@ import type { Project } from "@squad/shared";
 import { activityProblem, filterOptions, withOwner, keepNewer, move, ownedAfterEdit, ownedBy, ownsPayload, reviewerLabel, unowned } from "../src/lib/activities.ts";
 
 const project: Project = {
-  id: "p", name: "P", rules: "", permissionMode: "default", layout: { mode: "focussed", slots: {}, main: null },
+  id: "p", name: "P", rules: "", permissionMode: "default", layout: { slots: {}, maximised: null },
   activities: [
     { id: "1", name: "Game code", ownerId: "a", reviewerIds: [], description: "" },
     { id: "2", name: "Levels", ownerId: null, reviewerIds: [], description: "" },

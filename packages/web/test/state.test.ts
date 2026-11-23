@@ -3,7 +3,7 @@ import type { Agent, AgentEvent } from "@squad/shared";
 import { currentLayout, emptyState, forProject, reduce } from "../src/lib/reducer.ts";
 
 const agent: Agent = { id: "a", projectId: "p", name: "starfade", role: "", folder: "/f", model: null, effort: null, sessionId: null };
-const project = { id: "p", name: "P", rules: "", permissionMode: "default" as const, layout: { mode: "focussed" as const, slots: {}, main: null }, activities: [] };
+const project = { id: "p", name: "P", rules: "", permissionMode: "default" as const, layout: { slots: {}, maximised: null }, activities: [] };
 const subscribed = () =>
   reduce({ ...emptyState(), projects: [project], projectId: "p" }, {
     t: "state", projectId: "p", agents: [agent], states: [{ agentId: "a", status: "idle" }],
