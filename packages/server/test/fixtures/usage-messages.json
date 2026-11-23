@@ -1,0 +1,418 @@
+{
+  "usageMs": 672,
+  "usage": {
+    "session": {
+      "total_cost_usd": 0,
+      "total_api_duration_ms": 0,
+      "total_duration_ms": 666,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "model_usage": {}
+    },
+    "subscription_type": "pro",
+    "rate_limits_available": true,
+    "rate_limits": {
+      "five_hour": {
+        "utilization": 58,
+        "resets_at": "2026-11-23T11:29:59.595109+00:00",
+        "limit_dollars": null,
+        "used_dollars": null,
+        "remaining_dollars": null,
+        "locked_reason": null
+      },
+      "seven_day": {
+        "utilization": 8,
+        "resets_at": "2026-11-30T02:59:59.595131+00:00",
+        "limit_dollars": null,
+        "used_dollars": null,
+        "remaining_dollars": null,
+        "locked_reason": null
+      },
+      "seven_day_oauth_apps": null,
+      "seven_day_opus": null,
+      "seven_day_sonnet": null,
+      "seven_day_cowork": null,
+      "seven_day_omelette": null,
+      "tangelo": null,
+      "iguana_necktie": null,
+      "omelette_promotional": null,
+      "nimbus_quill": null,
+      "cinder_cove": null,
+      "copper_kite": null,
+      "brass_thimble": null,
+      "harbor_lantern": null,
+      "maple_sundial": null,
+      "wattle_ember": null,
+      "promo_credits": null,
+      "amber_ladder": null,
+      "granite_teacup": null,
+      "amber_cistern": null,
+      "amber_cistern_offer": null,
+      "juniper_tide": null,
+      "cedar_ember": null,
+      "starry_waterfall": null,
+      "amber_gauge": null,
+      "pace": null,
+      "indicator": null,
+      "message_limit": null,
+      "usage_scopes": null,
+      "extra_usage": {
+        "is_enabled": false,
+        "monthly_limit": null,
+        "used_credits": null,
+        "utilization": null,
+        "currency": null,
+        "decimal_places": null,
+        "disabled_reason": null,
+        "user_disabled": false,
+        "spend_limit_reached": false,
+        "credits_can_pay": "no",
+        "credits_ever_enabled": false,
+        "daily": null,
+        "weekly": null
+      },
+      "limits": [
+        {
+          "kind": "session",
+          "group": "session",
+          "percent": 58,
+          "severity": "normal",
+          "resets_at": "2026-11-23T11:29:59.595109+00:00",
+          "scope": null,
+          "is_active": true
+        },
+        {
+          "kind": "weekly_all",
+          "group": "weekly",
+          "percent": 8,
+          "severity": "normal",
+          "resets_at": "2026-11-30T02:59:59.595131+00:00",
+          "scope": null,
+          "is_active": false
+        }
+      ],
+      "spend": {
+        "used": {
+          "amount_minor": 0,
+          "currency": "USD",
+          "exponent": 2
+        },
+        "limit": null,
+        "percent": 0,
+        "severity": "normal",
+        "enabled": false,
+        "disabled_reason": null,
+        "cap": null,
+        "balance": null,
+        "auto_reload": null,
+        "disclaimer": "Usage credits cover you when you hit your plan limits. [Learn more](https://support.claude.com/articles/12429409)",
+        "can_purchase_credits": false,
+        "can_toggle": false
+      },
+      "member_dashboard_available": false,
+      "usage_credits_settings_path": null,
+      "seven_day_breakdown": {
+        "as_of": "2026-11-23T10:04:18.621411+00:00",
+        "window_started_at": "2026-11-23T02:59:59.595131+00:00",
+        "rows": [
+          {
+            "key": "claude_code",
+            "display_name": "Claude Code",
+            "percent": 100,
+            "percent_of_limit": 8
+          },
+          {
+            "key": "chat",
+            "display_name": "Chats",
+            "percent": 0,
+            "percent_of_limit": 0
+          },
+          {
+            "key": "cowork",
+            "display_name": "Cowork",
+            "percent": 0,
+            "percent_of_limit": 0
+          },
+          {
+            "key": "other",
+            "display_name": "Other",
+            "percent": 0,
+            "percent_of_limit": 0
+          }
+        ]
+      },
+      "weekly_scoped_shares": null,
+      "model_scoped": []
+    },
+    "behaviors": null
+  },
+  "results": [
+    {
+      "type": "result",
+      "subtype": "success",
+      "num_turns": 1,
+      "total_cost_usd": 0.11130820000000001,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 13887,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 4,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13887,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 4,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 13887,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 13887
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "modelUsage": {
+        "claude-haiku-5-5": {
+          "inputTokens": 1172,
+          "outputTokens": 14,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.0001242,
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "thinkingTokens": 0,
+          "cacheCreationEphemeral5mInputTokens": 0,
+          "cacheCreationEphemeral1hInputTokens": 0,
+          "canonicalModel": "claude-haiku-5-5",
+          "provider": "firstParty",
+          "costBasis": "list"
+        },
+        "claude-opus-5-5": {
+          "inputTokens": 2,
+          "outputTokens": 4,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 13887,
+          "webSearchRequests": 0,
+          "costUSD": 0.111184,
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "thinkingTokens": 0,
+          "cacheCreationEphemeral5mInputTokens": 0,
+          "cacheCreationEphemeral1hInputTokens": 13887,
+          "canonicalModel": "claude-opus-5-5",
+          "provider": "firstParty",
+          "costBasis": "list"
+        }
+      }
+    },
+    {
+      "type": "result",
+      "subtype": "success",
+      "num_turns": 1,
+      "total_cost_usd": 0.16477940000000002,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 6284,
+        "cache_read_input_tokens": 9656,
+        "output_tokens": 63,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6284,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "global",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 63,
+            "cache_read_input_tokens": 9656,
+            "cache_creation_input_tokens": 6284,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 6284
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "modelUsage": {
+        "claude-haiku-5-5": {
+          "inputTokens": 1172,
+          "outputTokens": 14,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.0001242,
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "thinkingTokens": 0,
+          "cacheCreationEphemeral5mInputTokens": 0,
+          "cacheCreationEphemeral1hInputTokens": 0,
+          "canonicalModel": "claude-haiku-5-5",
+          "provider": "firstParty",
+          "costBasis": "list"
+        },
+        "claude-opus-5-5": {
+          "inputTokens": 4,
+          "outputTokens": 67,
+          "cacheReadInputTokens": 9656,
+          "cacheCreationInputTokens": 20171,
+          "webSearchRequests": 0,
+          "costUSD": 0.1646552,
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000,
+          "thinkingTokens": 0,
+          "cacheCreationEphemeral5mInputTokens": 0,
+          "cacheCreationEphemeral1hInputTokens": 20171,
+          "canonicalModel": "claude-opus-5-5",
+          "provider": "firstParty",
+          "costBasis": "list"
+        }
+      }
+    }
+  ],
+  "resumedResult": {
+    "type": "result",
+    "subtype": "success",
+    "num_turns": 1,
+    "total_cost_usd": 0.18827680000000002,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 2581,
+      "cache_read_input_tokens": 13907,
+      "output_tokens": 3,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 2581,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 3,
+          "cache_read_input_tokens": 13907,
+          "cache_creation_input_tokens": 2581,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 2581
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 1172,
+        "outputTokens": 14,
+        "thinkingTokens": 0,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.0001242,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000
+      },
+      "claude-opus-5-5": {
+        "inputTokens": 6,
+        "outputTokens": 70,
+        "thinkingTokens": 0,
+        "cacheReadInputTokens": 23563,
+        "cacheCreationInputTokens": 22752,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 22752,
+        "webSearchRequests": 0,
+        "costUSD": 0.1881526,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "canonicalModel": "claude-opus-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    }
+  },
+  "rateLimitEvents": [
+    {
+      "type": "rate_limit_event",
+      "rate_limit_info": {
+        "status": "allowed",
+        "resetsAt": 1795433400,
+        "rateLimitType": "five_hour",
+        "overageStatus": "rejected",
+        "overageDisabledReason": "org_level_disabled",
+        "isUsingOverage": false,
+        "unifiedWindows": {
+          "five_hour": {
+            "utilization": 0.58,
+            "resetsAt": 1795433400,
+            "status": "allowed"
+          },
+          "seven_day": {
+            "utilization": 0.08,
+            "resetsAt": 1796007600,
+            "status": "allowed"
+          }
+        }
+      }
+    },
+    {
+      "type": "rate_limit_event",
+      "rate_limit_info": {
+        "status": "allowed",
+        "resetsAt": 1795433400,
+        "rateLimitType": "five_hour",
+        "overageStatus": "rejected",
+        "overageDisabledReason": "org_level_disabled",
+        "isUsingOverage": false,
+        "unifiedWindows": {
+          "five_hour": {
+            "utilization": 0.59,
+            "resetsAt": 1795433400,
+            "status": "allowed"
+          },
+          "seven_day": {
+            "utilization": 0.08,
+            "resetsAt": 1796007600,
+            "status": "allowed"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "squad",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/web"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build -w @squad/web",
+    "start": "npm start -w @squad/server",
+    "check": "tsc -p packages/shared && tsc -p packages/server && npm run check -w @squad/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "description": "Run and monitor a team of Claude Code agents, one repo each, from a local web UI.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gphook/squad.git"
+  }
+}

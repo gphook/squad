@@ -1,0 +1,83 @@
+{
+ "init": {
+  "type": "system",
+  "subtype": "init",
+  "session_id": "52d7c574-e514-4f97-b2c0-4dec22689a39",
+  "cwd": "/tmp/squad-spike-a-jkAiQf",
+  "model": "claude-haiku-5-5"
+ },
+ "assistantText": {
+  "type": "assistant",
+  "session_id": "52d7c574-e514-4f97-b2c0-4dec22689a39",
+  "parent_tool_use_id": null,
+  "message": {
+   "role": "assistant",
+   "content": [
+    {
+     "type": "text",
+     "text": "ok"
+    }
+   ]
+  }
+ },
+ "assistantSend": {
+  "type": "assistant",
+  "session_id": "52d7c574-e514-4f97-b2c0-4dec22689a39",
+  "parent_tool_use_id": null,
+  "message": {
+   "role": "assistant",
+   "content": [
+    {
+     "type": "tool_use",
+     "id": "toolu_011E4SjrYzMYuE81ANHG44oo",
+     "name": "SendMessage",
+     "input": {
+      "to": "squad-spike-b",
+      "message": "ping",
+      "type": "message",
+      "recipient": "squad-spike-b",
+      "recipient_kind": "name",
+      "content": "ping"
+     },
+     "caller": {
+      "type": "direct"
+     }
+    }
+   ]
+  }
+ },
+ "userToolResult": {
+  "type": "user",
+  "session_id": "52d7c574-e514-4f97-b2c0-4dec22689a39",
+  "parent_tool_use_id": null,
+  "message": {
+   "role": "user",
+   "content": [
+    {
+     "tool_use_id": "toolu_01G7cfXCFaKuB8K1G6x4sDWg",
+     "type": "tool_result",
+     "content": "This session is squad-spike-a [af6031] — the name other sessions use to message it (it is not listed below; a message to it would be a message to yourself).\n\nPeer sessions (2):\n  squad-32 [bca347]  ·  interactive  ·  busy  ·  started 11h ago\n  squad-spike-b [76e4fb]  ·  interactive  ·  idle  ·  started 15s ago"
+    }
+   ]
+  }
+ },
+ "compactBoundary": {
+  "type": "system",
+  "subtype": "compact_boundary",
+  "session_id": "d114b907-33f1-4687-ae82-5a5e73ea688b"
+ },
+ "commandStarted": {
+  "type": "command_lifecycle",
+  "command_uuid": "d9dbdb79-4b88-4f38-932e-b78815d86f2d",
+  "state": "started",
+  "uuid": "37cee2ce-a59b-4316-8527-ac0d8f0981a9",
+  "session_id": "d114b907-33f1-4687-ae82-5a5e73ea688b"
+ },
+ "result": {
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "session_id": "52d7c574-e514-4f97-b2c0-4dec22689a39",
+  "result": "ok"
+ }
+}

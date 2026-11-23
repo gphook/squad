@@ -1,1 +1,6 @@
 /.idea/
+.superpowers/
+docs/superpowers/
+node_modules/
+dist/
+.playwright-mcp/

@@ -1,0 +1,28 @@
+<script lang="ts" module>
+  /** 24×24 stroke icons, drawn for Squad. */
+  const PATHS = {
+    messages: [
+      "M4 5h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z",
+      "M17 9h3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-1v3l-4-3h-4a2 2 0 0 1-2-2v-1",
+    ],
+    plus: ["M12 5v14", "M5 12h14"],
+    edit: ["M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16z", "M13.5 6.5l4 4"],
+    files: ["M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"],
+    system: ["M3 4h18v12H3z", "M8 20h8", "M12 16v4"],
+    light: [
+      "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z",
+      "M12 2v2", "M12 20v2", "M4.9 4.9l1.4 1.4", "M17.7 17.7l1.4 1.4", "M2 12h2", "M20 12h2", "M4.9 19.1l1.4-1.4", "M17.7 6.3l1.4-1.4",
+    ],
+    dark: ["M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"],
+  } as const;
+  export type IconName = keyof typeof PATHS;
+</script>
+
+<script lang="ts">
+  let { name, size = 18 }: { name: IconName; size?: number } = $props();
+</script>
+
+<svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" stroke-width="1.8"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  {#each PATHS[name] as d}<path {d} />{/each}
+</svg>
