@@ -158,6 +158,12 @@ describe("websocket", () => {
     expect(after.projects.find((p) => p.id === projectId)!.activities.map((a) => a.ownerId)).toEqual([fresh.id, agentId]);
   });
 
+  it("answers models.get from the model catalog, or null without one", async () => {
+    const c = await connect();
+    send(c.ws, { t: "models.get" });
+    expect(await c.next("models")).toMatchObject({ models: null });
+  });
+
   it("passes agent.shellKill to the supervisor", async () => {
     const calls: string[][] = [];
     sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };

@@ -1,8 +1,8 @@
 import { EventEmitter } from "node:events";
-import type { Query, SDKControlGetUsageResponse, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { Query, SDKControlGetUsageResponse } from "@anthropic-ai/claude-agent-sdk";
 import type { PlanUsage, PlanWindow } from "@squad/shared";
-import { AsyncQueue } from "./inputQueue.ts";
 import type { QueryFactory } from "./runner.ts";
+import { withSession } from "./sdkSession.ts";
 
 /**
  * The claude.ai plan limits. This is the only module that calls the SDK's experimental usage API,
@@ -52,14 +52,6 @@ export function toPlanUsage(raw: SDKControlGetUsageResponse, now: number): PlanU
     fetchedAt: now,
     stale: false,
   };
-}
-
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`No answer in ${ms} ms`)), ms);
-  });
-  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Keeps the plan limits current. Event: "change"(PlanUsage). */
@@ -136,21 +128,8 @@ export class PlanUsageTracker extends EventEmitter {
     return this.plan;
   }
 
-  /** Runs `fn` on a running agent's query, or on a probe session that never gets a prompt. */
-  private async withQuery<T>(fn: (q: Query) => Promise<T>): Promise<T> {
-    const running = this.deps.source();
-    if (running) return withTimeout(fn(running), PROBE_TIMEOUT_MS);
-    const input = new AsyncQueue<SDKUserMessage>();
-    const probe = this.deps.queryFactory({
-      prompt: input,
-      options: { cwd: this.deps.probeCwd, settingSources: [], allowedTools: [], permissionMode: "default" },
-    });
-    try {
-      return await withTimeout(fn(probe), PROBE_TIMEOUT_MS);
-    } finally {
-      input.end();
-      probe.close();
-    }
+  private withQuery<T>(fn: (q: Query) => Promise<T>): Promise<T> {
+    return withSession({ queryFactory: this.deps.queryFactory, source: this.deps.source, cwd: this.deps.probeCwd }, fn, PROBE_TIMEOUT_MS);
   }
 
   private set(next: PlanUsage): void {

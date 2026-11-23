@@ -13,6 +13,7 @@ import {
 import { loadHistory } from "./history.ts";
 import { shareDir } from "./paths.ts";
 import type { PlanUsageTracker } from "./planUsage.ts";
+import type { ModelCatalog } from "./models.ts";
 import { resolveInside } from "./safePath.ts";
 import type { Store } from "./store.ts";
 
@@ -31,9 +32,9 @@ function cookieKey(req: FastifyRequest): string | undefined {
 }
 
 export function buildApp(opts: {
-  store: Store; supervisor: Supervisor; key: string; webDist?: string; plan?: PlanUsageTracker;
+  store: Store; supervisor: Supervisor; key: string; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog;
 }): FastifyInstance {
-  const { store, supervisor: sup, key, plan } = opts;
+  const { store, supervisor: sup, key, plan, models } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
@@ -123,6 +124,8 @@ export function buildApp(opts: {
         return sup.send(m.agentId, m.text, m.images);
       case "agent.shellKill":
         return sup.killShell(m.agentId, m.id);
+      case "models.get":
+        return out(ws, { t: "models", models: models ? await models.get() : null });
       case "approval.answer":
         return sup.answer(m.approvalId, m.decision);
       case "layout.save":
