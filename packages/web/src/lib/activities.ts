@@ -47,3 +47,20 @@ export function filterOptions<T extends { name: string }>(options: T[], query: s
   const q = query.trim().toLowerCase();
   return q ? options.filter((o) => o.name.toLowerCase().includes(q)) : options;
 }
+
+/** The row with a new owner, who can't also review their own activity. */
+export function withOwner<T extends { ownerId: string | null; reviewerIds: string[] }>(row: T, ownerId: string | null): T {
+  return { ...row, ownerId, reviewerIds: row.reviewerIds.filter((r) => r !== ownerId) };
+}
+
+/** Why the dialog's activities can't be saved, or null when they can. */
+export function activityProblem(rows: { name: string }[]): string | null {
+  if (rows.some((r) => !r.name.trim())) return "Name every activity.";
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const k = r.name.trim().toLowerCase();
+    if (seen.has(k)) return `Two activities are called "${r.name.trim()}".`;
+    seen.add(k);
+  }
+  return null;
+}

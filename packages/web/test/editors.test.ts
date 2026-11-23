@@ -45,6 +45,17 @@ describe("EditableText", () => {
     expect(t.target.textContent).toContain("UI shaders");
   });
 
+  it("gives keyboard focus back to the label after Enter or Escape", async () => {
+    const t = setup("Shaders");
+    for (const k of ["Enter", "Escape"]) {
+      (t.target.querySelector("button") as HTMLButtonElement).click();
+      flushSync();
+      key(t.target.querySelector("input")!, k);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(document.activeElement, k).toBe(t.target.querySelector("button"));
+    }
+  });
+
   it("restores the old text on Escape, without letting the key reach the dialog", () => {
     const t = setup("Shaders");
     let reached = false;
@@ -109,6 +120,21 @@ describe("PickList", () => {
     open(three.target);
     await new Promise((r) => setTimeout(r, 0));
     expect(document.activeElement).toBe(three.target.querySelector("input[type=checkbox]"));
+  });
+
+  it("never lets Enter in the dropdown submit the form around it", () => {
+    const t = setup(7);
+    open(t.target);
+    expect(key(t.target.querySelector("input[type=search]")!, "Enter").defaultPrevented).toBe(true);
+    expect(key(t.target.querySelector("input[type=checkbox]")!, "Enter").defaultPrevented).toBe(true);
+  });
+
+  it("gives focus back to the summary when Escape closes the dropdown", async () => {
+    const t = setup(3);
+    open(t.target);
+    key(t.target.querySelector("input[type=checkbox]")!, "Escape");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement).toBe(t.target.querySelector("button.summary"));
   });
 
   it("closes on Escape and on a click outside", () => {
