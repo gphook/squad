@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { AGENT_NAME_RE, type Agent } from "@squad/shared";
+  import { AGENT_NAME_RE, EFFORT_LEVELS, type Agent, type EffortLevel } from "@squad/shared";
+  import { EFFORT_LABELS, effortAfterModelChange, modelChoices } from "../lib/models.ts";
   import { send, ui } from "../lib/state.svelte.ts";
   import { ownedAfterEdit, ownedBy, ownsPayload, unowned } from "../lib/activities.ts";
 
@@ -10,7 +11,18 @@
   let name = $state(initial?.name ?? "");
   let role = $state(initial?.role ?? "");
   let folder = $state(initial?.folder ?? "");
-  let model = $state(initial?.model ?? "");
+  let model = $state(initial?.model ?? ""); // "" = the account's default
+  let effort = $state<EffortLevel | null>(initial?.effort ?? null);
+
+  // The account's models are fetched once per server run; ask the first time any dialog opens.
+  if (untrack(() => ui.s.models) === undefined) send({ t: "models.get" });
+  const choices = $derived(ui.s.models ? modelChoices(ui.s.models, initial?.model ?? null) : []);
+  const choice = $derived(choices.find((c) => (c.model ?? "") === model));
+  const effortLevels = $derived(ui.s.models === null ? [...EFFORT_LEVELS] : (choice?.effortLevels ?? []));
+  function pickModel(value: string) {
+    model = value;
+    effort = effortAfterModelChange(effort, choices.find((c) => (c.model ?? "") === value));
+  }
   let createFolder = $state(false);
   const nameOk = $derived(AGENT_NAME_RE.test(name));
 
@@ -28,7 +40,7 @@
     if (!nameOk || !ui.s.projectId) return;
     send({
       t: "agent.save",
-      agent: { id: agent?.id, projectId: ui.s.projectId, name, role, folder, model: model.trim() || null },
+      agent: { id: agent?.id, projectId: ui.s.projectId, name, role, folder, model: model.trim() || null, effort },
       createFolder,
       // Built against what it owns now, so ownership given elsewhere while this was open isn't dropped.
       owns: ownsPayload(ownedAfterEdit(agent ? ownedBy(liveProject(), agent.id).map((a) => a.id) : [], mine.map((a) => a.id), owns), newActivities),
@@ -64,7 +76,23 @@
       <label>New activities <span class="hint">Comma-separated, e.g. Shaders, UI shaders</span>
         <input bind:value={newActivities} /></label>
     </fieldset>
-    <label>Model <span class="hint">Optional, e.g. opus, sonnet, haiku</span><input bind:value={model} /></label>
+    {#if ui.s.models === null}
+      <label>Model <span class="hint">Couldn't load your account's models. Optional, e.g. opus, sonnet, haiku</span><input bind:value={model} /></label>
+    {:else}
+      <label>Model
+        <select value={model} onchange={(e) => pickModel((e.target as HTMLSelectElement).value)} disabled={ui.s.models === undefined}>
+          {#if ui.s.models === undefined}<option value={model}>Loading models…</option>{/if}
+          {#each choices as c (c.model ?? "")}<option value={c.model ?? ""}>{c.label}</option>{/each}
+        </select>
+        {#if choice?.description}<span class="hint">{choice.description}</span>{/if}</label>
+    {/if}
+    {#if effortLevels.length}
+      <label>Effort <span class="hint">How hard it thinks. Lower is faster and uses less of your plan.</span>
+        <select value={effort ?? ""} onchange={(e) => (effort = ((e.target as HTMLSelectElement).value || null) as EffortLevel | null)}>
+          <option value="">Default</option>
+          {#each effortLevels as l (l)}<option value={l}>{EFFORT_LABELS[l]}</option>{/each}
+        </select></label>
+    {/if}
     <p class="hint">Changes apply the next time this squadmate launches.</p>
     <div class="actions">
       {#if agent}<button type="button" class="danger" onclick={remove}>Remove</button>{/if}
