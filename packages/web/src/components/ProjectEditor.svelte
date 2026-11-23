@@ -3,7 +3,7 @@
   import type { PermissionMode, Project } from "@squad/shared";
   import { PERMISSION_MODE_OPTIONS } from "../lib/permissionModes.ts";
   import { send, ui } from "../lib/state.svelte.ts";
-  import { keepNewer, move } from "../lib/activities.ts";
+  import { activityProblem, keepNewer, move, withOwner } from "../lib/activities.ts";
   import EditableText from "./EditableText.svelte";
   import PickList from "./PickList.svelte";
 
@@ -20,26 +20,16 @@
   type Row = { key: number; id?: string; name: string; ownerId: string | null; reviewerIds: string[]; description: string };
   let nextKey = 0;
   let activities = $state<Row[]>((initial?.activities ?? []).map((a) => ({ key: nextKey++, ...a, reviewerIds: [...a.reviewerIds] })));
-  const clash = $derived.by(() => {
-    const seen = new Set<string>();
-    for (const a of activities) {
-      const k = a.name.trim().toLowerCase();
-      if (k && seen.has(k)) return a.name.trim();
-      seen.add(k);
-    }
-    return null;
-  });
-  const blank = $derived(activities.some((a) => !a.name.trim()));
+  const problem = $derived(activityProblem(activities));
   const addActivity = () => (activities = [...activities, { key: nextKey++, name: "", ownerId: null, reviewerIds: [], description: "" }]);
   // An owner can't also review their own activity.
   function setOwner(row: Row, ownerId: string | null) {
-    row.ownerId = ownerId;
-    row.reviewerIds = row.reviewerIds.filter((r) => r !== ownerId);
+    Object.assign(row, withOwner(row, ownerId));
   }
 
   function save(e: SubmitEvent) {
     e.preventDefault();
-    if (clash || blank) return;
+    if (problem) return;
     const list = activities.map(({ id, name, ownerId, reviewerIds, description }) => ({
       ...(id ? { id } : {}), name: name.trim(), ownerId, reviewerIds: reviewerIds.filter((r) => r !== ownerId), description,
     }));
@@ -88,7 +78,7 @@
             options={squadmates.filter((m) => m.id !== a.ownerId).map((m) => ({ id: m.id, name: m.name }))} />
         </div>
       {/each}
-      {#if clash}<p class="err" role="alert">Two activities are called "{clash}".</p>{/if}
+      {#if problem}<p class="err" role="alert">{problem}</p>{/if}
       <button type="button" class="add" onclick={addActivity}>+ Add activity</button>
     </fieldset>
     <label>Permission mode <span class="hint">Shared by every squadmate in the project</span>
@@ -100,7 +90,7 @@
       {#if project}<button type="button" class="danger" onclick={remove}>Delete</button>{/if}
       <span class="grow"></span>
       <button type="button" onclick={onclose}>Cancel</button>
-      <button type="submit" class="primary" disabled={Boolean(clash) || blank}>Save</button>
+      <button type="submit" class="primary" disabled={Boolean(problem)}>Save</button>
     </div>
   </form>
 </div>

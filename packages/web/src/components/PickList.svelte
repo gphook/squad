@@ -10,6 +10,7 @@
   let open = $state(false);
   let query = $state("");
   let root = $state<HTMLElement>();
+  let summary = $state<HTMLButtonElement>();
   const names = $derived(new Map(options.map((o) => [o.id, o.name])));
   const shown = $derived(filterOptions(options, query));
 
@@ -32,9 +33,12 @@
     const el = root;
     const outside = (e: Event) => { if (!el.contains(e.target as Node)) close(); };
     const escape = (e: KeyboardEvent) => {
+      // Enter on the filter or a box must not submit the form this sits in.
+      if (e.key === "Enter") e.preventDefault();
       if (e.key !== "Escape") return;
       e.stopPropagation();
       close();
+      void tick().then(() => summary?.focus());
     };
     document.addEventListener("pointerdown", outside);
     el.addEventListener("keydown", escape);
@@ -46,7 +50,7 @@
 </script>
 
 <div class="picklist" bind:this={root} role="group" aria-label={label}>
-  <button type="button" class="summary" aria-expanded={open} onclick={() => (open ? close() : openList())}>
+  <button bind:this={summary} type="button" class="summary" aria-expanded={open} onclick={() => (open ? close() : openList())}>
     <span class="hint">{label}:</span> <span>{reviewerLabel(selected, names)}</span><span class="pen" aria-hidden="true">✎</span>
   </button>
   {#if open}

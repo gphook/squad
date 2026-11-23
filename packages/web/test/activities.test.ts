@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Project } from "@squad/shared";
-import { filterOptions, keepNewer, move, ownedAfterEdit, ownedBy, ownsPayload, reviewerLabel, unowned } from "../src/lib/activities.ts";
+import { activityProblem, filterOptions, withOwner, keepNewer, move, ownedAfterEdit, ownedBy, ownsPayload, reviewerLabel, unowned } from "../src/lib/activities.ts";
 
 const project: Project = {
   id: "p", name: "P", rules: "", permissionMode: "default", layout: { mode: "focussed", slots: {}, main: null },
@@ -55,5 +55,16 @@ describe("activity helpers", () => {
     const opts = [{ name: "sf-modeller" }, { name: "starfade" }, { name: "SF-UI-Designer" }];
     expect(filterOptions(opts, "sf-")).toEqual([opts[0], opts[2]]);
     expect(filterOptions(opts, "  ")).toEqual(opts);
+  });
+
+  it("withOwner sets the owner and drops them from the reviewers", () => {
+    expect(withOwner({ ownerId: "a", reviewerIds: ["b", "c"] }, "b")).toEqual({ ownerId: "b", reviewerIds: ["c"] });
+    expect(withOwner({ ownerId: "a", reviewerIds: ["b"] }, null)).toEqual({ ownerId: null, reviewerIds: ["b"] });
+  });
+
+  it("activityProblem explains why the activities can't be saved", () => {
+    expect(activityProblem([{ name: "UI" }, { name: "Shaders" }])).toBeNull();
+    expect(activityProblem([{ name: "UI" }, { name: "  " }])).toBe("Name every activity.");
+    expect(activityProblem([{ name: "UI" }, { name: " ui " }])).toBe('Two activities are called "ui".');
   });
 });
