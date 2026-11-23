@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { AGENT_NAME_RE, type Agent } from "@squad/shared";
   import { send, ui } from "../lib/state.svelte.ts";
-  import { ownedBy, ownsPayload, unowned } from "../lib/activities.ts";
+  import { ownedAfterEdit, ownedBy, ownsPayload, unowned } from "../lib/activities.ts";
 
   let { agent, onclose }: { agent: Agent | null; onclose: () => void } = $props();
   // The form edits a copy taken when it opens.
@@ -20,6 +20,7 @@
   const offered = [...mine, ...unowned(project)];
   let owns = $state<string[]>(mine.map((a) => a.id));
   let newActivities = $state("");
+  const liveProject = () => ui.s.projects.find((p) => p.id === ui.s.projectId) ?? null;
   const toggleOwn = (id: string) => (owns = owns.includes(id) ? owns.filter((x) => x !== id) : [...owns, id]);
 
   function save(e: SubmitEvent) {
@@ -29,7 +30,8 @@
       t: "agent.save",
       agent: { id: agent?.id, projectId: ui.s.projectId, name, role, folder, model: model.trim() || null },
       createFolder,
-      owns: ownsPayload(owns, newActivities),
+      // Built against what it owns now, so ownership given elsewhere while this was open isn't dropped.
+      owns: ownsPayload(ownedAfterEdit(agent ? ownedBy(liveProject(), agent.id).map((a) => a.id) : [], mine.map((a) => a.id), owns), newActivities),
     });
     onclose();
   }

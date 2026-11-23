@@ -18,3 +18,18 @@ export function move<T>(list: T[], i: number, dir: -1 | 1): T[] {
 export function ownsPayload(activityIds: string[], newNames: string): { activityIds: string[]; newActivities: string[] } {
   return { activityIds, newActivities: newNames.split(",").map((n) => n.trim()).filter(Boolean) };
 }
+
+/**
+ * What a squadmate should own after its dialog is saved: what it owns now (including anything assigned
+ * elsewhere while the dialog was open) plus what was ticked, minus only what the user unticked.
+ */
+export function ownedAfterEdit(ownedNow: string[], tickedAtOpen: string[], ticked: string[]): string[] {
+  const unticked = new Set(tickedAtOpen.filter((id) => !ticked.includes(id)));
+  return [...new Set([...ownedNow, ...ticked])].filter((id) => !unticked.has(id));
+}
+
+/** The dialog's list plus activities created elsewhere after it opened, so saving doesn't delete them. */
+export function keepNewer<T extends { id?: string }>(edited: T[], idsAtOpen: string[], live: (T & { id: string })[]): T[] {
+  const known = new Set(idsAtOpen);
+  return [...edited, ...live.filter((a) => !known.has(a.id))];
+}

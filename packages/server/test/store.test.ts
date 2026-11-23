@@ -226,6 +226,15 @@ describe("Store activities", () => {
     expect(owners()).toEqual({ Free: a.id, Taken: b.id, Shaders: null });
   });
 
+  it("setOwnership claims an unowned activity typed by name, but not another's", () => {
+    const p = newProject();
+    const a = newAgent(p.id, "a");
+    const b = newAgent(p.id, "b");
+    save(p, [act("Levels"), act("UI", b.id)]);
+    store.setOwnership(a.id, { activityIds: [], newActivities: [" levels ", "ui"] });
+    expect(store.getProject(p.id)!.activities.map((x) => [x.name, x.ownerId])).toEqual([["Levels", a.id], ["UI", b.id]]);
+  });
+
   it("deleting a squadmate leaves its activities unowned and removes it as a reviewer", () => {
     const p = newProject();
     const a = newAgent(p.id, "a");
