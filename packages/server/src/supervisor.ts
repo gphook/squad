@@ -7,6 +7,7 @@ import {
   type AgentAction, type AgentEvent, type AgentState, type AuthStatus, type Approval, type ApprovalDecision, type LoggedMessage, type SharedFile,
 } from "@squad/shared";
 import { shareDir } from "./paths.ts";
+import { renamePeers } from "./normalise.ts";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
 import { AgentRunner, type QueryFactory, type TurnResult } from "./runner.ts";
 import { resolveInside } from "./safePath.ts";
@@ -117,13 +118,14 @@ export class Supervisor extends EventEmitter {
   }
 
   /** `nameOf` is a lookup, called only for peer messages so streamed tokens don't each query the store. */
-  private onEvent(projectId: string, agentId: string, nameOf: () => string, ev: AgentEvent): void {
+  private onEvent(projectId: string, agentId: string, nameOf: () => string, raw: AgentEvent): void {
+    const mayName = raw.kind === "peer_out" || (raw.kind === "tool_use" && raw.name === "SendMessage");
+    const ev = mayName ? renamePeers([raw], this.projectAddresses(projectId))[0] : raw;
     this.emit("event", projectId, agentId, ev);
     if (ev.kind !== "peer_out" && ev.kind !== "peer_in") return;
     const agentName = nameOf();
     if (ev.kind === "peer_out") {
-      // A reply may be addressed to the sender's session rather than its name; log and match it by name.
-      const to = this.addresses.get(addressKey(projectId, ev.to)) ?? ev.to;
+      const to = ev.to; // already a name when the address is known (renamePeers above)
       this.logMessage({ projectId, from: agentName, to, text: ev.text, at: Date.now(), external: false });
       this.recentOutbound.push({ from: agentName, to, at: Date.now() });
       const target = this.store.getAgentByName(projectId, to);
@@ -134,6 +136,14 @@ export class Supervisor extends EventEmitter {
       const matched = this.recentOutbound.some((o) => o.from === ev.from && o.to === agentName);
       if (!matched) this.logMessage({ projectId, from: ev.from, to: agentName, text: ev.text, at: now, external: true });
     }
+  }
+
+  /** This project's squadmate addresses, for renamePeers. */
+  private projectAddresses(projectId: string): Map<string, string> {
+    const prefix = addressKey(projectId, "");
+    const out = new Map<string, string>();
+    for (const [k, name] of this.addresses) if (k.startsWith(prefix)) out.set(k.slice(prefix.length), name);
+    return out;
   }
 
   private logMessage(m: Omit<LoggedMessage, "id">): void {
