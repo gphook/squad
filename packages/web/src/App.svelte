@@ -33,7 +33,7 @@
     </main>
   {:else}
     <div class="body">
-      <Sidebar onedit={(a) => (editingAgent = { a })} onopentile={(id) => saveLayout(openTile(layout(), id))} onshow={show} />
+      <Sidebar onedit={(a) => (editingAgent = { a })} oneditproject={(p) => (editingProject = { p })} onopentile={(id) => saveLayout(openTile(layout(), id))} onshow={show} />
       {#if ui.view === "messages"}<MessagesView onjump={show} />
       {:else if ui.view === "shares"}<SharedFilesPanel />
       {:else if ui.view === "usage"}<UsageView onjump={show} />
