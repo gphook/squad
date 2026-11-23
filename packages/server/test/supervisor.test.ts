@@ -46,6 +46,14 @@ describe("squad_summon", () => {
     expect(await res).toBe('sf-modeller is running; message it with SendMessage to "sf-modeller"');
     expect(f.queries[0].options.cwd).toBe(b.folder);
   });
+  it("answers as soon as the summoned squadmate has started, not after the timeout", async () => {
+    const started = Date.now();
+    const res = tools().summon({ agent: "sf-modeller" });
+    await tick();
+    f.queries[0].initialize(); // Claude Code is up; no prompt or init message has been sent
+    expect(await res).toBe('sf-modeller is running; message it with SendMessage to "sf-modeller"');
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
   it("does nothing for an agent already running", async () => {
     await sup.action(b.id, "launch");
     expect(await tools().summon({ agent: "sf-modeller" })).toBe("sf-modeller is already running (starting)");

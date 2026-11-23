@@ -2,6 +2,8 @@ import type { QueryFactory } from "../src/runner.ts";
 
 export interface FakeQuery {
   options: Record<string, any>;
+  /** Resolves the fake's initializationResult(), as Claude Code does once its process is up (no prompt needed). */
+  initialize(): void;
   inputs: any[];
   emit(msg: unknown): void;
   end(): void;
@@ -28,9 +30,12 @@ export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; us
     const pending: unknown[] = [];
     let wake: (() => void) | null = null;
     let done = false;
+    let initialize!: () => void;
+    const initialized = new Promise<unknown>((r) => (initialize = () => r({})));
     const fq: FakeQuery = {
       options: options as Record<string, any>, inputs: [], closed: false, interrupted: 0, contextCalls: [], contextGate: null,
       emit(m) { pending.push(m); wake?.(); },
+      initialize: () => initialize(),
       end() { done = true; wake?.(); },
     };
     (async () => { for await (const m of prompt) fq.inputs.push(m); })();
@@ -44,6 +49,7 @@ export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; us
         }
       },
       interrupt: async () => { fq.interrupted++; },
+      initializationResult: () => initialized,
       close: () => { fq.closed = true; fq.end(); },
       getContextUsage: async (opts?: unknown) => { fq.contextCalls.push(opts); await fq.contextGate; return { percentage: 41 }; },
       supportedModels: async () => {

@@ -146,6 +146,14 @@ describe("AgentRunner", () => {
     expect(runner.state.status).toBe("working");
   });
 
+  it("is ready once Claude Code has started, before any prompt", async () => {
+    await runner.launch();
+    expect(runner.state.status).toBe("starting");
+    q().initialize();
+    await tick();
+    expect(runner.state.status).toBe("idle");
+  });
+
   it("goes to error when the session ends unexpectedly", async () => {
     await runner.launch();
     await init();
