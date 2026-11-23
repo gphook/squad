@@ -179,6 +179,15 @@ describe("websocket", () => {
     expect(store.getProject(projectId)!.layout.maximised).toBeNull();
   });
 
+  it("project.clearAll clears the project and sends everyone the emptied state", async () => {
+    store.addMessage({ projectId, from: "starfade", to: "x", text: "hi", at: 1, external: false });
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    send(c.ws, { t: "project.clearAll", projectId });
+    expect(await c.next("state")).toMatchObject({ projectId, messages: [] });
+  });
+
   it("passes agent.shellKill to the supervisor", async () => {
     const calls: string[][] = [];
     sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };

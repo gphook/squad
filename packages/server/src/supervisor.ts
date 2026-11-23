@@ -195,6 +195,12 @@ export class Supervisor extends EventEmitter {
     this.runners.get(agentId)?.killShell(id);
   }
 
+  /** Clears every squadmate in the project (as Clear does), and the project's message log. */
+  async clearAll(projectId: string): Promise<void> {
+    await Promise.all(this.store.listAgents(projectId).map((a) => this.action(a.id, "clear")));
+    this.store.deleteMessages(projectId);
+  }
+
   /** Forget an agent's runner (after it is deleted). */
   async forget(agentId: string): Promise<void> {
     this.runners.get(agentId)?.killAllShells();

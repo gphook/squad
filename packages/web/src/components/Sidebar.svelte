@@ -2,7 +2,7 @@
   import type { Agent, AgentAction, Project } from "@squad/shared";
   import { unowned } from "../lib/activities.ts";
   import { slotOf } from "../lib/layout.ts";
-  import { agentAction, approvalsFor, layout, ui } from "../lib/state.svelte.ts";
+  import { agentAction, approvalsFor, layout, send, ui } from "../lib/state.svelte.ts";
   import StatusDot from "./StatusDot.svelte";
   import ContextRing from "./ContextRing.svelte";
 
@@ -19,6 +19,14 @@
   const project = $derived(ui.s.projects.find((p) => p.id === ui.s.projectId) ?? null);
   const noOwner = $derived(unowned(project).length);
 
+  function clearAll() {
+    if (!project) return;
+    const n = ui.s.agents.length;
+    const what = n === 1 ? "the squadmate" : `all ${n} squadmates`;
+    if (!confirm(`Clear ${what} in ${project.name}? Each starts a fresh conversation, files they shared are deleted and the message log is emptied. Repos aren't touched.`)) return;
+    send({ t: "project.clearAll", projectId: project.id });
+  }
+
   function act(a: Agent, action: AgentAction) {
     menuFor = null;
     agentAction(a, action);
@@ -26,7 +34,12 @@
 </script>
 
 <nav class="sidebar" aria-label="Squadmates" role="list">
-  <div class="head">Squadmates</div>
+  <div class="head">
+    <span>Squadmates</span>
+    {#if ui.s.agents.length && project}
+      <button class="clearall" title="Clear every squadmate's conversation and the message log" onclick={clearAll}>Clear all…</button>
+    {/if}
+  </div>
   {#if noOwner && project}
     <button class="noowner" onclick={() => oneditproject(project)}>⚠ {noOwner} {noOwner === 1 ? "activity has" : "activities have"} no owner</button>
   {/if}
@@ -63,6 +76,9 @@
 
 <style>
   .sidebar { width: 210px; flex: none; border-right: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .clearall { background: none; border: 0; padding: 0 2px; font-size: 11px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+  .clearall:hover { color: var(--bad); }
   .head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 4px 6px; }
   .row { position: relative; display: flex; align-items: center; border-radius: 6px; }
   .row.active, .row:hover { background: var(--hover); }

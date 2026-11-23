@@ -36,6 +36,7 @@ const clientMsg = z.discriminatedUnion("t", [
     }),
   }),
   z.object({ t: z.literal("project.delete"), projectId: id }),
+  z.object({ t: z.literal("project.clearAll"), projectId: id }),
   z.object({
     t: z.literal("agent.save"),
     agent: z.object({

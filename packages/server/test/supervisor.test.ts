@@ -371,3 +371,22 @@ describe("signed out", () => {
     expect(auth.refreshes).toBe(1);
   });
 });
+
+describe("clear all", () => {
+  it("clears every squadmate in the project, and its message log, leaving other projects alone", async () => {
+    const events: { agentId: string; ev: AgentEvent }[] = [];
+    sup.on("event", (_p: string, agentId: string, ev: AgentEvent) => events.push({ agentId, ev }));
+    store.setSessionId(a.id, "s-a");
+    store.setSessionId(b.id, "s-b");
+    store.setSessionId(x.id, "s-x");
+    await sup.action(a.id, "launch");
+    store.addMessage({ projectId: project.id, from: "starfade", to: "sf-modeller", text: "hi", at: 1, external: false });
+    store.addMessage({ projectId: other.id, from: "outsider", to: "someone", text: "keep", at: 1, external: false });
+    await sup.clearAll(project.id);
+    expect([store.getAgent(a.id)!.sessionId, store.getAgent(b.id)!.sessionId, store.getAgent(x.id)!.sessionId]).toEqual([null, null, "s-x"]);
+    expect(sup.runner(a.id).state.status).toBe("stopped");
+    expect(events.filter((e) => e.ev.kind === "cleared").map((e) => e.agentId).sort()).toEqual([a.id, b.id].sort());
+    expect(store.listMessages(project.id)).toEqual([]);
+    expect(store.listMessages(other.id)).toHaveLength(1);
+  });
+});

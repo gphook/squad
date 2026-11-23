@@ -120,6 +120,9 @@ export function buildApp(opts: {
         sendProjects(); // its activities are now unowned
         return broadcast(a.projectId, stateMsg(a.projectId));
       }
+      case "project.clearAll":
+        await sup.clearAll(m.projectId);
+        return broadcast(m.projectId, stateMsg(m.projectId)); // empty message log and shares for every page
       case "agent.action":
         return sup.action(m.agentId, m.action);
       case "agent.send":

@@ -276,6 +276,10 @@ export class Store {
     return { id, ...m };
   }
 
+  deleteMessages(projectId: string): void {
+    this.db.prepare("DELETE FROM messages WHERE project_id = ?").run(projectId);
+  }
+
   listMessages(projectId: string, limit = 500): LoggedMessage[] {
     const rows = this.db.prepare("SELECT * FROM messages WHERE project_id = ? ORDER BY at DESC LIMIT ?").all(projectId, limit) as Row[];
     return rows.map(toMessage).reverse();
