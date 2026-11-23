@@ -19,7 +19,7 @@ describe("Store", () => {
     const p = newProject();
     expect(store.getProject(p.id)).toEqual({
       id: p.id, name: "Starfade", rules: "be nice", permissionMode: "default",
-      layout: { mode: "focussed", slots: {}, main: null },
+      layout: { mode: "focussed", slots: {}, main: null }, activities: [],
     });
     store.saveLayout(p.id, { mode: "tiled", slots: { "1": "a" }, main: "a" });
     expect(store.getProject(p.id)!.layout).toEqual({ mode: "tiled", slots: { "1": "a" }, main: "a" });
@@ -169,5 +169,70 @@ describe("Store usage shares", () => {
     store.addUsageTurn({ projectId: p1.id, agentId: store.saveAgent({ projectId: p1.id, name: "a", role: "", folder: "/tmp", model: null }).id, at: now - 1000, rows: r(1) });
     store.addUsageTurn({ projectId: p2.id, agentId: store.saveAgent({ projectId: p2.id, name: "b", role: "", folder: "/tmp", model: null }).id, at: now - 1000, rows: r(3) });
     expect(store.usageReport({ projectId: p1.id, days: 7, now }).windows[0]).toMatchObject({ share5h: 0.25, share7d: 0.25 });
+  });
+});
+
+describe("Store activities", () => {
+  const act = (name: string, ownerId: string | null = null, reviewerIds: string[] = [], id?: string) =>
+    ({ ...(id ? { id } : {}), name, ownerId, reviewerIds, description: "" });
+  const save = (p: { id: string; name: string }, activities?: ReturnType<typeof act>[]) =>
+    store.saveProject({ id: p.id, name: p.name, rules: "", permissionMode: "default", ...(activities ? { activities } : {}) });
+
+  it("saves activities in order and replaces the list on the next save", () => {
+    const p = newProject();
+    const a = newAgent(p.id, "starfade");
+    const saved = save(p, [act("Game code", a.id), act("UI"), act("Shaders")]).activities;
+    expect(saved.map((x) => [x.name, x.ownerId])).toEqual([["Game code", a.id], ["UI", null], ["Shaders", null]]);
+    const [g, , s] = saved;
+    const again = save(p, [act("Shader work", null, [], s.id), act("Game code", a.id, [], g.id)]).activities;
+    expect(again.map((x) => [x.id, x.name])).toEqual([[s.id, "Shader work"], [g.id, "Game code"]]);
+    expect(store.getProject(p.id)!.activities).toEqual(again);
+  });
+
+  it("leaves activities alone when a save doesn't mention them", () => {
+    const p = newProject();
+    save(p, [act("UI")]);
+    save(p);
+    expect(store.getProject(p.id)!.activities.map((x) => x.name)).toEqual(["UI"]);
+  });
+
+  it("rejects duplicate names, ignoring case and spaces, but allows a swap", () => {
+    const p = newProject();
+    expect(() => save(p, [act("UI"), act(" ui ")])).toThrow(StoreError);
+    const [x, y] = save(p, [act("A"), act("B")]).activities;
+    expect(save(p, [act("B", null, [], x.id), act("A", null, [], y.id)]).activities.map((z) => z.name)).toEqual(["B", "A"]);
+  });
+
+  it("drops owners and reviewers from other projects, and an owner listed as reviewer", () => {
+    const p = newProject();
+    const other = newProject("Other");
+    const a = newAgent(p.id, "a");
+    const b = newAgent(p.id, "b");
+    const outsider = newAgent(other.id, "x");
+    const [one, two] = save(p, [act("One", outsider.id, [outsider.id, b.id]), act("Two", a.id, [a.id, b.id])]).activities;
+    expect([one.ownerId, one.reviewerIds]).toEqual([null, [b.id]]);
+    expect([two.ownerId, two.reviewerIds]).toEqual([a.id, [b.id]]);
+  });
+
+  it("setOwnership claims unowned activities, never another's, creates new ones and releases unlisted ones", () => {
+    const p = newProject();
+    const a = newAgent(p.id, "a");
+    const b = newAgent(p.id, "b");
+    const [free, taken] = save(p, [act("Free"), act("Taken", b.id)]).activities;
+    store.setOwnership(a.id, { activityIds: [free.id, taken.id], newActivities: ["Shaders", " ", "free"] });
+    const owners = () => Object.fromEntries(store.getProject(p.id)!.activities.map((x) => [x.name, x.ownerId]));
+    expect(owners()).toEqual({ Free: a.id, Taken: b.id, Shaders: a.id });
+    store.setOwnership(a.id, { activityIds: [free.id], newActivities: [] });
+    expect(owners()).toEqual({ Free: a.id, Taken: b.id, Shaders: null });
+  });
+
+  it("deleting a squadmate leaves its activities unowned and removes it as a reviewer", () => {
+    const p = newProject();
+    const a = newAgent(p.id, "a");
+    const b = newAgent(p.id, "b");
+    save(p, [act("Mine", a.id, [b.id]), act("Reviewed", b.id, [a.id]), act("Other", b.id)]);
+    store.deleteAgent(a.id);
+    expect(store.getProject(p.id)!.activities.map((x) => [x.name, x.ownerId, x.reviewerIds]))
+      .toEqual([["Mine", null, [b.id]], ["Reviewed", b.id, []], ["Other", b.id, []]]);
   });
 });

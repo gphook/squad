@@ -15,6 +15,14 @@ const layout = z.object({
   main: z.string().nullable(),
 });
 
+const activityInput = z.object({
+  id: id.optional(),
+  name: z.string().trim().min(1),
+  ownerId: id.nullable(),
+  reviewerIds: z.array(id),
+  description: z.string(),
+});
+
 const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("subscribe"), projectId: id }),
   z.object({
@@ -24,6 +32,8 @@ const clientMsg = z.discriminatedUnion("t", [
       name: z.string().trim().min(1),
       rules: z.string(),
       permissionMode: z.enum(PERMISSION_MODES),
+      /** When present, replaces the project's activities. */
+      activities: z.array(activityInput).optional(),
     }),
   }),
   z.object({ t: z.literal("project.delete"), projectId: id }),
@@ -38,6 +48,8 @@ const clientMsg = z.discriminatedUnion("t", [
       model: z.string().nullable(),
     }),
     createFolder: z.boolean().optional(),
+    /** When present, the activities this squadmate owns after the save. */
+    owns: z.object({ activityIds: z.array(id), newActivities: z.array(z.string()) }).optional(),
   }),
   z.object({ t: z.literal("agent.delete"), agentId: id }),
   z.object({
