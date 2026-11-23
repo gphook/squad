@@ -12,5 +12,7 @@ export default defineConfig({
       "/api": target,
     },
   },
+  // Component tests mount Svelte in jsdom, which needs Svelte's browser build rather than its server one.
+  resolve: process.env.VITEST ? { conditions: ["browser"] } : undefined,
   test: { environment: "jsdom" },
 });

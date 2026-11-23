@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Project } from "@squad/shared";
-import { keepNewer, move, ownedAfterEdit, ownedBy, ownsPayload, unowned } from "../src/lib/activities.ts";
+import { filterOptions, keepNewer, move, ownedAfterEdit, ownedBy, ownsPayload, reviewerLabel, unowned } from "../src/lib/activities.ts";
 
 const project: Project = {
   id: "p", name: "P", rules: "", permissionMode: "default", layout: { mode: "focussed", slots: {}, main: null },
@@ -42,5 +42,18 @@ describe("activity helpers", () => {
     const edited = [{ id: "1", name: "A" }, { name: "New" }];
     const live = [{ id: "1", name: "A" }, { id: "2", name: "Deleted in dialog" }, { id: "9", name: "Made elsewhere" }];
     expect(keepNewer(edited, ["1", "2"], live)).toEqual([...edited, { id: "9", name: "Made elsewhere" }]);
+  });
+
+  it("reviewerLabel joins names in order, skips unknown ids, and says nobody when empty", () => {
+    const names = new Map([["a", "ay"], ["b", "bee"]]);
+    expect(reviewerLabel(["b", "a"], names)).toBe("bee, ay");
+    expect(reviewerLabel(["b", "zz"], names)).toBe("bee");
+    expect(reviewerLabel([], names)).toBe("nobody");
+  });
+
+  it("filterOptions matches names ignoring case; a blank query keeps all", () => {
+    const opts = [{ name: "sf-modeller" }, { name: "starfade" }, { name: "SF-UI-Designer" }];
+    expect(filterOptions(opts, "sf-")).toEqual([opts[0], opts[2]]);
+    expect(filterOptions(opts, "  ")).toEqual(opts);
   });
 });
