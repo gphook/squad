@@ -5,6 +5,9 @@
 ### Projects
 - Create, edit, delete and switch between any number of projects.
 - Project-wide rules (markdown) given to every agent in the project.
+- Activities: a project's areas of work, each with an owner, optional reviewers and a description. Squad
+  writes them into every squadmate's launch prompt as ownership and review rules, and `squad_team` shows them.
+  Assign them in the project dialog, or tick them when adding a squadmate; unowned ones are flagged.
 - One permission mode per project, shared by all its agents.
 - Layout (mode, open tiles, slots) saved per project.
 

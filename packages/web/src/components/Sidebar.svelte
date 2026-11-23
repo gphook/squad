@@ -1,11 +1,13 @@
 <script lang="ts">
-  import type { Agent, AgentAction } from "@squad/shared";
+  import type { Agent, AgentAction, Project } from "@squad/shared";
+  import { unowned } from "../lib/activities.ts";
   import { slotOf } from "../lib/layout.ts";
   import { agentAction, approvalsFor, layout, ui } from "../lib/state.svelte.ts";
   import StatusDot from "./StatusDot.svelte";
   import ContextRing from "./ContextRing.svelte";
 
-  let { onedit, onopentile, onshow }: {
+  let { onedit, onopentile, onshow, oneditproject }: {
+    oneditproject: (p: Project) => void;
     onedit: (a: Agent | null) => void;
     onopentile: (agentId: string) => void;
     onshow: (agentId: string) => void;
@@ -14,6 +16,8 @@
   let menuFor = $state<string | null>(null);
 
   const current = $derived(layout());
+  const project = $derived(ui.s.projects.find((p) => p.id === ui.s.projectId) ?? null);
+  const noOwner = $derived(unowned(project).length);
 
   function act(a: Agent, action: AgentAction) {
     menuFor = null;
@@ -23,6 +27,9 @@
 
 <nav class="sidebar" aria-label="Squadmates" role="list">
   <div class="head">Squadmates</div>
+  {#if noOwner && project}
+    <button class="noowner" onclick={() => oneditproject(project)}>⚠ {noOwner} {noOwner === 1 ? "activity has" : "activities have"} no owner</button>
+  {/if}
   {#each ui.s.agents as a (a.id)}
     {@const st = ui.s.states[a.id]?.status ?? "stopped"}
     <div class="row" role="listitem" class:active={current.main === a.id} draggable="true"
@@ -69,5 +76,6 @@
   .menu { position: absolute; right: 0; top: 100%; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; flex-direction: column; min-width: 140px; box-shadow: 0 6px 20px #0003; }
   .menu button { background: none; border: 0; text-align: left; padding: 6px 10px; border-radius: 4px; }
   .menu button:hover { background: var(--hover); }
+  .noowner { background: none; border: 0; color: var(--warn); font-size: 12px; text-align: left; padding: 2px 6px 6px; }
   .add { margin-top: 8px; background: none; border: 1px dashed var(--line); padding: 6px; border-radius: 6px; color: var(--muted); }
 </style>
