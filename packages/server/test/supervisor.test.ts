@@ -290,6 +290,26 @@ describe("signed out", () => {
     expect(f.queries).toHaveLength(0);
   });
 
+  it("checks again before refusing, so signing in elsewhere isn't met with a stale refusal", async () => {
+    const auth = authWith("signedOut");
+    auth.refresh = async () => {
+      auth.refreshes++;
+      await tick(); // the CLI takes a moment
+      auth.current = { state: "signedIn" };
+      return auth.current;
+    };
+    await sup.action(a.id, "launch");
+    expect(f.queries).toHaveLength(1);
+    expect(sup.runner(a.id).state.status).toBe("starting");
+  });
+
+  it("starts one session when launch is pressed twice during that check", async () => {
+    const auth = authWith("signedOut");
+    auth.refresh = async () => { await tick(); auth.current = { state: "signedIn" }; return auth.current; };
+    await Promise.all([sup.action(a.id, "launch"), sup.action(a.id, "launch")]);
+    expect(f.queries).toHaveLength(1);
+  });
+
   it("launches when the account state is unknown", async () => {
     authWith("unknown");
     await sup.action(a.id, "launch");

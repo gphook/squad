@@ -29,8 +29,8 @@ export interface RunnerDeps {
   mcpServer: McpServerConfig;
   kitPluginPath: string;
   shareDir: string;
-  /** True when nobody is signed in to Claude, so a launch would only fail. */
-  signedOut?: () => boolean;
+  /** Resolves true when nobody is signed in to Claude, so a launch would only fail. */
+  signedOut?: () => Promise<boolean>;
   /** Runs `$ cmd`; tests swap in a fake. */
   runShell?: typeof runShell;
 }
@@ -77,6 +77,8 @@ export class AgentRunner extends EventEmitter {
   private stopping = false;
   /** The session id this launch resumed, to tell a resumed session's first turn from a new one. */
   private resumedFrom: string | null = null;
+  /** True while a launch is checking whether it can start, so a second click doesn't start a second session. */
+  private launching = false;
   /** `$ cmd` commands still running, by id, so they can be killed. */
   private shells = new Map<string, { kill(force?: boolean): void }>();
   /** Finished `$ cmd` blocks the squadmate hasn't seen yet. */
@@ -128,7 +130,16 @@ export class AgentRunner extends EventEmitter {
 
   /** `shellContext`: `$ cmd` output to put in the launch prompt (a summon delivers it this way). */
   async launch(opts: { shellContext?: string[] } = {}): Promise<void> {
-    if (this.query) return;
+    if (this.query || this.launching) return;
+    this.launching = true;
+    try {
+      await this.start(opts);
+    } finally {
+      this.launching = false;
+    }
+  }
+
+  private async start(opts: { shellContext?: string[] }): Promise<void> {
     let isDir = false;
     try {
       isDir = statSync(this.agent.folder).isDirectory();
@@ -137,7 +148,7 @@ export class AgentRunner extends EventEmitter {
       this.setStatus("error", `Folder not found: ${this.agent.folder}`);
       return;
     }
-    if (this.deps.signedOut?.()) {
+    if (await this.deps.signedOut?.()) {
       this.setStatus("error", NOT_SIGNED_IN);
       return;
     }
