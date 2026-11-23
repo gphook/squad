@@ -5,6 +5,8 @@
 ### Projects
 - Create, edit, delete and switch between any number of projects.
 - Project-wide rules (markdown) given to every agent in the project.
+- The Claude account squadmates run on, in the top bar (from `claude auth status`). When nobody is signed in,
+  launches are refused with a clear message and the account chip shows how to sign in.
 - Per squadmate, a model picked from your account's models (fetched from the SDK) and an effort level (Low to
   Max, as the model allows), applied at launch.
 - Activities: a project's areas of work, each with an owner, optional reviewers and a description. Squad

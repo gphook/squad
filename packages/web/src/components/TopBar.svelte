@@ -2,6 +2,7 @@
   import { FIVE_HOUR_MS, SEVEN_DAY_MS, type LayoutMode, type Project } from "@squad/shared";
   import { layout, saveLayout, selectProject, ui } from "../lib/state.svelte.ts";
   import UsageRing from "./UsageRing.svelte";
+  import AccountChip from "./AccountChip.svelte";
   import Icon from "./Icon.svelte";
   import { applyTheme, loadTheme, nextTheme, saveTheme, type Theme } from "../lib/theme.ts";
 
@@ -42,6 +43,7 @@
     <button class="icon" aria-label="Edit project {current.name}" title="Edit project" onclick={() => oneditproject(current)}><Icon name="edit" /></button>
   {/if}
   <span class="grow"></span>
+  <AccountChip {now} />
   {#if plan}
     <div class="rings" role="group" aria-label="Plan usage">
       {#if plan.fiveHour}<UsageRing label="5h" name="Session" window={plan.fiveHour} windowMs={FIVE_HOUR_MS} {now} onclick={showUsage} />{/if}

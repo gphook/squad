@@ -63,7 +63,7 @@ browser (Svelte) ──WebSocket──► Squad server (Node, Fastify)
 
 ## Security
 
-Squad is a single-user tool that listens only on `127.0.0.1`, behind a random session key. Anyone holding that key can run shell commands as you with `$ cmd`, so treat the URL like a password. See [SECURITY.md](SECURITY.md) for the model, and to report a vulnerability privately.
+Squadmates use your Claude Code sign-in (the account shows in the top bar). Squad is a single-user tool that listens only on `127.0.0.1`, behind a random session key. Anyone holding that key can run shell commands as you with `$ cmd`, so treat the URL like a password. See [SECURITY.md](SECURITY.md) for the model, and to report a vulnerability privately.
 
 ## Contributing
 
