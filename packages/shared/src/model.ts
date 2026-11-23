@@ -63,7 +63,13 @@ export type AgentEvent =
   | { kind: "peer_out"; to: string; text: string }
   | { kind: "show"; target: string; caption?: string }
   | { kind: "compacted" }
-  | { kind: "turn_end"; ok: boolean; error?: string };
+  | { kind: "turn_end"; ok: boolean; error?: string }
+  /** A `$ cmd` Squad ran; live ones grow through shell_output and shell_end with the same id. */
+  | { kind: "shell"; id: string; command: string; chunks: ShellChunk[]; running: boolean; code: number | null; signal: string | null }
+  | { kind: "shell_output"; id: string; stream: ShellChunk["stream"]; text: string }
+  | { kind: "shell_end"; id: string; code: number | null; signal: string | null };
+
+export type ShellChunk = { stream: "stdout" | "stderr"; text: string };
 
 export interface Approval {
   id: string;

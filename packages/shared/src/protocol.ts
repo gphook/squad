@@ -46,6 +46,7 @@ const clientMsg = z.discriminatedUnion("t", [
     action: z.enum(AGENT_ACTIONS),
   }),
   z.object({ t: z.literal("agent.send"), agentId: id, text: z.string(), images: z.array(z.string()).optional() }),
+  z.object({ t: z.literal("agent.shellKill"), agentId: id, id }),
   z.object({ t: z.literal("approval.answer"), approvalId: id, decision: z.enum(APPROVAL_DECISIONS) }),
   z.object({ t: z.literal("layout.save"), projectId: id, layout }),
   z.object({ t: z.literal("share.delete"), shareId: id }),
