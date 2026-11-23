@@ -28,10 +28,14 @@ export interface AuthSource {
   refresh(): Promise<AuthStatus>;
 }
 
+const addressKey = (projectId: string, address: string) => `${projectId}\0${address}`;
+
 export class Supervisor extends EventEmitter {
   private auth: AuthSource | null = null;
   private runners = new Map<string, AgentRunner>();
   private recentOutbound: { to: string; from: string; at: number }[] = [];
+  /** Squadmates' session addresses (learned from the messages they send) to their names, per project. */
+  private addresses = new Map<string, string>();
 
   constructor(
     private store: Store,
@@ -83,6 +87,7 @@ export class Supervisor extends EventEmitter {
     r.on("event", (ev: AgentEvent) => this.onEvent(pid, agentId, nameOf, ev));
     r.on("result", (res: TurnResult) => this.recordUsage(pid, agentId, res));
     r.on("rateLimit", (info: unknown) => this.emit("rateLimit", info));
+    r.on("peerAddress", (p: { name: string; address: string }) => this.addresses.set(addressKey(pid, p.address), p.name));
     this.runners.set(agentId, r);
     return r;
   }
@@ -117,9 +122,11 @@ export class Supervisor extends EventEmitter {
     if (ev.kind !== "peer_out" && ev.kind !== "peer_in") return;
     const agentName = nameOf();
     if (ev.kind === "peer_out") {
-      this.logMessage({ projectId, from: agentName, to: ev.to, text: ev.text, at: Date.now(), external: false });
-      this.recentOutbound.push({ from: agentName, to: ev.to, at: Date.now() });
-      const target = this.store.getAgentByName(projectId, ev.to);
+      // A reply may be addressed to the sender's session rather than its name; log and match it by name.
+      const to = this.addresses.get(addressKey(projectId, ev.to)) ?? ev.to;
+      this.logMessage({ projectId, from: agentName, to, text: ev.text, at: Date.now(), external: false });
+      this.recentOutbound.push({ from: agentName, to, at: Date.now() });
+      const target = this.store.getAgentByName(projectId, to);
       if (target) this.emit("event", projectId, target.id, { kind: "peer_in", from: agentName, text: ev.text });
     } else if (ev.kind === "peer_in") {
       const now = Date.now();

@@ -85,6 +85,32 @@ describe("message log", () => {
     expect(store.listMessages(project.id)).toMatchObject([{ from: "starfade", to: "sf-modeller", text: "build a ship", external: false }]);
     expect(events).toContainEqual({ agentId: b.id, ev: { kind: "peer_in", from: "starfade", text: "build a ship" } });
   });
+  it("logs a reply sent to a squadmate's session address under its name, once", async () => {
+    const ADDR = "uds:/run/user/1000/cc-socks/574797.sock";
+    await sup.action(a.id, "launch"); // starfade
+    await sup.action(b.id, "launch"); // sf-modeller
+    const [starfade, modeller] = f.queries;
+    // starfade asks; sf-modeller's session receives it with starfade's address
+    starfade.emit({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "SendMessage", input: { to: "sf-modeller", message: "one word?" } }] } });
+    modeller.emit({ type: "user", isMeta: true, message: { content: `Another Claude session sent a message: <cross-session-message from="${ADDR}" from-name="starfade" from-mode="prompting">one word?</cross-session-message>` } });
+    await tick();
+    // sf-modeller replies to the address, as Claude Code does
+    modeller.emit({ type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "SendMessage", input: { to: ADDR, message: "Received." } }] } });
+    starfade.emit({ type: "user", isMeta: true, message: { content: 'Another Claude session sent a message: <cross-session-message from="uds:/other.sock" from-name="sf-modeller" from-mode="prompting">Received.</cross-session-message>' } });
+    await tick();
+    expect(store.listMessages(project.id).map((m) => [m.from, m.to, m.text, m.external])).toEqual([
+      ["starfade", "sf-modeller", "one word?", false],
+      ["sf-modeller", "starfade", "Received.", false],
+    ]);
+  });
+
+  it("keeps an address it hasn't learned as written", async () => {
+    await sup.action(a.id, "launch");
+    f.queries[0].emit({ type: "assistant", message: { content: [{ type: "tool_use", id: "t", name: "SendMessage", input: { to: "uds:/unknown.sock", message: "hi" } }] } });
+    await tick();
+    expect(store.listMessages(project.id)).toMatchObject([{ to: "uds:/unknown.sock" }]);
+  });
+
   it("logs a peer_in from an outside session as external", async () => {
     await sup.action(a.id, "launch");
     f.queries[0].emit({ type: "user", message: { content: '<cross-session-message from-name="me">hi</cross-session-message>' } });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fx from "./fixtures/sdk-messages.json" with { type: "json" };
 import { agentShellPrompt, bashContextBlock } from "@squad/shared";
-import { normalise, parsePeerMessage, summariseTool } from "../src/normalise.ts";
+import { normalise, parsePeerMessage, peerAddress, summariseTool } from "../src/normalise.ts";
 
 const n = (m: unknown) => normalise(m as never);
 
@@ -64,6 +64,22 @@ describe("normalise", () => {
   it("ignores other message types", () => {
     expect(n(fx.init)).toEqual([]);
     expect(n(fx.commandStarted)).toEqual([]);
+  });
+});
+
+describe("peerAddress", () => {
+  // The shape Claude Code actually delivers: a harness (isMeta) user message.
+  const delivered = {
+    type: "user", isMeta: true,
+    message: { content: 'Another Claude session sent a message: <cross-session-message from="uds:/run/user/1000/cc-socks/574797.sock" from-name="starfade" from-mode="prompting">one word?</cross-session-message>' },
+  };
+  it("reads the sender's name and session address, even from a harness message", () => {
+    expect(peerAddress(delivered)).toEqual({ name: "starfade", address: "uds:/run/user/1000/cc-socks/574797.sock" });
+  });
+  it("is null without both, or for other messages", () => {
+    expect(peerAddress({ type: "user", message: { content: '<cross-session-message from-name="x">hi</cross-session-message>' } })).toBeNull();
+    expect(peerAddress({ type: "user", message: { content: "hello" } })).toBeNull();
+    expect(peerAddress({ type: "assistant" })).toBeNull();
   });
 });
 
