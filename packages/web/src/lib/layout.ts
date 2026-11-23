@@ -15,12 +15,13 @@ export function openTile(l: Layout, agentId: string): Layout {
   return { ...l, slots: { ...l.slots, [free]: agentId } };
 }
 
+/** Closing the maximised tile restores the grid. */
 export function closeTile(l: Layout, agentId: string): Layout {
   const k = slotOf(l, agentId);
   if (!k) return l;
   const slots = { ...l.slots };
   delete slots[k];
-  return { ...l, slots };
+  return { slots, maximised: l.maximised === agentId ? null : l.maximised };
 }
 
 export function moveTile(l: Layout, agentId: string, slot: SlotKey): Layout {
@@ -34,13 +35,31 @@ export function moveTile(l: Layout, agentId: string, slot: SlotKey): Layout {
   return { ...l, slots };
 }
 
+/** Maximises a squadmate's tile (opening it if needed), or restores the grid when it's already maximised. */
+export function toggleMaximise(l: Layout, agentId: string): Layout {
+  if (l.maximised === agentId) return { ...l, maximised: null };
+  return { ...openTile(l, agentId), maximised: agentId };
+}
+
+/** Alt+N: with a tile maximised, tile N takes its place; either way the cursor goes to tile N. */
 export function pressAlt(l: Layout, slot: SlotKey): { layout: Layout; focus: string | null } {
   const agentId = l.slots[slot];
   if (!agentId) return { layout: l, focus: null };
-  if (l.mode === "tiled") return { layout: l, focus: agentId };
-  return { layout: { ...l, main: agentId }, focus: agentId };
+  if (l.maximised && l.maximised !== agentId) return { layout: { ...l, maximised: agentId }, focus: agentId };
+  return { layout: l, focus: agentId };
 }
 
-export function showInMain(l: Layout, agentId: string): Layout {
-  return { ...l, main: agentId };
+/** A sidebar click: open the squadmate's tile, and while a tile is maximised, swap this one in. */
+export function showSquadmate(l: Layout, agentId: string): Layout {
+  const opened = openTile(l, agentId);
+  return l.maximised && l.maximised !== agentId ? { ...opened, maximised: agentId } : opened;
+}
+
+/** Drops tiles of squadmates that no longer exist; unchanged (same object) when nothing needs dropping. */
+export function pruneLayout(l: Layout, agentIds: string[]): Layout {
+  const known = new Set(agentIds);
+  if (Object.values(l.slots).every((id) => known.has(id!)) && (!l.maximised || known.has(l.maximised))) return l;
+  const slots: Layout["slots"] = {};
+  for (const [k, id] of Object.entries(l.slots)) if (known.has(id!)) slots[k as SlotKey] = id;
+  return { slots, maximised: l.maximised && known.has(l.maximised) ? l.maximised : null };
 }
