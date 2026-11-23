@@ -257,7 +257,7 @@ describe("AgentRunner usage", () => {
 });
 
 describe("AgentRunner shell commands", () => {
-  let shells: { command: string; cwd: string; h: ShellHandlers; killed: boolean }[];
+  let shells: { command: string; cwd: string; h: ShellHandlers; killed: boolean; forced: boolean }[];
   let events: AgentEvent[];
   beforeEach(() => {
     shells = [];
@@ -265,9 +265,9 @@ describe("AgentRunner shell commands", () => {
     runner = new AgentRunner(project, agent, [agent], {
       queryFactory: f.factory, mcpServer: { type: "sdk", name: "squad" } as any, kitPluginPath: "/kit", shareDir: "/share",
       runShell: (command, cwd, h) => {
-        const s = { command, cwd, h, killed: false };
+        const s = { command, cwd, h, killed: false, forced: false };
         shells.push(s);
-        return { kill: () => { s.killed = true; } };
+        return { kill: (force?: boolean) => { s.killed = true; s.forced = Boolean(force); } };
       },
     });
     runner.on("event", (e: AgentEvent) => events.push(e));
@@ -336,6 +336,57 @@ describe("AgentRunner shell commands", () => {
     finish(1, "/x");
     runner.discardShellContext();
     expect(runner.takeShellContext()).toEqual([]);
+  });
+
+  it("kills at once when asked to force", async () => {
+    await runner.send("$ a");
+    runner.killAllShells(true);
+    expect(shells[0].forced).toBe(true);
+  });
+
+  it("keeps a snapshot of running and undelivered blocks for a reloaded page", async () => {
+    await runner.send("$ ls");
+    shells[0].h.onChunk("stdout", "a");
+    const id = (events[0] as { id: string }).id;
+    expect(runner.shellSnapshots()).toEqual([
+      { kind: "shell", id, command: "ls", chunks: [{ stream: "stdout", text: "a" }], running: true, code: null, signal: null },
+    ]);
+    shells[0].h.onEnd(0, null);
+    await runner.send("$ make");
+    expect(runner.shellSnapshots().map((e) => (e as { running: boolean }).running)).toEqual([false, true]);
+    runner.takeShellContext();
+    expect(runner.shellSnapshots().map((e) => (e as { command: string }).command)).toEqual(["make"]);
+  });
+
+  it("drops output from a command that ends after its context was discarded", async () => {
+    await runner.send("$ make");
+    runner.discardShellContext();
+    finish(0, "late");
+    expect(runner.takeShellContext()).toEqual([]);
+    expect(runner.shellSnapshots()).toEqual([]);
+  });
+
+  it("holds queued output back from a slash command", async () => {
+    await runner.send("$ ls");
+    finish(0, "a\n");
+    await runner.send("/compact");
+    await init();
+    expect(q().inputs.at(-1).message.content).toBe("/compact");
+    await runner.send("hi");
+    await tick();
+    expect(q().inputs.at(-1).message.content).toBe(`${block("ls", "a\n")}\n\nhi`);
+  });
+
+  it("batches fast output into fewer events", async () => {
+    await runner.send("$ yes");
+    shells[0].h.onChunk("stdout", "a");
+    shells[0].h.onChunk("stdout", "b");
+    shells[0].h.onChunk("stderr", "e");
+    await new Promise((r) => setTimeout(r, 120));
+    expect(events.filter((e) => e.kind === "shell_output")).toEqual([
+      { kind: "shell_output", id: (events[0] as { id: string }).id, stream: "stdout", text: "ab" },
+      { kind: "shell_output", id: (events[0] as { id: string }).id, stream: "stderr", text: "e" },
+    ]);
   });
 
   it("puts shell context given at launch into the launch prompt", async () => {

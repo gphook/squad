@@ -20,7 +20,7 @@ function isDir(path: string): boolean {
 /** Runs a `$ cmd` the user typed, in `cwd`, without stdin. onEnd fires exactly once. */
 export function runShell(
   command: string, cwd: string, h: ShellHandlers, shell = process.env.SHELL || "/bin/sh",
-): { kill(): void } {
+): { kill(force?: boolean): void } {
   let ended = false;
   const end = (code: number | null, signal: string | null) => {
     if (ended) return;
@@ -49,8 +49,10 @@ export function runShell(
   child.on("close", (code, signal) => end(code, signal));
 
   return {
-    kill() {
+    /** SIGTERM with a SIGKILL 5 s later, or SIGKILL at once when `force` (e.g. Squad is shutting down). */
+    kill(force = false) {
       if (ended) return;
+      if (force) return signalGroup("SIGKILL");
       signalGroup("SIGTERM");
       setTimeout(() => { if (!ended) signalGroup("SIGKILL"); }, KILL_GRACE_MS).unref();
     },

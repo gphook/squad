@@ -139,6 +139,7 @@ export class Supervisor extends EventEmitter {
       case "compact": return r.compact();
       case "clear": {
         await r.stop();
+        r.killAllShells();
         r.discardShellContext();
         const agent = this.store.getAgent(agentId)!;
         this.store.setSessionId(agentId, null);
@@ -147,6 +148,10 @@ export class Supervisor extends EventEmitter {
         return;
       }
     }
+  }
+
+  shellSnapshots(agentId: string): AgentEvent[] {
+    return this.runners.get(agentId)?.shellSnapshots() ?? [];
   }
 
   killShell(agentId: string, id: string): void {
@@ -235,6 +240,8 @@ export class Supervisor extends EventEmitter {
   }
 
   async stopAll(): Promise<void> {
+    // Commands run in their own process group, so nothing else stops them when Squad exits.
+    for (const r of this.runners.values()) r.killAllShells(true);
     await Promise.all([...this.runners.values()].map((r) => r.stop()));
   }
 }

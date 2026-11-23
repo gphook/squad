@@ -1,3 +1,5 @@
+import type { ShellChunk } from "./model.ts";
+
 /**
  * Shell commands typed into a prompt box:
  * `!cmd` asks the squadmate to run it with its Bash tool; `$ cmd` has Squad run it in the squadmate's folder.
@@ -29,6 +31,30 @@ export const SHELL_CONTEXT_CAP = 30_000;
 export function keepTail(s: string, cap: number, omitted = 0): string {
   const cut = Math.max(0, s.length - cap) + omitted;
   return cut ? `[… ${cut} earlier characters]\n${s.slice(-cap)}` : s;
+}
+
+/** Output kept per `$ cmd` block for display; older output is trimmed. */
+export const SHELL_UI_CAP = 200_000;
+const TRIMMED = "[… earlier output trimmed]\n";
+
+/** Adds output to a block's chunks, merging with the last chunk of the same stream and keeping the newest `cap` characters. */
+export function appendShellOutput(chunks: ShellChunk[], stream: ShellChunk["stream"], text: string, cap = SHELL_UI_CAP): ShellChunk[] {
+  const last = chunks.at(-1);
+  let next = last?.stream === stream ? [...chunks.slice(0, -1), { stream, text: last.text + text }] : [...chunks, { stream, text }];
+  if (next[0]?.text === TRIMMED) next = next.slice(1);
+  let total = next.reduce((n, c) => n + c.text.length, 0);
+  if (total <= cap) return next;
+  while (total > cap) {
+    const over = total - cap;
+    if (next[0].text.length <= over) {
+      total -= next[0].text.length;
+      next = next.slice(1);
+    } else {
+      next = [{ ...next[0], text: next[0].text.slice(over) }, ...next.slice(1)];
+      total -= over;
+    }
+  }
+  return [{ stream: "stdout", text: TRIMMED }, ...next];
 }
 
 export interface ShellResult {

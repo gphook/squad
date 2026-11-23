@@ -9,7 +9,7 @@ type Chunk = { stream: "stdout" | "stderr"; text: string };
 function run(command: string, cwd = mkdtempSync(join(tmpdir(), "squad-shell-"))) {
   const chunks: Chunk[] = [];
   let ends = 0;
-  let kill!: () => void;
+  let kill!: (force?: boolean) => void;
   const done = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
     const handle = runShell(command, cwd, {
       onChunk: (stream, text) => chunks.push({ stream, text }),
@@ -18,7 +18,7 @@ function run(command: string, cwd = mkdtempSync(join(tmpdir(), "squad-shell-")))
     kill = handle.kill;
   });
   const text = (s: Chunk["stream"]) => chunks.filter((c) => c.stream === s).map((c) => c.text).join("");
-  return { done, text, kill: () => kill(), ends: () => ends, cwd };
+  return { done, text, kill: (force?: boolean) => kill(force), ends: () => ends, cwd };
 }
 
 describe("runShell", () => {
@@ -39,6 +39,12 @@ describe("runShell", () => {
     const r = run("sleep 30");
     setTimeout(() => r.kill(), 50);
     expect(await r.done).toEqual({ code: null, signal: "SIGTERM" });
+  });
+
+  it("kill(true) sends SIGKILL straight away", async () => {
+    const r = run("trap '' TERM; sleep 30");
+    setTimeout(() => r.kill(true), 50);
+    expect(await r.done).toEqual({ code: null, signal: "SIGKILL" });
   });
 
   it("ends with an error, once, when the folder is missing", async () => {

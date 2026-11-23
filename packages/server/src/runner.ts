@@ -5,9 +5,9 @@ import type {
   McpServerConfig, Options, PermissionResult, PermissionUpdate, Query, SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import {
-  SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, bashContextBlock, errorMessage,
+  SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, appendShellOutput, bashContextBlock, errorMessage,
   parseShellInput,
-  type Agent, type AgentState, type AgentStatus, type Approval, type ApprovalDecision, type Project,
+  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type Project,
 } from "@squad/shared";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
@@ -38,6 +38,10 @@ interface Pending {
   suggestions?: PermissionUpdate[];
   resolve: (r: PermissionResult) => void;
 }
+
+type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
+/** How often a running `$ cmd`'s output is sent to the page. */
+const SHELL_FLUSH_MS = 50;
 
 const DENY_MESSAGE = "Denied by user in Squad";
 /** Squad's own tools only touch Squad state and the share folder, so they never need approval. */
@@ -70,9 +74,13 @@ export class AgentRunner extends EventEmitter {
   /** The session id this launch resumed, to tell a resumed session's first turn from a new one. */
   private resumedFrom: string | null = null;
   /** `$ cmd` commands still running, by id, so they can be killed. */
-  private shells = new Map<string, { kill(): void }>();
+  private shells = new Map<string, { kill(force?: boolean): void }>();
   /** Finished `$ cmd` blocks the squadmate hasn't seen yet. */
   private shellContext: string[] = [];
+  /** Running and undelivered `$ cmd` blocks as the pane shows them, for a page that (re)subscribes. */
+  private snapshots = new Map<string, ShellEvent>();
+  /** Bumped when queued output is dropped (Clear); a command started before then never queues its output. */
+  private shellGeneration = 0;
 
   constructor(
     private project: Project,
@@ -244,8 +252,9 @@ export class AgentRunner extends EventEmitter {
     }
     if (!this.query) await this.launch();
     if (!this.input) return;
-    const context = this.takeShellContext();
     const body = shell ? agentShellPrompt(shell.command) : text;
+    // A slash command must start the message to work, so queued output waits for the next one.
+    const context = body.startsWith("/") ? [] : this.takeShellContext();
     this.input.push(userMessage(context.length ? `${context.join("\n")}\n\n${body}` : body, images));
     this.emit("event", { kind: "user_text", text, ...(images.length ? { images } : {}) });
     if (this.state.status !== "awaiting") this.setStatus("working");
@@ -254,23 +263,45 @@ export class AgentRunner extends EventEmitter {
   /** Runs a `$ cmd` in the squadmate's folder, streaming it as shell events; returns its id. */
   runShellCommand(command: string): string {
     const id = randomUUID();
+    const generation = this.shellGeneration;
     // Only the tail of each stream reaches the squadmate, so only the tail is kept.
     const out = { stdout: "", stderr: "" };
     const omitted = { stdout: 0, stderr: 0 };
+    // Output is batched so a fast command sends a few events a second, not one per chunk.
+    let pending: ShellChunk[] = [];
+    let timer: NodeJS.Timeout | null = null;
+    const flush = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      for (const c of pending) this.emit("event", { kind: "shell_output", id, stream: c.stream, text: c.text });
+      pending = [];
+    };
     let ended = false;
-    this.emit("event", { kind: "shell", id, command, chunks: [], running: true, code: null, signal: null });
+    const start: ShellEvent = { kind: "shell", id, command, chunks: [], running: true, code: null, signal: null };
+    this.snapshots.set(id, start);
+    this.emit("event", start);
     const handle = (this.deps.runShell ?? runShell)(command, this.agent.folder, {
       onChunk: (stream, text) => {
         const all = out[stream] + text;
         const drop = Math.max(0, all.length - SHELL_CONTEXT_CAP);
         out[stream] = all.slice(drop);
         omitted[stream] += drop;
-        this.emit("event", { kind: "shell_output", id, stream, text });
+        const snap = this.snapshots.get(id);
+        if (snap) this.snapshots.set(id, { ...snap, chunks: appendShellOutput(snap.chunks, stream, text) });
+        pending = appendShellOutput(pending, stream, text);
+        timer ??= setTimeout(flush, SHELL_FLUSH_MS);
       },
       onEnd: (code, signal) => {
         ended = true;
+        flush();
         this.shells.delete(id);
-        this.shellContext.push(bashContextBlock({ command, ...out, code, signal, omitted }));
+        if (generation === this.shellGeneration) {
+          this.shellContext.push(bashContextBlock({ command, ...out, code, signal, omitted }));
+          const snap = this.snapshots.get(id);
+          if (snap) this.snapshots.set(id, { ...snap, running: false, code, signal });
+        } else {
+          this.snapshots.delete(id); // cleared or delivered while it ran: nothing left to show or hand over
+        }
         this.emit("event", { kind: "shell_end", id, code, signal });
       },
     });
@@ -282,19 +313,33 @@ export class AgentRunner extends EventEmitter {
     this.shells.get(id)?.kill();
   }
 
-  killAllShells(): void {
-    for (const h of this.shells.values()) h.kill();
+  /** `force` kills at once rather than after a grace period, for when Squad is shutting down. */
+  killAllShells(force = false): void {
+    for (const h of this.shells.values()) h.kill(force);
+  }
+
+  /** Running and undelivered `$ cmd` blocks, for a page that subscribes after they started. */
+  shellSnapshots(): AgentEvent[] {
+    return [...this.snapshots.values()];
   }
 
   /** Finished `$ cmd` blocks not yet delivered, which are now the caller's to deliver. */
   takeShellContext(): string[] {
     const blocks = this.shellContext;
     this.shellContext = [];
+    this.forgetFinishedSnapshots();
     return blocks;
   }
 
+  /** Drops undelivered output, including that of commands still running. */
   discardShellContext(): void {
     this.shellContext = [];
+    this.shellGeneration++;
+    this.snapshots.clear();
+  }
+
+  private forgetFinishedSnapshots(): void {
+    for (const [id, e] of this.snapshots) if (!e.running) this.snapshots.delete(id);
   }
 
   async compact(): Promise<void> {
