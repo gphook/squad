@@ -11,6 +11,12 @@ describe("resolveShell", () => {
     }
   });
 
+  it("knows the other POSIX shells that the old $SHELL -c ran", () => {
+    for (const name of ["ash", "ksh93", "yash", "posh", "rbash", "mksh"]) {
+      expect(resolveShell(`/usr/bin/${name}`), name).toMatchObject({ path: `/usr/bin/${name}`, name, adapter: { id: "posix" } });
+    }
+  });
+
   it("picks fish, nushell and PowerShell by name", () => {
     expect(resolveShell("/opt/homebrew/bin/fish").adapter.id).toBe("fish");
     expect(resolveShell("/usr/bin/nu").adapter.id).toBe("nu");
