@@ -17,6 +17,10 @@ describe("buildLaunchPrompt", () => {
     expect(out).toContain("# You are starfade");
     expect(out).toContain("All game code.");
   });
+  it("calls the other agents squadmates", () => {
+    expect(out).toContain("## Your squadmates");
+    expect(out).not.toMatch(/teammate|## Team/i);
+  });
   it("lists other agents with only the first line of their role", () => {
     expect(out).toContain("- **sf-ui-designer** (/dev/sf-ui-designer): UI and UI styling.");
     expect(out).not.toContain("Mockups, theme, icons.");

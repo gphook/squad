@@ -5,13 +5,13 @@ description: Use whenever you message, hand work to, or receive work from anothe
 
 # Squad radio
 
-You are one of several Claude Code sessions on a Squad team. Each agent works in its own repo and keeps its own context. Your launch prompt lists the team and its roles. The project rules say who owns what.
+You are one of several Claude Code sessions in a squad. Each agent works in its own repo and keeps its own context; the others are your squadmates. Your launch prompt lists them and their roles. The project rules say who owns what.
 
-## Finding teammates
+## Finding squadmates
 
-- Message a teammate by name with `SendMessage`. `ListAgents` shows who is running.
-- If a teammate isn't running, call `squad_summon` with its name, then message it.
-- `squad_team` lists the whole team with each agent's status.
+- Message a squadmate by name with `SendMessage`. `ListAgents` shows who is running.
+- If a squadmate isn't running, call `squad_summon` with its name, then message it.
+- `squad_team` lists your squadmates with their status.
 
 ## Handing over work
 
@@ -31,7 +31,7 @@ Work outside your own repo or area goes to the agent that owns it as a request. 
 
 ## Keep messages small
 
-Teammates share no context, so a message stays in the recipient's context for the rest of its session. A file costs nothing until it is read.
+Squadmates share no context, so a message stays in the recipient's context for the rest of its session. A file costs nothing until it is read.
 
 - Keep a message to the four points above, in a few lines.
 - Anything longer than about 15 lines goes through `squad_share` (a spec, measurements, long lists). Put the path it returns in your message.

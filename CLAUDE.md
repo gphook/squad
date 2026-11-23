@@ -13,6 +13,12 @@ in npm workspaces. See `docs/superpowers/specs/2026-11-22-squad-design.md` and `
 
 Each agent runs in its own separate session, and communicates using the gphook/squad-radio skill.
 
+## Terminology
+
+An agent's fellow agents in the same project are its **squadmates**. Use "squadmate(s)", never "teammate(s)" or
+"team members", in UI copy, docs, skills, tool descriptions and launch prompts. Tool names such as `squad_team` stay as
+they are.
+
 ## Agent skills
 
 Squad's agent skills live in `radio/` (a Claude Code plugin loaded into every agent at launch; `squad-radio` is the

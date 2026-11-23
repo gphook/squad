@@ -33,7 +33,7 @@ SQUAD_HOME=/tmp/squad-dev SQUAD_KEY=dev npm run dev -w @squad/server
 
 These are deliberate design choices. Changes that break them need a design discussion first:
 
-- **Each agent is its own Claude Code session.** Never run team members as SDK subagents. Separate repos exist to keep agents' context apart.
+- **Each agent is its own Claude Code session.** Never run squadmates as SDK subagents. Separate repos exist to keep agents' context apart.
 - **Squad doesn't carry messages between agents.** They use Claude Code's `SendMessage`; Squad only observes.
 - **Nothing is written into agents' repos** (except `git init` when the user asks for a new folder).
 - **Squad never restarts an agent by itself.**

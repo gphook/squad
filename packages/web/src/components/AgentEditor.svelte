@@ -36,7 +36,7 @@
     <h2>{agent ? `Edit ${agent.name}` : "Add agent"}</h2>
     <label>Name <span class="hint">Lowercase letters, digits and dashes. Must be unique on this machine: other sessions message it by this name.</span>
       <input bind:value={name} required aria-invalid={!nameOk && name !== ""} /></label>
-    <label>Role <span class="hint">What it owns and does (markdown). The first line is shown to teammates.</span>
+    <label>Role <span class="hint">What it owns and does (markdown). The first line is shown to squadmates.</span>
       <textarea bind:value={role} rows="8"></textarea></label>
     <label>Repo folder <span class="hint">Absolute path</span>
       <input bind:value={folder} required placeholder="/home/you/dev/project/repo" /></label>

@@ -40,11 +40,11 @@ export function createSquadTools(sup: Supervisor, projectId: string, agentName: 
     tools: [
       tool("squad_team" satisfies SquadToolName, "List the agents on your Squad team with their role and current status.", {},
         async () => text(await h.team())),
-      tool("squad_summon" satisfies SquadToolName, "Start a teammate that isn't running so you can message it. Does nothing if it is already running.",
-        { agent: z.string().describe("Teammate's name"), reason: z.string().describe("Why you need them") },
+      tool("squad_summon" satisfies SquadToolName, "Start a squadmate that isn't running so you can message it. Does nothing if it is already running.",
+        { agent: z.string().describe("Squadmate's name"), reason: z.string().describe("Why you need them") },
         async (a) => text(await h.summon(a))),
       tool("squad_share" satisfies SquadToolName,
-        "Share a large message or a file with teammates. Give either `path` (a file in your repo) or `text`. Returns the shared path to put in your SendMessage.",
+        "Share a large message or a file with squadmates. Give either `path` (a file in your repo) or `text`. Returns the shared path to put in your SendMessage.",
         {
           path: z.string().optional(), text: z.string().optional(),
           to: z.array(z.string()).describe("Recipient agent names"), note: z.string().describe("One line on what this is"),

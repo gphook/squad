@@ -5,12 +5,12 @@
 
 Run a team of Claude Code agents from one local web page.
 
-Each agent works in its own repo, in its own Claude Code session, with its own context. Squad launches agents when you or a teammate need them. You can talk to each one, watch them all side by side, approve their tool calls, and see every message they send each other.
+Each agent works in its own repo, in its own Claude Code session, with its own context. Squad launches agents when you or a squadmate need them. You can talk to each one, watch them all side by side, approve their tool calls, and see every message they send each other.
 
 ## What it does
 
 - **Projects and teams.** Create any number of projects. Each has as many agents as you like, each with a name, a role and a repo, plus rules shared by the whole team.
-- **Agents on demand.** Launch an agent yourself, or let a teammate start it with `squad_summon`. By default it resumes its previous conversation. Squad never restarts agents on its own.
+- **Agents on demand.** Launch an agent yourself, or let a squadmate start it with `squad_summon`. By default it resumes its previous conversation. Squad never restarts agents on its own.
 - **One place to watch them all.** A chat for each agent with streamed replies, tool calls, inline Allow/Deny approvals and live status. Use focussed or tiled layouts, with `Alt+1`…`Alt+0` to switch between up to 10 tiles.
 - **Team messaging.** Agents talk with Claude Code's own `SendMessage`. Squad logs every message in a Messages view.
 - **Shared files.** Agents hand over large specs and files with `squad_share` instead of pasting them into messages. You can drop files in too.
