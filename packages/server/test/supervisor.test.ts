@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bashContextBlock, type Agent, type AgentEvent, type Project } from "@squad/shared";
+import { bashContextBlock, type Agent, type AgentEvent, type AuthStatus, type Project } from "@squad/shared";
 import { Store } from "../src/store.ts";
 import { Supervisor } from "../src/supervisor.ts";
 import { squadToolHandlers } from "../src/squadTools.ts";
@@ -271,5 +271,37 @@ describe("$ cmd output", () => {
     await sup.send(a.id, "$ sleep 30");
     await sup.forget(a.id);
     expect(await done).toMatchObject({ signal: "SIGTERM" });
+  });
+});
+
+describe("signed out", () => {
+  const MSG = "Not signed in to Claude: click the account in the top bar";
+  const authWith = (state: "signedIn" | "signedOut" | "unknown") => {
+    const auth = { current: { state } as AuthStatus, refreshes: 0, refresh: async () => { auth.refreshes++; return auth.current; } };
+    sup.setAuth(auth);
+    return auth;
+  };
+
+  it("refuses to launch, with a clear message and no session", async () => {
+    authWith("signedOut");
+    await sup.action(a.id, "launch");
+    expect(sup.runner(a.id).state).toMatchObject({ status: "error", error: MSG });
+    await sup.send(a.id, "hi");
+    expect(f.queries).toHaveLength(0);
+  });
+
+  it("launches when the account state is unknown", async () => {
+    authWith("unknown");
+    await sup.action(a.id, "launch");
+    expect(f.queries).toHaveLength(1);
+  });
+
+  it("checks the account again when a squadmate fails to start", async () => {
+    const auth = authWith("signedIn");
+    await sup.action(a.id, "launch");
+    f.queries[0].end(); // the session dies before it's ready
+    await tick(); await tick();
+    expect(sup.runner(a.id).state.status).toBe("error");
+    expect(auth.refreshes).toBe(1);
   });
 });

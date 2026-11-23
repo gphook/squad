@@ -14,6 +14,7 @@ import { loadHistory } from "./history.ts";
 import { shareDir } from "./paths.ts";
 import type { PlanUsageTracker } from "./planUsage.ts";
 import type { ModelCatalog } from "./models.ts";
+import type { AuthTracker } from "./auth.ts";
 import { resolveInside } from "./safePath.ts";
 import type { Store } from "./store.ts";
 
@@ -32,9 +33,9 @@ function cookieKey(req: FastifyRequest): string | undefined {
 }
 
 export function buildApp(opts: {
-  store: Store; supervisor: Supervisor; key: string; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog;
+  store: Store; supervisor: Supervisor; key: string; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker;
 }): FastifyInstance {
-  const { store, supervisor: sup, key, plan, models } = opts;
+  const { store, supervisor: sup, key, plan, models, auth } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
@@ -68,6 +69,7 @@ export function buildApp(opts: {
   sup.on("message", (p, message) => broadcast(p, { t: "message.logged", message }));
   sup.on("share", (p, share) => broadcast(p, { t: "share.added", share }));
   sup.on("shareRemoved", (p, shareId) => broadcast(p, { t: "share.removed", shareId }));
+  auth?.on("change", (status) => broadcast(null, { t: "auth", status }));
   if (plan) {
     plan.on("change", (p) => broadcast(null, { t: "usage.plan", plan: p }));
     sup.on("rateLimit", (info) => plan.applyRateLimit(info));
@@ -124,6 +126,8 @@ export function buildApp(opts: {
         return sup.send(m.agentId, m.text, m.images);
       case "agent.shellKill":
         return sup.killShell(m.agentId, m.id);
+      case "auth.check":
+        return out(ws, { t: "auth", status: auth ? await auth.refresh() : { state: "unknown" } });
       case "models.get":
         return out(ws, { t: "models", models: models ? await models.get() : null });
       case "approval.answer":
@@ -148,6 +152,8 @@ export function buildApp(opts: {
       sockets.set(ws, { projectId: null });
       out(ws, { t: "projects", projects: store.listProjects() });
       if (plan?.current) out(ws, { t: "usage.plan", plan: plan.current });
+      if (auth?.current) out(ws, { t: "auth", status: auth.current });
+      if (sockets.size === 1) void auth?.refresh(); // someone may have signed in or out while nobody was looking
       if (sockets.size === 1 && plan) {
         // The limits are only worth polling while someone is looking; the reading may be hours old by now.
         plan.setPolling(true);

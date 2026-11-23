@@ -164,6 +164,12 @@ describe("websocket", () => {
     expect(await c.next("models")).toMatchObject({ models: null });
   });
 
+  it("answers auth.check, as unknown without a tracker", async () => {
+    const c = await connect();
+    send(c.ws, { t: "auth.check" });
+    expect(await c.next("auth")).toMatchObject({ status: { state: "unknown" } });
+  });
+
   it("passes agent.shellKill to the supervisor", async () => {
     const calls: string[][] = [];
     sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };
