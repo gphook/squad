@@ -99,6 +99,8 @@ export type AgentEvent =
   | { kind: "peer_out"; to: string; text: string }
   | { kind: "show"; target: string; caption?: string }
   | { kind: "compacted" }
+  /** Clear started a fresh conversation: everything before it is gone from the squadmate's context. */
+  | { kind: "cleared" }
   | { kind: "turn_end"; ok: boolean; error?: string }
   /** A `$ cmd` Squad ran; live ones grow through shell_output and shell_end with the same id. */
   | {

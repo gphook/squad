@@ -50,6 +50,7 @@ function foldShell(list: AgentEvent[], ev: Extract<AgentEvent, { kind: "shell_ou
 
 function addEvent(list: AgentEvent[] = [], ev: AgentEvent): AgentEvent[] {
   if (ev.kind === "shell_output" || ev.kind === "shell_end") return foldShell(list, ev);
+  if (ev.kind === "cleared") return [ev]; // the old conversation is gone from the squadmate; so it goes from view
   const last = list.at(-1);
   if (ev.kind === "text_delta" && last?.kind === "text_delta") {
     return [...list.slice(0, -1), { kind: "text_delta", text: last.text + ev.text }];
