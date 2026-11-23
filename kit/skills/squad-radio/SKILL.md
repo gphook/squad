@@ -26,6 +26,7 @@ Work outside your own repo or area goes to the agent that owns it as a request. 
 
 ## Replying
 
+- Reply to a squadmate by its name (`to: "<their name>"`), not the session address in the message's `from`.
 - Reply when the work is done: say what changed and where.
 - If a request is unclear, or conflicts with how your area is designed, say so instead of guessing.
 

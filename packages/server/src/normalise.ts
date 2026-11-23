@@ -61,6 +61,22 @@ export function parsePeerMessage(text: string): { from: string; body: string } |
   return { from: attr("from-name") ?? attr("from") ?? "unknown", body: m[2].trim() };
 }
 
+/**
+ * The sender's name and session address from an incoming squadmate message. Claude Code delivers these as harness
+ * messages, so normalise() doesn't turn them into events; but replies may be sent to that address instead of the
+ * name, so Squad needs it to log them by name.
+ */
+export function peerAddress(raw: unknown): { name: string; address: string } | null {
+  const msg = raw as SdkMsg;
+  if (msg.type !== "user") return null;
+  const m = PEER_RE.exec(blockText(msg.message?.content));
+  if (!m) return null;
+  const attr = (name: string) => new RegExp(`\\b${name}="([^"]*)"`).exec(m[1])?.[1];
+  const name = attr("from-name");
+  const address = attr("from");
+  return name && address && address !== name ? { name, address } : null;
+}
+
 function blockImages(blocks: Block[]): string[] {
   return blocks
     .filter((b) => b.type === "image" && b.source?.type === "base64")

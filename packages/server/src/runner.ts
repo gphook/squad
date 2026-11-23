@@ -11,7 +11,7 @@ import {
 } from "@squad/shared";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
-import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
+import { normalise, peerAddress, summariseTool, type SdkMsg } from "./normalise.ts";
 import { runShell } from "./shellCommand.ts";
 import { userShell } from "./shells/adapters.ts";
 
@@ -67,7 +67,7 @@ function userMessage(text: string, images: string[] = []): SDKUserMessage {
 /**
  * One agent's Claude Code session. Events: "status"(AgentState) "event"(AgentEvent)
  * "approval"(Approval) "approvalResolved"(id) "session"(sessionId)
- * "result"({ sessionId, modelUsage, resumed }) "rateLimit"(rate_limit_info).
+ * "result"({ sessionId, modelUsage, resumed }) "rateLimit"(rate_limit_info) "peerAddress"({ name, address }).
  */
 export class AgentRunner extends EventEmitter {
   state: AgentState;
@@ -212,6 +212,8 @@ export class AgentRunner extends EventEmitter {
     }
     for (const ev of normalise(m)) this.emit("event", ev);
     if (m.type === "rate_limit_event") this.emit("rateLimit", m.rate_limit_info);
+    const sender = peerAddress(m);
+    if (sender) this.emit("peerAddress", sender);
     if (m.type === "system" && m.subtype === "compact_boundary") void this.refreshContext();
     if (m.type === "result") {
       const sessionId = m.session_id ?? "";
