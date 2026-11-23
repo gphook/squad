@@ -3,7 +3,7 @@
   import type { PermissionMode, Project } from "@squad/shared";
   import { PERMISSION_MODE_OPTIONS } from "../lib/permissionModes.ts";
   import { send, ui } from "../lib/state.svelte.ts";
-  import { move } from "../lib/activities.ts";
+  import { keepNewer, move } from "../lib/activities.ts";
 
   let { project, onclose }: { project: Project | null; onclose: () => void } = $props();
   // The form edits a copy taken when it opens.
@@ -39,7 +39,10 @@
     const list = activities.map(({ id, name, ownerId, reviewerIds, description }) => ({
       ...(id ? { id } : {}), name: name.trim(), ownerId, reviewerIds: reviewerIds.filter((r) => r !== ownerId), description,
     }));
-    send({ t: "project.save", project: { id: project?.id, name, rules, permissionMode, activities: list } });
+    // Activities created elsewhere while this was open are kept, not deleted.
+    const live = ui.s.projects.find((p) => p.id === initial?.id)?.activities ?? [];
+    const idsAtOpen = (initial?.activities ?? []).map((a) => a.id);
+    send({ t: "project.save", project: { id: project?.id, name, rules, permissionMode, activities: keepNewer(list, idsAtOpen, live) } });
     onclose();
   }
   function remove() {
