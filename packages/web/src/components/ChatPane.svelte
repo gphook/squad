@@ -2,14 +2,15 @@
   import type { AgentAction, AgentEvent } from "@squad/shared";
   import { agentAction, agentById, approvalsFor, ui } from "../lib/state.svelte.ts";
   import ApprovalCard from "./ApprovalCard.svelte";
+  import Icon from "./Icon.svelte";
   import { modelSummary } from "../lib/models.ts";
   import MessageItem from "./MessageItem.svelte";
   import PromptBox from "./PromptBox.svelte";
   import StatusDot from "./StatusDot.svelte";
   import ContextRing from "./ContextRing.svelte";
 
-  let { agentId, compact = false, focused = false, slot, onclose }: {
-    agentId: string; compact?: boolean; focused?: boolean; slot?: string; onclose?: () => void;
+  let { agentId, focused = false, maximised = false, slot, onclose, onmaximise }: {
+    agentId: string; focused?: boolean; maximised?: boolean; slot?: string; onclose?: () => void; onmaximise?: () => void;
   } = $props();
 
   const agent = $derived(agentById(agentId));
@@ -19,7 +20,7 @@
     events.filter((e): e is Extract<AgentEvent, { kind: "tool_result" }> => e.kind === "tool_result").map((e) => [e.toolUseId, e]),
   ));
   const visible = $derived(
-    (compact ? events.slice(-5) : events).filter((e) => e.kind !== "tool_result" && !(e.kind === "turn_end" && e.ok)),
+    events.filter((e) => e.kind !== "tool_result" && !(e.kind === "turn_end" && e.ok)),
   );
   const approvals = $derived(approvalsFor(agentId));
   // Finished `$ cmd`s run since the user's last message: Squad hands them over with the next one.
@@ -57,8 +58,10 @@
 </script>
 
 {#if agent}
-  <section class="pane" class:compact class:focused aria-label={agent.name}>
-    <header>
+  <section class="pane" class:focused aria-label={agent.name}>
+    <!-- The double-click is a mouse shortcut; the maximise button is the keyboard and screen-reader path. -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <header ondblclick={(e) => { if (onmaximise && !(e.target as Element).closest("button")) onmaximise(); }}>
       {#if slot}<span class="slot">{slot}</span>{/if}
       <StatusDot status={agentState.status} />
       <strong title={modelSummary(agent)}>{agent.name}</strong>
@@ -66,14 +69,16 @@
       <ContextRing state={agentState} />
       {#if agentState.error}<span class="errtxt" title={agentState.error}>{agentState.error}</span>{/if}
       <span class="grow"></span>
-      {#if !compact}
-        {#if agentState.status === "stopped" || agentState.status === "error"}
-          <button onclick={() => act("launch")}>Launch</button>
-        {:else}
-          <button onclick={() => act("compact")}>Compact</button>
-          <button onclick={() => act("stop")}>Stop</button>
-        {/if}
-        <button onclick={() => act("clear")}>Clear</button>
+      {#if agentState.status === "stopped" || agentState.status === "error"}
+        <button onclick={() => act("launch")}>Launch</button>
+      {:else}
+        <button onclick={() => act("compact")}>Compact</button>
+        <button onclick={() => act("stop")}>Stop</button>
+      {/if}
+      <button onclick={() => act("clear")}>Clear</button>
+      {#if onmaximise}
+        <button class="icon" aria-label={maximised ? "Restore tiles" : `Maximise ${agent.name}`} title={maximised ? "Restore tiles" : "Maximise"}
+          onclick={onmaximise}><Icon name={maximised ? "restore" : "maximise"} size={15} /></button>
       {/if}
       {#if onclose}<button class="x" aria-label="Close tile" onclick={onclose}>×</button>{/if}
     </header>
@@ -86,13 +91,14 @@
       {#each approvals as a (a.id)}<ApprovalCard approval={a} />{/each}
       {#if !events.length && !approvals.length}<p class="hint">No messages yet. Type below to start {agent.name}.</p>{/if}
     </div>
-    {#if !compact}<PromptBox {agentId} name={agent.name} {focused} />{/if}
+    <PromptBox {agentId} name={agent.name} {focused} />
   </section>
 {/if}
 
 <style>
   .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; height: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .pane.focused { border-color: var(--accent); }
+  .icon { display: inline-grid; place-items: center; padding: 2px 5px; }
   header { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-bottom: 1px solid var(--line); min-width: 0; }
   header button { padding: 2px 8px; font-size: 12px; }
   .slot { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
@@ -100,5 +106,4 @@
   .errtxt { color: var(--bad); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .x { border: 0; background: none; font-size: 16px; }
   .log { flex: 1; overflow-y: auto; padding: 4px 12px; min-height: 0; }
-  .compact .log { font-size: 12px; }
 </style>
