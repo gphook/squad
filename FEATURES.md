@@ -27,7 +27,7 @@
 - Tool approvals inline: Allow, Deny, Allow always for this session.
 - Peer messages marked in the chat (⇠ from / ⇢ to).
 - Shell commands: `!cmd` asks the squadmate to run it with its Bash tool; `$ cmd` has Squad run it in your `$SHELL`
-  (sh/bash/zsh/dash/ksh, fish, nushell or PowerShell; anything else falls back to `/bin/sh`) in the squadmate's folder, streamed live with a Kill button, and passed to the squadmate with your next message (or when
+  (POSIX shells such as sh/bash/zsh/dash/ksh, fish, nushell or PowerShell; anything else falls back to `/bin/sh`) in the squadmate's folder, streamed live with a Kill button, and passed to the squadmate with your next message (or when
   it is summoned). Clear drops output it hasn't seen yet.
 - History restored after browser reload.
 - Images and links: local images from the agent's repo or share folder render inline

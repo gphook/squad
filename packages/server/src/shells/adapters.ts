@@ -13,7 +13,7 @@ export interface ShellAdapter {
 const dashC = (command: string) => ["-c", command];
 
 export const ADAPTERS: ShellAdapter[] = [
-  { id: "posix", names: ["sh", "bash", "zsh", "dash", "ksh", "mksh"], argv: dashC },
+  { id: "posix", names: ["sh", "bash", "rbash", "zsh", "dash", "ash", "ksh", "ksh93", "mksh", "yash", "posh"], argv: dashC },
   { id: "fish", names: ["fish"], argv: dashC },
   { id: "nu", names: ["nu"], argv: dashC },
   { id: "pwsh", names: ["pwsh", "powershell"], argv: (command) => ["-NoProfile", "-NonInteractive", "-Command", command] },
