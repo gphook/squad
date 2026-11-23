@@ -173,9 +173,16 @@ export class AgentRunner extends EventEmitter {
     this.resumedFrom = this.agent.sessionId;
     if (this.agent.model) options.model = this.agent.model;
     if (this.agent.effort) options.effort = this.agent.effort;
-    this.query = this.deps.queryFactory({ prompt: this.input, options });
+    const q = this.deps.queryFactory({ prompt: this.input, options });
+    this.query = q;
     this.setStatus("starting");
-    void this.consume(this.query);
+    // Ready once Claude Code has started. Its first system message only comes with the first prompt, so waiting for
+    // that left summoned squadmates "starting" until a summon timed out.
+    q.initializationResult().then(
+      () => { if (this.query === q && this.state.status === "starting") this.setStatus("idle"); },
+      () => {}, // a failed start ends the session, which consume() reports
+    );
+    void this.consume(q);
   }
 
   private async consume(q: Query): Promise<void> {
