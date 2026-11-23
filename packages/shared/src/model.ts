@@ -64,6 +64,17 @@ export interface Agent {
 
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 
+/** The Claude account squadmates run on, as the CLI reports it. `unknown`: the CLI couldn't be run or read. */
+export interface AuthStatus {
+  state: "signedIn" | "signedOut" | "unknown";
+  method?: string;
+  email?: string;
+  organization?: string;
+  plan?: string;
+  provider?: string;
+  expiresAt?: number;
+}
+
 /** A model the user's account offers, as Squad shows it. */
 export interface ModelOption {
   value: string;
