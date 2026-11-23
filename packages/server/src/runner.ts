@@ -5,12 +5,14 @@ import type {
   McpServerConfig, Options, PermissionResult, PermissionUpdate, Query, SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import {
-  SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, errorMessage,
+  SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, bashContextBlock, errorMessage,
+  parseShellInput,
   type Agent, type AgentState, type AgentStatus, type Approval, type ApprovalDecision, type Project,
 } from "@squad/shared";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
 import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
+import { runShell } from "./shellCommand.ts";
 
 export type QueryFactory = (args: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
 
@@ -26,6 +28,8 @@ export interface RunnerDeps {
   mcpServer: McpServerConfig;
   kitPluginPath: string;
   shareDir: string;
+  /** Runs `$ cmd`; tests swap in a fake. */
+  runShell?: typeof runShell;
 }
 
 interface Pending {
@@ -65,6 +69,10 @@ export class AgentRunner extends EventEmitter {
   private stopping = false;
   /** The session id this launch resumed, to tell a resumed session's first turn from a new one. */
   private resumedFrom: string | null = null;
+  /** `$ cmd` commands still running, by id, so they can be killed. */
+  private shells = new Map<string, { kill(): void }>();
+  /** Finished `$ cmd` blocks the squadmate hasn't seen yet. */
+  private shellContext: string[] = [];
 
   constructor(
     private project: Project,
@@ -106,7 +114,8 @@ export class AgentRunner extends EventEmitter {
     this.emit("status", this.state);
   }
 
-  async launch(): Promise<void> {
+  /** `shellContext`: `$ cmd` output to put in the launch prompt (a summon delivers it this way). */
+  async launch(opts: { shellContext?: string[] } = {}): Promise<void> {
     if (this.query) return;
     let isDir = false;
     try {
@@ -123,7 +132,7 @@ export class AgentRunner extends EventEmitter {
       permissionMode: this.project.permissionMode,
       systemPrompt: {
         type: "preset", preset: "claude_code",
-        append: buildLaunchPrompt(this.project, this.agent, this.team, this.deps.shareDir),
+        append: buildLaunchPrompt(this.project, this.agent, this.team, this.deps.shareDir, opts.shellContext),
       },
       extraArgs: { name: this.agent.name },
       additionalDirectories: [this.deps.shareDir],
@@ -226,12 +235,66 @@ export class AgentRunner extends EventEmitter {
     for (const id of [...this.pending.keys()]) this.resolveApproval(id, "deny");
   }
 
+  /** A message from the user. `$ cmd` runs here; `!cmd` asks the squadmate to run it. */
   async send(text: string, images: string[] = []): Promise<void> {
+    const shell = parseShellInput(text);
+    if (shell?.mode === "run") {
+      this.runShellCommand(shell.command);
+      return;
+    }
     if (!this.query) await this.launch();
     if (!this.input) return;
-    this.input.push(userMessage(text, images));
+    const context = this.takeShellContext();
+    const body = shell ? agentShellPrompt(shell.command) : text;
+    this.input.push(userMessage(context.length ? `${context.join("\n")}\n\n${body}` : body, images));
     this.emit("event", { kind: "user_text", text, ...(images.length ? { images } : {}) });
     if (this.state.status !== "awaiting") this.setStatus("working");
+  }
+
+  /** Runs a `$ cmd` in the squadmate's folder, streaming it as shell events; returns its id. */
+  runShellCommand(command: string): string {
+    const id = randomUUID();
+    // Only the tail of each stream reaches the squadmate, so only the tail is kept.
+    const out = { stdout: "", stderr: "" };
+    const omitted = { stdout: 0, stderr: 0 };
+    let ended = false;
+    this.emit("event", { kind: "shell", id, command, chunks: [], running: true, code: null, signal: null });
+    const handle = (this.deps.runShell ?? runShell)(command, this.agent.folder, {
+      onChunk: (stream, text) => {
+        const all = out[stream] + text;
+        const drop = Math.max(0, all.length - SHELL_CONTEXT_CAP);
+        out[stream] = all.slice(drop);
+        omitted[stream] += drop;
+        this.emit("event", { kind: "shell_output", id, stream, text });
+      },
+      onEnd: (code, signal) => {
+        ended = true;
+        this.shells.delete(id);
+        this.shellContext.push(bashContextBlock({ command, ...out, code, signal, omitted }));
+        this.emit("event", { kind: "shell_end", id, code, signal });
+      },
+    });
+    if (!ended) this.shells.set(id, handle);
+    return id;
+  }
+
+  killShell(id: string): void {
+    this.shells.get(id)?.kill();
+  }
+
+  killAllShells(): void {
+    for (const h of this.shells.values()) h.kill();
+  }
+
+  /** Finished `$ cmd` blocks not yet delivered, which are now the caller's to deliver. */
+  takeShellContext(): string[] {
+    const blocks = this.shellContext;
+    this.shellContext = [];
+    return blocks;
+  }
+
+  discardShellContext(): void {
+    this.shellContext = [];
   }
 
   async compact(): Promise<void> {

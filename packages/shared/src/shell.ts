@@ -25,9 +25,10 @@ export function parseAgentShellPrompt(text: string): string | null {
 /** How much of each output stream the squadmate is given, like the Bash tool's inline limit. */
 export const SHELL_CONTEXT_CAP = 30_000;
 
-/** The last `cap` characters of `s`, marked when anything was cut. */
-export function keepTail(s: string, cap: number): string {
-  return s.length > cap ? `[… ${s.length - cap} earlier characters]\n${s.slice(-cap)}` : s;
+/** The last `cap` characters of `s`, marked when anything was cut; `omitted` counts text already dropped before `s`. */
+export function keepTail(s: string, cap: number, omitted = 0): string {
+  const cut = Math.max(0, s.length - cap) + omitted;
+  return cut ? `[… ${cut} earlier characters]\n${s.slice(-cap)}` : s;
 }
 
 export interface ShellResult {
@@ -36,6 +37,8 @@ export interface ShellResult {
   stderr: string;
   code: number | null;
   signal: string | null;
+  /** Characters already dropped from the front of each stream while it was buffered. */
+  omitted?: { stdout: number; stderr: number };
 }
 
 // A closing tag inside the content would end the block early, so it is written escaped.
@@ -44,10 +47,10 @@ const unescape = (s: string) => s.replaceAll("<\\/bash-", "</bash-");
 
 /** A finished command as the Claude CLI records a `!` command, for the squadmate to read. */
 export function bashContextBlock(r: ShellResult): string {
-  let stderr = keepTail(r.stderr, SHELL_CONTEXT_CAP);
+  let stderr = keepTail(r.stderr, SHELL_CONTEXT_CAP, r.omitted?.stderr);
   if (r.signal) stderr += `\nKilled by ${r.signal}`;
   else if (r.code !== null && r.code !== 0) stderr += `\nExit code ${r.code}`;
-  return `<bash-input>${escape(r.command)}</bash-input>\n<bash-stdout>${escape(keepTail(r.stdout, SHELL_CONTEXT_CAP))}</bash-stdout>\n<bash-stderr>${escape(stderr)}</bash-stderr>`;
+  return `<bash-input>${escape(r.command)}</bash-input>\n<bash-stdout>${escape(keepTail(r.stdout, SHELL_CONTEXT_CAP, r.omitted?.stdout))}</bash-stdout>\n<bash-stderr>${escape(stderr)}</bash-stderr>`;
 }
 
 const BLOCK_RE = /^<bash-input>([\s\S]*?)<\/bash-input>\n<bash-stdout>([\s\S]*?)<\/bash-stdout>\n<bash-stderr>([\s\S]*?)<\/bash-stderr>\n*/;

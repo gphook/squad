@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Agent, Project } from "@squad/shared";
+import { bashContextBlock, type Agent, type AgentEvent, type Project } from "@squad/shared";
 import { Store } from "../src/store.ts";
 import { Supervisor } from "../src/supervisor.ts";
 import { squadToolHandlers } from "../src/squadTools.ts";
@@ -201,5 +201,52 @@ describe("usage recording failures", () => {
     f.queries[0].emit({ type: "rate_limit_event", rate_limit_info: undefined });
     await tick();
     expect(sup.states(project.id).find((s) => s.agentId === a.id)?.status).toBe("idle");
+  });
+});
+
+describe("$ cmd output", () => {
+  const ended = (agentId: string) => new Promise<AgentEvent>((resolve) => {
+    const on = (_p: string, id: string, ev: AgentEvent) => {
+      if (id === agentId && ev.kind === "shell_end") { sup.off("event", on); resolve(ev); }
+    };
+    sup.on("event", on);
+  });
+  const block = bashContextBlock({ command: "printf a", stdout: "a", stderr: "", code: 0, signal: null });
+
+  it("goes into a summoned squadmate's launch prompt, and not again with the next message", async () => {
+    const done = ended(b.id);
+    await sup.send(b.id, "$ printf a");
+    await done;
+    const res = tools().summon({ agent: "sf-modeller" });
+    await tick();
+    expect(f.queries[0].options.systemPrompt.append).toContain(block);
+    f.queries[0].emit({ type: "system", subtype: "init", session_id: "s" });
+    await res;
+    await sup.send(b.id, "hi");
+    await tick();
+    expect(f.queries[0].inputs.at(-1).message.content).toBe("hi");
+  });
+
+  it("is dropped by clear", async () => {
+    const done = ended(a.id);
+    await sup.send(a.id, "$ printf a");
+    await done;
+    await sup.action(a.id, "clear");
+    await sup.send(a.id, "hi");
+    await tick();
+    expect(f.queries[0].inputs.at(-1).message.content).toBe("hi");
+  });
+
+  it("kills a running command by id, and when the squadmate is deleted", async () => {
+    const shells: string[] = [];
+    sup.on("event", (_p: string, _id: string, ev: AgentEvent) => { if (ev.kind === "shell") shells.push(ev.id); });
+    let done = ended(a.id);
+    await sup.send(a.id, "$ sleep 30");
+    sup.killShell(a.id, shells[0]);
+    expect(await done).toMatchObject({ signal: "SIGTERM" });
+    done = ended(a.id);
+    await sup.send(a.id, "$ sleep 30");
+    await sup.forget(a.id);
+    expect(await done).toMatchObject({ signal: "SIGTERM" });
   });
 });

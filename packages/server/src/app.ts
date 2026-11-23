@@ -116,6 +116,8 @@ export function buildApp(opts: {
         return sup.action(m.agentId, m.action);
       case "agent.send":
         return sup.send(m.agentId, m.text, m.images);
+      case "agent.shellKill":
+        return sup.killShell(m.agentId, m.id);
       case "approval.answer":
         return sup.answer(m.approvalId, m.decision);
       case "layout.save":
