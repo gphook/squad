@@ -20,7 +20,7 @@ beforeEach(async () => {
   process.env.SQUAD_HOME = mkdtempSync(join(tmpdir(), "squad-home-"));
   store = new Store(join(process.env.SQUAD_HOME, "squad.db"));
   f = fakeFactory();
-  sup = new Supervisor(store, f.factory, "/radio");
+  sup = new Supervisor(store, f.factory, "/kit");
   folder = mkdtempSync(join(tmpdir(), "squad-agent-"));
   writeFileSync(join(folder, "a.png"), "png");
   symlinkSync("/etc/hostname", join(folder, "link"));

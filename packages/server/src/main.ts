@@ -15,7 +15,7 @@ const config: { port?: number } = existsSync(configPath) ? JSON.parse(readFileSy
 const port = Number(process.env.SQUAD_PORT ?? config.port ?? 7340);
 
 const store = new Store(join(squadHome(), "squad.db"));
-const supervisor = new Supervisor(store, query, join(repoRoot, "radio"));
+const supervisor = new Supervisor(store, query, join(repoRoot, "kit"));
 const webDist = join(repoRoot, "packages/web/dist");
 const key = process.env.SQUAD_KEY ?? randomBytes(32).toString("hex");
 const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });

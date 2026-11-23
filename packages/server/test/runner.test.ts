@@ -15,7 +15,7 @@ let statuses: AgentStatus[];
 
 const make = (a: Agent) => {
   const r = new AgentRunner(project, a, [a], {
-    queryFactory: f.factory, mcpServer: { type: "sdk", name: "squad" } as any, radioPluginPath: "/radio", shareDir: "/share",
+    queryFactory: f.factory, mcpServer: { type: "sdk", name: "squad" } as any, kitPluginPath: "/kit", shareDir: "/share",
   });
   r.on("status", (s) => { if (statuses.at(-1) !== s.status) statuses.push(s.status); });
   return r;

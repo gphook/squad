@@ -22,9 +22,9 @@ as they are.
 
 ## Agent skills
 
-Squad's agent skills live in `radio/` (a Claude Code plugin loaded into every agent at launch; `squad-radio` is the
-first). Whenever a feature, a recurring agent behaviour, or a gap seen in agent transcripts would be better handled by
-guidance agents load on demand, design and add a new skill there (`radio/skills/<name>/SKILL.md`) rather than growing
+Squad's agent skills live in `kit/`, the `squad-kit` Claude Code plugin loaded into every agent at launch (`squad-radio`
+is the first skill). Whenever a feature, a recurring agent behaviour, or a gap seen in agent transcripts would be better handled by
+guidance agents load on demand, design and add a new skill there (`kit/skills/<name>/SKILL.md`) rather than growing
 the launch prompt. Keep skills generic: project-specific roles and rules belong in the project's agents and rules, not
 in a skill.
 

@@ -27,7 +27,7 @@ SQUAD_HOME=/tmp/squad-dev SQUAD_KEY=dev npm run dev -w @squad/server
 | `packages/shared` | Types and the browser↔server message format (`protocol.ts`, validated with zod). Change this first when adding a message. |
 | `packages/server` | `runner.ts` (one agent's Claude Agent SDK session), `supervisor.ts` (all agents, Squad tools, message log, shares), `app.ts` (HTTP + WebSocket), `store.ts` (SQLite). |
 | `packages/web` | Svelte 5 UI. `lib/reducer.ts` is the pure state reducer; `lib/layout.ts` is the pure tile logic. |
-| `radio/` | Claude Code plugin with the skills loaded into every agent. |
+| `kit/` | The `squad-kit` Claude Code plugin: the skills loaded into every agent. |
 
 ## Ground rules
 
@@ -60,7 +60,7 @@ These are deliberate design choices. Changes that break them need a design discu
 
 ## Agent skills
 
-Skills that every agent loads live in `radio/skills/<name>/SKILL.md`. Name them `squad-<name>` after the military squad equivalent of what they do: `squad-radio` covers how agents communicate. Keep skills generic. Roles and rules for a particular project belong in that project's settings in Squad.
+Skills that every agent loads live in the `squad-kit` plugin, at `kit/skills/<name>/SKILL.md`. Name them `squad-<name>` after the military squad equivalent of what they do: `squad-radio` covers how agents communicate. Keep skills generic. Roles and rules for a particular project belong in that project's settings in Squad.
 
 ## Licence
 

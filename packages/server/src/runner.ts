@@ -24,7 +24,7 @@ export interface TurnResult {
 export interface RunnerDeps {
   queryFactory: QueryFactory;
   mcpServer: McpServerConfig;
-  radioPluginPath: string;
+  kitPluginPath: string;
   shareDir: string;
 }
 
@@ -127,7 +127,7 @@ export class AgentRunner extends EventEmitter {
       additionalDirectories: [this.deps.shareDir],
       mcpServers: { squad: this.deps.mcpServer },
       allowedTools: SQUAD_TOOLS,
-      plugins: [{ type: "local", path: this.deps.radioPluginPath }],
+      plugins: [{ type: "local", path: this.deps.kitPluginPath }],
       includePartialMessages: true,
       canUseTool: (toolName, input, opts) => this.askUser(toolName, input, opts.suggestions, opts.signal),
     };

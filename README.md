@@ -49,7 +49,7 @@ browser (Svelte) ──WebSocket──► Squad server (Node, Fastify)
 | `packages/shared` | Types and the browser↔server message format |
 | `packages/server` | Agent sessions, Squad tools, store, HTTP and WebSocket |
 | `packages/web` | The Svelte UI |
-| `radio/` | Skills loaded into every agent |
+| `kit/` | The `squad-kit` plugin: skills loaded into every agent |
 | `docs/` | Install guide |
 
 ## Keys

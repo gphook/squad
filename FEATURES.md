@@ -56,5 +56,5 @@
 
 ## Later
 - Several agents in one repo (git worktrees), only if needed.
-- Publish squad-radio as `gphook/squad-radio`.
+- Publish the `squad-kit` plugin (squad-radio and later skills) for use outside Squad.
 - Optional Rust rewrite of the server against the same WebSocket protocol.

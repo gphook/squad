@@ -30,7 +30,7 @@ export class Supervisor extends EventEmitter {
   constructor(
     private store: Store,
     private queryFactory: QueryFactory,
-    private radioPluginPath: string,
+    private kitPluginPath: string,
   ) {
     super();
   }
@@ -51,7 +51,7 @@ export class Supervisor extends EventEmitter {
     r = new AgentRunner(project, agent, team, {
       queryFactory: this.queryFactory,
       mcpServer: createSquadTools(this, pid, nameOf),
-      radioPluginPath: this.radioPluginPath,
+      kitPluginPath: this.kitPluginPath,
       shareDir: shareDir(pid),
     });
     r.on("status", (s: AgentState) => this.emit("status", pid, s));
