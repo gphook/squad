@@ -141,6 +141,23 @@ describe("websocket", () => {
     sup.runner(agentId).killAllShells(true);
   });
 
+  it("saves activities and ownership, broadcasting projects", async () => {
+    const c = await connect();
+    await c.next("projects");
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    send(c.ws, { t: "project.save", project: { id: projectId, name: "P", rules: "", permissionMode: "default",
+      activities: [{ name: "Free", ownerId: null, reviewerIds: [], description: "" }, { name: "Taken", ownerId: agentId, reviewerIds: [], description: "" }] } });
+    const saved = (await c.next("projects")) as Extract<ServerMsg, { t: "projects" }>;
+    const acts = saved.projects.find((p) => p.id === projectId)!.activities;
+    expect(acts.map((a) => a.name)).toEqual(["Free", "Taken"]);
+    send(c.ws, { t: "agent.save", agent: { projectId, name: "fresh", role: "", folder, model: null },
+      owns: { activityIds: acts.map((a) => a.id), newActivities: [] } });
+    const after = (await c.next("projects")) as Extract<ServerMsg, { t: "projects" }>;
+    const fresh = store.getAgentByName(projectId, "fresh")!;
+    expect(after.projects.find((p) => p.id === projectId)!.activities.map((a) => a.ownerId)).toEqual([fresh.id, agentId]);
+  });
+
   it("passes agent.shellKill to the supervisor", async () => {
     const calls: string[][] = [];
     sup.killShell = (agentId: string, id: string) => { calls.push([agentId, id]); };

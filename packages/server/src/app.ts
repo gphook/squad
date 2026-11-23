@@ -104,7 +104,9 @@ export function buildApp(opts: {
           mkdirSync(m.agent.folder, { recursive: true });
           await run("git", ["init", "-q"], { cwd: m.agent.folder });
         }
-        store.saveAgent(m.agent);
+        const saved = store.saveAgent(m.agent);
+        if (m.owns) store.setOwnership(saved.id, m.owns);
+        sendProjects(); // ownership and names in activities may have changed
         return broadcast(m.agent.projectId, stateMsg(m.agent.projectId));
       }
       case "agent.delete": {
@@ -112,6 +114,7 @@ export function buildApp(opts: {
         if (!a) return;
         await sup.forget(a.id);
         store.deleteAgent(a.id);
+        sendProjects(); // its activities are now unowned
         return broadcast(a.projectId, stateMsg(a.projectId));
       }
       case "agent.action":
