@@ -135,6 +135,12 @@ describe("renaming an agent", () => {
 });
 
 describe("squad_team and squad_show", () => {
+  it("squad_team lists what each squadmate owns", async () => {
+    store.saveProject({ ...project, activities: [{ name: "Game code", ownerId: a.id, reviewerIds: [], description: "" }] });
+    const team = await tools().team();
+    expect(team).toMatch(/- starfade \(you\): code — owns: Game code — stopped/);
+    expect(team).toMatch(/- sf-modeller: models — stopped/);
+  });
   it("lists the team with status", async () => {
     expect(await tools().team()).toBe("- starfade (you): code — stopped\n- sf-modeller: models — stopped");
   });
