@@ -47,6 +47,12 @@ describe("reduce", () => {
     const s = reduce(subscribed(), { t: "layout", projectId: "p", layout: { slots: { "1": "a", "2": "gone" }, maximised: "gone" } });
     expect(currentLayout(s)).toEqual({ slots: { "1": "a" }, maximised: null });
   });
+  it("a cleared conversation replaces the squadmate's messages with a marker", () => {
+    let s = reduce(subscribed(), { t: "agent.event", agentId: "a", event: { kind: "user_text", text: "hi" } });
+    s = reduce(s, { t: "agent.event", agentId: "a", event: { kind: "assistant_text", text: "hello" } });
+    s = reduce(s, { t: "agent.event", agentId: "a", event: { kind: "cleared" } });
+    expect(s.events.a).toEqual([{ kind: "cleared" }]);
+  });
   it("gives a default layout when no project is selected", () => {
     expect(currentLayout(emptyState())).toEqual({ slots: {}, maximised: null });
   });

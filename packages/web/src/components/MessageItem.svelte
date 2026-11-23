@@ -56,6 +56,8 @@
   </figure>
 {:else if ev.kind === "shell"}
   <ShellBlock {ev} {agentId} {agentName} {waiting} />
+{:else if ev.kind === "cleared"}
+  <div class="divider">conversation cleared — the next message starts a fresh session</div>
 {:else if ev.kind === "compacted"}
   <div class="divider">conversation compacted</div>
 {:else if ev.kind === "turn_end" && !ev.ok}

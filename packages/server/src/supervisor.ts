@@ -181,6 +181,7 @@ export class Supervisor extends EventEmitter {
         this.store.setSessionId(agentId, null);
         for (const s of this.store.sharesFrom(agent.projectId, agent.name)) await this.removeShare(s.id);
         this.runner(agentId); // refresh with the cleared session id
+        this.emit("event", agent.projectId, agentId, { kind: "cleared" } satisfies AgentEvent);
         return;
       }
     }

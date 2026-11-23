@@ -144,6 +144,12 @@ describe("shares", () => {
   it("squad_share refuses a path outside the caller's folder", async () => {
     expect(await tools().share({ path: b.folder, to: [], note: "" })).toBe("Path not allowed");
   });
+  it("clear tells the squadmate's pane the conversation was cleared", async () => {
+    const events: { agentId: string; ev: AgentEvent }[] = [];
+    sup.on("event", (_p: string, agentId: string, ev: AgentEvent) => events.push({ agentId, ev }));
+    await sup.action(a.id, "clear");
+    expect(events).toContainEqual({ agentId: a.id, ev: { kind: "cleared" } });
+  });
   it("clear deletes the files the agent shared but not files shared to it", async () => {
     await tools("starfade").share({ text: "mine", to: ["sf-modeller"], note: "" });
     await tools("sf-modeller").share({ text: "theirs", to: ["starfade"], note: "" });
