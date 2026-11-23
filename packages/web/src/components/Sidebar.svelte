@@ -3,6 +3,7 @@
   import { slotOf } from "../lib/layout.ts";
   import { agentAction, approvalsFor, layout, ui } from "../lib/state.svelte.ts";
   import StatusDot from "./StatusDot.svelte";
+  import ContextRing from "./ContextRing.svelte";
 
   let { onedit, onopentile, onshow }: {
     onedit: (a: Agent | null) => void;
@@ -31,6 +32,7 @@
         <StatusDot status={st} />
         <span class="label">{a.name}</span>
         {#if approvalsFor(a.id).length}<span class="warn" title="Waiting for your approval">⚠</span>{/if}
+        <span class="ctx"><ContextRing state={ui.s.states[a.id]} /></span>
       </button>
       <button class="more" aria-label="Actions for {a.name}" onclick={() => (menuFor = menuFor === a.id ? null : a.id)}>⋯</button>
       {#if menuFor === a.id}
@@ -61,6 +63,8 @@
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .slot { width: 12px; font-size: 10px; color: var(--muted); text-align: center; }
   .warn { color: var(--warn); margin-left: auto; }
+  .ctx { margin-left: auto; display: inline-flex; }
+  .warn + .ctx { margin-left: 0; }
   .more { background: none; border: 0; padding: 4px 8px; color: var(--muted); }
   .menu { position: absolute; right: 0; top: 100%; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; flex-direction: column; min-width: 140px; box-shadow: 0 6px 20px #0003; }
   .menu button { background: none; border: 0; text-align: left; padding: 6px 10px; border-radius: 4px; }

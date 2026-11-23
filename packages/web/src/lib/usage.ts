@@ -1,10 +1,18 @@
-import { projectedPct, type PlanWindow, type UsageRange, type UsageReport } from "@squad/shared";
+import { projectedPct, type AgentState, type PlanWindow, type UsageRange, type UsageReport } from "@squad/shared";
 
 export type RingTone = "ok" | "warn" | "bad";
 
 export function ringTone(pct: number): RingTone {
   return pct < 75 ? "ok" : pct < 90 ? "warn" : "bad";
 }
+
+/** A squadmate's context window reading, or null when it isn't running or hasn't reported one yet. */
+export function liveContextPct(state: AgentState | undefined): number | null {
+  if (!state || state.status === "stopped" || state.status === "error") return null;
+  return state.contextPct ?? null;
+}
+
+export const contextLabel = (pct: number): string => `Context: ${pct}% used`;
 
 const DAY_MS = 86400_000;
 

@@ -5,6 +5,7 @@
   import MessageItem from "./MessageItem.svelte";
   import PromptBox from "./PromptBox.svelte";
   import StatusDot from "./StatusDot.svelte";
+  import ContextRing from "./ContextRing.svelte";
 
   let { agentId, compact = false, focused = false, slot, onclose }: {
     agentId: string; compact?: boolean; focused?: boolean; slot?: string; onclose?: () => void;
@@ -51,7 +52,8 @@
       {#if slot}<span class="slot">{slot}</span>{/if}
       <StatusDot status={agentState.status} />
       <strong>{agent.name}</strong>
-      <span class="st">{agentState.status}{agentState.contextPct !== undefined ? ` · ctx ${agentState.contextPct}%` : ""}</span>
+      <span class="st">{agentState.status}</span>
+      <ContextRing state={agentState} />
       {#if agentState.error}<span class="errtxt" title={agentState.error}>{agentState.error}</span>{/if}
       <span class="grow"></span>
       {#if !compact}

@@ -150,6 +150,55 @@ describe("AgentRunner", () => {
     expect(runner.state.contextPct).toBe(41);
   });
 
+  it("asks for the summary context reading, not the full token count", async () => {
+    await runner.launch();
+    await init();
+    q().emit({ type: "result", subtype: "success", is_error: false });
+    await tick(); await tick();
+    expect(q().contextCalls).toEqual([{ detail: "summary" }]);
+  });
+
+  it("refreshes context usage after a compaction", async () => {
+    await runner.launch();
+    await init();
+    q().emit({ type: "system", subtype: "compact_boundary" });
+    await tick(); await tick();
+    expect(runner.state.contextPct).toBe(41);
+  });
+
+  it("drops the context reading when stopped, so a relaunch starts without one", async () => {
+    await runner.launch();
+    await init();
+    q().emit({ type: "result", subtype: "success", is_error: false });
+    await tick(); await tick();
+    await runner.stop();
+    expect(runner.state.contextPct).toBeUndefined();
+  });
+
+  it("ignores a context reading that lands after the stop", async () => {
+    await runner.launch();
+    await init();
+    let release!: () => void;
+    q().contextGate = new Promise((r) => (release = r));
+    q().emit({ type: "result", subtype: "success", is_error: false });
+    await tick();
+    await runner.stop();
+    release();
+    await tick(); await tick();
+    expect(runner.state.contextPct).toBeUndefined();
+  });
+
+  it("drops the context reading when the session errors", async () => {
+    await runner.launch();
+    await init();
+    q().emit({ type: "result", subtype: "success", is_error: false });
+    await tick(); await tick();
+    q().end();
+    await tick();
+    expect(runner.state.status).toBe("error");
+    expect(runner.state.contextPct).toBeUndefined();
+  });
+
   it("sends /compact and interrupts", async () => {
     await runner.launch();
     await init();

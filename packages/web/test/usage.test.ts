@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { FIVE_HOUR_MS, SEVEN_DAY_MS } from "@squad/shared";
-import { fetchUsage, formatCost, formatReset, formatTokens, ringLabel, ringTone, stackDaily } from "../src/lib/usage.ts";
+import { contextLabel, fetchUsage, formatCost, liveContextPct, formatReset, formatTokens, ringLabel, ringTone, stackDaily } from "../src/lib/usage.ts";
 
 const now = new Date(2026, 10, 23, 12, 0).getTime();
 
@@ -65,5 +65,20 @@ describe("usage page helpers", () => {
     expect(calls).toEqual(["/api/usage?projectId=p1&days=30", "/api/usage?projectId=&days=7"]);
     vi.stubGlobal("fetch", async () => ({ ok: false, status: 500, json: async () => ({ error: "boom" }) }));
     await expect(fetchUsage("p1", 30)).rejects.toThrow("boom");
+  });
+});
+
+describe("context rings", () => {
+  it("shows a reading only for a live squadmate that has one", () => {
+    expect(liveContextPct({ agentId: "a", status: "idle", contextPct: 41 })).toBe(41);
+    expect(liveContextPct({ agentId: "a", status: "working", contextPct: 0 })).toBe(0);
+    expect(liveContextPct({ agentId: "a", status: "idle" })).toBeNull();
+    expect(liveContextPct({ agentId: "a", status: "stopped", contextPct: 41 })).toBeNull();
+    expect(liveContextPct({ agentId: "a", status: "error", contextPct: 41 })).toBeNull();
+    expect(liveContextPct(undefined)).toBeNull();
+  });
+
+  it("labels the reading", () => {
+    expect(contextLabel(41)).toBe("Context: 41% used");
   });
 });

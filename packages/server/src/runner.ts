@@ -99,7 +99,9 @@ export class AgentRunner extends EventEmitter {
   private setStatus(status: AgentStatus, error?: string): void {
     const next: AgentState = { agentId: this.agent.id, status };
     if (error) next.error = error;
-    if (this.state.contextPct !== undefined) next.contextPct = this.state.contextPct;
+    // A reading belongs to a live session: drop it once the session is gone.
+    const live = status !== "stopped" && status !== "error";
+    if (live && this.state.contextPct !== undefined) next.contextPct = this.state.contextPct;
     this.state = next;
     this.emit("status", this.state);
   }
@@ -166,6 +168,7 @@ export class AgentRunner extends EventEmitter {
     }
     for (const ev of normalise(m)) this.emit("event", ev);
     if (m.type === "rate_limit_event") this.emit("rateLimit", m.rate_limit_info);
+    if (m.type === "system" && m.subtype === "compact_boundary") void this.refreshContext();
     if (m.type === "result") {
       const sessionId = m.session_id ?? "";
       const result: TurnResult = { sessionId, modelUsage: m.modelUsage, resumed: sessionId === this.resumedFrom };
@@ -177,8 +180,10 @@ export class AgentRunner extends EventEmitter {
 
   private async refreshContext(): Promise<void> {
     try {
-      const u = await this.query?.getContextUsage();
-      if (u && typeof u.percentage === "number") {
+      const q = this.query;
+      const u = await q?.getContextUsage({ detail: "summary" });
+      // The session may have stopped or been replaced while the reading was in flight.
+      if (q && q === this.query && u && typeof u.percentage === "number") {
         this.state = { ...this.state, contextPct: Math.round(u.percentage) };
         this.emit("status", this.state);
       }

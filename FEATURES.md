@@ -19,7 +19,7 @@
 - Resume the previous conversation by default.
 - User actions per agent: launch, stop, interrupt, compact, clear (start fresh).
 - No automatic restarts.
-- Live status: stopped, starting, working, idle, awaiting approval, error, plus context usage %.
+- Live status: stopped, starting, working, idle, awaiting approval, error, plus a context window ring for each running squadmate in the sidebar and its pane header.
 
 ### Chat
 - Prompt box and streamed replies per agent, like Claude Desktop.

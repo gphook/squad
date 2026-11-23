@@ -7,6 +7,10 @@ export interface FakeQuery {
   end(): void;
   closed: boolean;
   interrupted: number;
+  /** The opts of each getContextUsage call. */
+  contextCalls: unknown[];
+  /** Set to hold getContextUsage answers until it resolves. */
+  contextGate: Promise<void> | null;
 }
 
 /** What the fake `/usage` call answers; a function lets a test make it fail or hang. */
@@ -24,7 +28,7 @@ export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; us
     let wake: (() => void) | null = null;
     let done = false;
     const fq: FakeQuery = {
-      options: options as Record<string, any>, inputs: [], closed: false, interrupted: 0,
+      options: options as Record<string, any>, inputs: [], closed: false, interrupted: 0, contextCalls: [], contextGate: null,
       emit(m) { pending.push(m); wake?.(); },
       end() { done = true; wake?.(); },
     };
@@ -40,7 +44,7 @@ export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; us
       },
       interrupt: async () => { fq.interrupted++; },
       close: () => { fq.closed = true; fq.end(); },
-      getContextUsage: async () => ({ percentage: 41 }),
+      getContextUsage: async (opts?: unknown) => { fq.contextCalls.push(opts); await fq.contextGate; return { percentage: 41 }; },
       usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: async () => {
         usage.calls++;
         return typeof usage.response === "function" ? (usage.response as () => Promise<unknown>)() : usage.response;
