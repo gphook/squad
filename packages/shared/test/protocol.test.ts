@@ -2,6 +2,12 @@ import { describe, it, expect } from "vitest";
 import { parseClientMsg, SLOT_ORDER } from "../src/index.ts";
 
 describe("parseClientMsg", () => {
+  it("accepts an effort level on agent.save, and models.get", () => {
+    const agent = { projectId: "p", name: "a", role: "", folder: "/tmp", model: null };
+    expect(parseClientMsg(JSON.stringify({ t: "agent.save", agent: { ...agent, effort: "low" } }))).toMatchObject({ agent: { effort: "low" } });
+    expect(parseClientMsg(JSON.stringify({ t: "agent.save", agent: { ...agent, effort: "turbo" } }))).toHaveProperty("error");
+    expect(parseClientMsg(JSON.stringify({ t: "models.get" }))).toEqual({ t: "models.get" });
+  });
   it("accepts project.save with or without activities, and rejects a blank activity name", () => {
     const base = { t: "project.save", project: { name: "P", rules: "", permissionMode: "default" } };
     expect(parseClientMsg(JSON.stringify(base))).not.toHaveProperty("error");

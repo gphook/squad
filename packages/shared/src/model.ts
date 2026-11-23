@@ -2,6 +2,7 @@
 export const SLOT_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as const;
 export const PERMISSION_MODES = ["default", "acceptEdits", "bypassPermissions", "plan"] as const;
 export const LAYOUT_MODES = ["focussed", "tiled"] as const;
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 export const AGENT_ACTIONS = ["launch", "stop", "interrupt", "compact", "clear"] as const;
 export const APPROVAL_DECISIONS = ["allow", "deny", "always"] as const;
 
@@ -56,7 +57,20 @@ export interface Agent {
   role: string;
   folder: string;
   model: string | null;
+  /** How hard the model thinks; null leaves it to the model's default. */
+  effort: EffortLevel | null;
   sessionId: string | null;
+}
+
+export type EffortLevel = (typeof EFFORT_LEVELS)[number];
+
+/** A model the user's account offers, as Squad shows it. */
+export interface ModelOption {
+  value: string;
+  displayName: string;
+  description: string;
+  /** Empty when the model doesn't take an effort level. */
+  effortLevels: EffortLevel[];
 }
 
 export interface AgentState {

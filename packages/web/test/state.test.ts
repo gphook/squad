@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Agent, AgentEvent } from "@squad/shared";
 import { currentLayout, emptyState, forProject, reduce } from "../src/lib/reducer.ts";
 
-const agent: Agent = { id: "a", projectId: "p", name: "starfade", role: "", folder: "/f", model: null, sessionId: null };
+const agent: Agent = { id: "a", projectId: "p", name: "starfade", role: "", folder: "/f", model: null, effort: null, sessionId: null };
 const project = { id: "p", name: "P", rules: "", permissionMode: "default" as const, layout: { mode: "focussed" as const, slots: {}, main: null }, activities: [] };
 const subscribed = () =>
   reduce({ ...emptyState(), projects: [project], projectId: "p" }, {

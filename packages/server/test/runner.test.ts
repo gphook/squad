@@ -29,7 +29,7 @@ const askTool = () => q().options.canUseTool("Bash", { command: "make test" }, {
 
 beforeEach(() => {
   folder = mkdtempSync(join(tmpdir(), "squad-agent-"));
-  agent = { id: "a1", projectId: "p", name: "starfade", role: "code", folder, model: null, sessionId: null };
+  agent = { id: "a1", projectId: "p", name: "starfade", role: "code", folder, model: null, effort: null, sessionId: null };
   f = fakeFactory();
   statuses = [];
   runner = make(agent);
@@ -64,6 +64,17 @@ describe("AgentRunner", () => {
     await runner.launch();
     await runner.launch();
     expect(f.queries).toHaveLength(1);
+  });
+
+  it("passes the squadmate's effort when it has one", async () => {
+    runner = make({ ...agent, effort: "low" });
+    await runner.launch();
+    expect(q().options.effort).toBe("low");
+  });
+
+  it("leaves effort to the default when none is set", async () => {
+    await runner.launch();
+    expect(q().options).not.toHaveProperty("effort");
   });
 
   it("passes the agent's options and never the agents option", async () => {

@@ -7,7 +7,7 @@ const project: Project = {
   layout: { mode: "focussed", slots: {}, main: null }, activities: [],
 };
 const agent = (name: string, role: string, folder = `/dev/${name}`): Agent =>
-  ({ id: name, projectId: "p", name, role, folder, model: null, sessionId: null });
+  ({ id: name, projectId: "p", name, role, folder, model: null, effort: null, sessionId: null });
 const me = agent("starfade", "All game code.");
 const team = [me, agent("sf-ui-designer", "UI and UI styling.\nMockups, theme, icons.")];
 

@@ -154,6 +154,7 @@ export class AgentRunner extends EventEmitter {
     if (this.agent.sessionId) options.resume = this.agent.sessionId;
     this.resumedFrom = this.agent.sessionId;
     if (this.agent.model) options.model = this.agent.model;
+    if (this.agent.effort) options.effort = this.agent.effort;
     this.query = this.deps.queryFactory({ prompt: this.input, options });
     this.setStatus("starting");
     void this.consume(this.query);
