@@ -2,6 +2,7 @@
   import type { AgentAction, AgentEvent } from "@squad/shared";
   import { agentAction, agentById, approvalsFor, ui } from "../lib/state.svelte.ts";
   import ApprovalCard from "./ApprovalCard.svelte";
+  import { modelSummary } from "../lib/models.ts";
   import MessageItem from "./MessageItem.svelte";
   import PromptBox from "./PromptBox.svelte";
   import StatusDot from "./StatusDot.svelte";
@@ -60,7 +61,7 @@
     <header>
       {#if slot}<span class="slot">{slot}</span>{/if}
       <StatusDot status={agentState.status} />
-      <strong>{agent.name}</strong>
+      <strong title={modelSummary(agent)}>{agent.name}</strong>
       <span class="st">{agentState.status}</span>
       <ContextRing state={agentState} />
       {#if agentState.error}<span class="errtxt" title={agentState.error}>{agentState.error}</span>{/if}
