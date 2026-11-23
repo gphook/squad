@@ -14,6 +14,7 @@ Each agent works in its own repo, in its own Claude Code session, with its own c
 - **One place to watch them all.** A chat for each agent with streamed replies, tool calls, inline Allow/Deny approvals and live status. Use focussed or tiled layouts, with `Alt+1`…`Alt+0` to switch between up to 10 tiles.
 - **Team messaging.** Agents talk with Claude Code's own `SendMessage`. Squad logs every message in a Messages view.
 - **Shared files.** Agents hand over large specs and files with `squad_share` instead of pasting them into messages. You can drop files in too.
+- **Shell commands.** In a squadmate's prompt box, `!cmd` asks the squadmate to run it with its Bash tool. `$ cmd` runs it straight away in the squadmate's folder, streams the output into the pane, and passes it to the squadmate with your next message, like the Claude CLI's `!`.
 - **Images and links.** Captures from an agent's repo display inline. Images from the web load only when you click.
 - **The `squad-radio` skill.** Loaded into every agent, it sets out how to hand work over: what is needed, which files, when it counts as done, and who reviews it.
 
@@ -62,7 +63,7 @@ browser (Svelte) ──WebSocket──► Squad server (Node, Fastify)
 
 ## Security
 
-Squad is a single-user tool that listens only on `127.0.0.1`, behind a random session key. See [SECURITY.md](SECURITY.md) for the model, and to report a vulnerability privately.
+Squad is a single-user tool that listens only on `127.0.0.1`, behind a random session key. Anyone holding that key can run shell commands as you with `$ cmd`, so treat the URL like a password. See [SECURITY.md](SECURITY.md) for the model, and to report a vulnerability privately.
 
 ## Contributing
 

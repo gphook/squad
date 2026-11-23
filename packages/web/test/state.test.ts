@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Agent } from "@squad/shared";
+import type { Agent, AgentEvent } from "@squad/shared";
 import { currentLayout, emptyState, forProject, reduce } from "../src/lib/reducer.ts";
 
 const agent: Agent = { id: "a", projectId: "p", name: "starfade", role: "", folder: "/f", model: null, sessionId: null };
@@ -56,5 +56,45 @@ describe("usage plan", () => {
   it("switching project keeps the plan and the project list but drops project data", () => {
     const s = forProject({ ...subscribed(), plan }, "q");
     expect(s).toMatchObject({ plan, projects: [project], projectId: "q", agents: [] });
+  });
+});
+
+describe("shell blocks", () => {
+  const ev = (event: AgentEvent) => ({ t: "agent.event" as const, agentId: "a", event });
+  const start = (id = "s1"): AgentEvent => ({ kind: "shell", id, command: "ls", chunks: [], running: true, code: null, signal: null });
+
+  it("folds streamed output and the end into the shell event", () => {
+    let s = reduce(subscribed(), ev(start()));
+    s = reduce(s, ev({ kind: "shell_output", id: "s1", stream: "stdout", text: "a" }));
+    s = reduce(s, ev({ kind: "shell_output", id: "s1", stream: "stdout", text: "b" }));
+    s = reduce(s, ev({ kind: "shell_output", id: "s1", stream: "stderr", text: "e" }));
+    s = reduce(s, ev({ kind: "shell_end", id: "s1", code: 2, signal: null }));
+    expect(s.events.a).toEqual([{
+      kind: "shell", id: "s1", command: "ls", running: false, code: 2, signal: null,
+      chunks: [{ stream: "stdout", text: "ab" }, { stream: "stderr", text: "e" }],
+    }]);
+  });
+
+  it("finds its block behind later events", () => {
+    let s = reduce(subscribed(), ev(start()));
+    s = reduce(s, ev({ kind: "assistant_text", text: "hi" }));
+    s = reduce(s, ev({ kind: "shell_output", id: "s1", stream: "stdout", text: "a" }));
+    expect(s.events.a[0]).toMatchObject({ chunks: [{ stream: "stdout", text: "a" }] });
+    expect(s.events.a).toHaveLength(2);
+  });
+
+  it("drops output for an unknown block", () => {
+    const s = reduce(subscribed(), ev({ kind: "shell_output", id: "nope", stream: "stdout", text: "a" }));
+    expect(s.events.a ?? []).toEqual([]);
+  });
+
+  it("keeps the newest 200,000 characters of a block", () => {
+    let s = reduce(subscribed(), ev(start()));
+    s = reduce(s, ev({ kind: "shell_output", id: "s1", stream: "stderr", text: "e".repeat(100_000) }));
+    s = reduce(s, ev({ kind: "shell_output", id: "s1", stream: "stdout", text: "o".repeat(150_000) }));
+    const block = s.events.a[0] as Extract<AgentEvent, { kind: "shell" }>;
+    expect(block.chunks[0]).toEqual({ stream: "stdout", text: "[… earlier output trimmed]\n" });
+    expect(block.chunks.slice(1).reduce((n, c) => n + c.text.length, 0)).toBe(200_000);
+    expect(block.chunks.at(-1)).toEqual({ stream: "stdout", text: "o".repeat(150_000) });
   });
 });

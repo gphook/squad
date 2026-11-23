@@ -2,9 +2,11 @@
   import { SQUAD_TOOL_PREFIX, isExternalUrl, type AgentEvent } from "@squad/shared";
   import { fileUrl, renderMarkdown } from "../lib/markdown.ts";
   import { ui } from "../lib/state.svelte.ts";
+  import ShellBlock from "./ShellBlock.svelte";
 
-  let { ev, result, projectId, agentId }: {
+  let { ev, result, projectId, agentId, agentName = "", waiting = false }: {
     ev: AgentEvent; result?: Extract<AgentEvent, { kind: "tool_result" }>; projectId: string; agentId: string;
+    agentName?: string; waiting?: boolean;
   } = $props();
   let open = $state(false);
   const ctx = $derived({ projectId, agentId });
@@ -52,6 +54,8 @@
     {/if}
     {#if ev.caption}<figcaption>{ev.caption}</figcaption>{/if}
   </figure>
+{:else if ev.kind === "shell"}
+  <ShellBlock {ev} {agentId} {agentName} {waiting} />
 {:else if ev.kind === "compacted"}
   <div class="divider">conversation compacted</div>
 {:else if ev.kind === "turn_end" && !ev.ok}
