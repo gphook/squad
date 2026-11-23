@@ -9,7 +9,7 @@ Each agent works in its own repo, in its own Claude Code session, with its own c
 
 ## What it does
 
-- **Projects and teams.** Create any number of projects. Each has as many agents as you like, each with a name, a role and a repo, plus rules shared by the whole team.
+- **Projects and teams.** Create any number of projects. Each has as many agents as you like, each with a name, a role and a repo, plus rules shared by the whole team. List the project's activities and who owns and reviews each, and Squad tells every squadmate who owns what.
 - **Agents on demand.** Launch an agent yourself, or let a squadmate start it with `squad_summon`. By default it resumes its previous conversation. Squad never restarts agents on its own.
 - **One place to watch them all.** A chat for each agent with streamed replies, tool calls, inline Allow/Deny approvals and live status. Use focussed or tiled layouts, with `Alt+1`…`Alt+0` to switch between up to 10 tiles.
 - **Team messaging.** Agents talk with Claude Code's own `SendMessage`. Squad logs every message in a Messages view.
