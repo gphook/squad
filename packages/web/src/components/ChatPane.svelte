@@ -21,6 +21,15 @@
     (compact ? events.slice(-5) : events).filter((e) => e.kind !== "tool_result" && !(e.kind === "turn_end" && e.ok)),
   );
   const approvals = $derived(approvalsFor(agentId));
+  // Finished `$ cmd`s run since the user's last message: Squad hands them over with the next one.
+  const waiting = $derived.by(() => {
+    const ids = new Set<string>();
+    for (let i = events.length - 1; i >= 0 && events[i].kind !== "user_text"; i--) {
+      const e = events[i];
+      if (e.kind === "shell" && !e.running && !e.id.startsWith("hist-")) ids.add(e.id);
+    }
+    return ids;
+  });
   let scroller = $state<HTMLDivElement>();
 
   // Keep the newest message in view as events and approvals arrive.
@@ -70,7 +79,8 @@
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="log" bind:this={scroller} {onclick}>
       {#each visible as ev (ev)}
-        <MessageItem {ev} result={ev.kind === "tool_use" ? results.get(ev.id) : undefined} projectId={agent.projectId} {agentId} />
+        <MessageItem {ev} result={ev.kind === "tool_use" ? results.get(ev.id) : undefined} projectId={agent.projectId} {agentId}
+          agentName={agent.name} waiting={ev.kind === "shell" && waiting.has(ev.id)} />
       {/each}
       {#each approvals as a (a.id)}<ApprovalCard approval={a} />{/each}
       {#if !events.length && !approvals.length}<p class="hint">No messages yet. Type below to start {agent.name}.</p>{/if}

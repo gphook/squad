@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { parseShellInput } from "@squad/shared";
   import { send } from "../lib/state.svelte.ts";
   let { agentId, name, focused }: { agentId: string; name: string; focused: boolean } = $props();
   let text = $state("");
@@ -7,8 +8,11 @@
 
   $effect(() => { if (focused) el?.focus(); });
 
+  // Shell commands go to a shell or the squadmate's Bash tool, neither of which takes images.
+  const shellWithImages = $derived(images.length > 0 && parseShellInput(text) !== null);
+
   function submit() {
-    if (!text.trim() && !images.length) return;
+    if ((!text.trim() && !images.length) || shellWithImages) return;
     send({ t: "agent.send", agentId, text, ...(images.length ? { images } : {}) });
     text = "";
     images = [];
@@ -31,8 +35,9 @@
   {#if images.length}
     <div class="att">{#each images as src, i}<button onclick={() => (images = images.filter((_, j) => j !== i))} title="Remove"><img {src} alt="attachment" /></button>{/each}</div>
   {/if}
-  <textarea bind:this={el} bind:value={text} rows="2" placeholder="Message {name}…" onkeydown={onkey}
+  <textarea bind:this={el} bind:value={text} rows="2" placeholder="Message {name}…   !cmd: {name} runs it · $ cmd: run it here" onkeydown={onkey}
     onpaste={(e) => { if (e.clipboardData?.files.length) addFiles(e.clipboardData.files); }}></textarea>
+  {#if shellWithImages}<div class="hint" role="alert">Shell commands can't carry images. Remove them to send.</div>{/if}
 </div>
 
 <style>
