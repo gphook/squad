@@ -257,15 +257,15 @@ describe("AgentRunner usage", () => {
 });
 
 describe("AgentRunner shell commands", () => {
-  let shells: { command: string; cwd: string; h: ShellHandlers; killed: boolean; forced: boolean }[];
+  let shells: { command: string; cwd: string; h: ShellHandlers; killed: boolean; forced: boolean; shellName?: string }[];
   let events: AgentEvent[];
   beforeEach(() => {
     shells = [];
     events = [];
     runner = new AgentRunner(project, agent, [agent], {
       queryFactory: f.factory, mcpServer: { type: "sdk", name: "squad" } as any, kitPluginPath: "/kit", shareDir: "/share",
-      runShell: (command, cwd, h) => {
-        const s = { command, cwd, h, killed: false, forced: false };
+      runShell: (command, cwd, h, shell) => {
+        const s = { command, cwd, h, killed: false, forced: false, shellName: shell?.name };
         shells.push(s);
         return { kill: (force?: boolean) => { s.killed = true; s.forced = Boolean(force); } };
       },
@@ -282,7 +282,7 @@ describe("AgentRunner shell commands", () => {
     finish(0, "a\n");
     const id = (events[0] as { id: string }).id;
     expect(events).toEqual([
-      { kind: "shell", id, command: "ls", chunks: [], running: true, code: null, signal: null },
+      { kind: "shell", id, command: "ls", chunks: [], running: true, code: null, signal: null, shellName: expect.any(String) },
       { kind: "shell_output", id, stream: "stdout", text: "a\n" },
       { kind: "shell_end", id, code: 0, signal: null },
     ]);
@@ -338,6 +338,18 @@ describe("AgentRunner shell commands", () => {
     expect(runner.takeShellContext()).toEqual([]);
   });
 
+  it("names the user's shell on the block and runs the command with it", async () => {
+    const saved = process.env.SHELL;
+    process.env.SHELL = "/bin/zsh";
+    try {
+      await runner.send("$ ls");
+    } finally {
+      process.env.SHELL = saved;
+    }
+    expect(events[0]).toMatchObject({ kind: "shell", shellName: "zsh" });
+    expect(shells[0].shellName).toBe("zsh");
+  });
+
   it("kills at once when asked to force", async () => {
     await runner.send("$ a");
     runner.killAllShells(true);
@@ -349,7 +361,7 @@ describe("AgentRunner shell commands", () => {
     shells[0].h.onChunk("stdout", "a");
     const id = (events[0] as { id: string }).id;
     expect(runner.shellSnapshots()).toEqual([
-      { kind: "shell", id, command: "ls", chunks: [{ stream: "stdout", text: "a" }], running: true, code: null, signal: null },
+      { kind: "shell", id, command: "ls", chunks: [{ stream: "stdout", text: "a" }], running: true, code: null, signal: null, shellName: expect.any(String) },
     ]);
     shells[0].h.onEnd(0, null);
     await runner.send("$ make");

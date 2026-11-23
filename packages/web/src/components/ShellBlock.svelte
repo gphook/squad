@@ -18,7 +18,7 @@
 <div class="shell" class:failed={!ev.running && (ev.signal || (ev.code !== null && ev.code !== 0))}>
   <div class="head">
     <code class="cmd">$ {ev.command}</code>
-    <span class="status">{status}</span>
+    <span class="status">{#if ev.shellName}<span class="sh">{ev.shellName}</span>{/if}{status}</span>
     {#if ev.running}
       <button onclick={() => send({ t: "agent.shellKill", agentId, id: ev.id })}>Kill</button>
     {/if}
@@ -35,6 +35,7 @@
   .head { display: flex; align-items: center; gap: 8px; }
   .cmd { font-family: ui-monospace, monospace; font-weight: 600; white-space: pre-wrap; word-break: break-all; }
   .status { color: var(--muted); font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .sh { margin-right: 8px; font-family: ui-monospace, monospace; }
   .head button { padding: 1px 8px; font-size: 12px; }
   pre { background: var(--code); padding: 6px; border-radius: 6px; overflow: auto; max-height: 300px; font-size: 12px; margin: 4px 0; white-space: pre-wrap; }
   .stderr { color: var(--bad); }
