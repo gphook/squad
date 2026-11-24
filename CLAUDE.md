@@ -7,7 +7,7 @@ a team is also determined by the user.
 # Stack
 
 TypeScript throughout: a Node 24 server (Fastify, Claude Agent SDK, `node:sqlite`) and a Svelte 5 + Vite web UI,
-in npm workspaces. See `docs/superpowers/specs/2026-11-22-squad-design.md` and `docs/INSTALL.md`.
+in npm workspaces. See `docs/INSTALL.md`.
 
 # Agents
 
