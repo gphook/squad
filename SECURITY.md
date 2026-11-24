@@ -20,5 +20,8 @@ Squad is a single-user, local tool. What it relies on:
 - Agent output is rendered as sanitised markdown (DOMPurify). External images load only when clicked.
 - Tool approvals are answered only by the user, from the UI. Squad's own tools (`squad_*`) are the only tools allowed without asking.
 - `$ cmd` in a prompt box runs a shell command as your user without any approval step, by design (like the Claude CLI's `!`). Sign-in is what guards it.
+- The only request Squad makes on its own is the update check of the published package: one anonymous GET to `registry.npmjs.org/@gphook/squad/latest` at startup (generic `User-Agent: squad`, no cookies, 3 s timeout). `SQUAD_NO_UPDATE_CHECK=1` turns it off; running from source never checks.
+- The installable app's service worker caches nothing: every request goes to the server, so a sign-out or a new version takes effect at once.
+- Releases are published from GitHub Actions with npm trusted publishing and provenance, so each version on npm links to the commit and workflow that built it.
 
 Out of scope: anyone who can already run code as your user, or read `~/.squad` (the database holds only passkey public keys and session hashes, but anyone with that access can already act as you).

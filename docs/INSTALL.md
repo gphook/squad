@@ -1,4 +1,7 @@
-# Installing Squad's dependencies
+# Installing Squad
+
+Run it with `npx @gphook/squad` once Node and Claude Code are set up (sections 1–3). Section 4 covers running it,
+section 5 running from source.
 
 Squad runs locally on Linux or macOS.
 
@@ -46,7 +49,35 @@ Needed to create new agent repos.
 git --version
 ```
 
-## 4. Squad itself
+## 4. Running Squad
+
+```bash
+npx @gphook/squad                 # run the latest version
+npm i -g @gphook/squad && squad   # or install it, then run `squad`
+```
+
+Options (the same with `npx @gphook/squad`, `squad` or, from source, `npm start --`):
+
+| Option | Does |
+|---|---|
+| `--port <n>` | Port to listen on. Precedence: `--port`, then `SQUAD_PORT`, then `~/.squad/config.json`, then 7340. |
+| `--no-open` | Don't open the browser; print the link instead (also `SQUAD_NO_OPEN=1`). |
+| `--reset-sign-in` | A new setup link to add a passkey (see Signing in below). |
+| `--version`, `--help` | Print the version or the help. |
+
+If the port is already in use (usually Squad is already running), Squad says so and exits: open the URL it prints, or
+pick another port.
+
+**Install Squad as an app:** in Chrome or Edge, open Squad and choose **Install Squad** from the address bar or the
+browser menu. It then opens in its own window with the Squad icon. The installed app belongs to the address it was
+installed from, so if you change the port you install it again for the new one.
+
+**Updates:** when it starts, Squad asks npm whether a newer version exists. The request is anonymous, sends nothing
+about you or your projects, and gives up after 3 seconds. If there is one, Squad says so in the terminal and the top
+bar: run `npx @gphook/squad@latest` (or `npm i -g @gphook/squad@latest`). Turn the check off with
+`SQUAD_NO_UPDATE_CHECK=1`. Running from source never checks.
+
+## 5. From source
 
 From the repo root:
 
@@ -92,4 +123,4 @@ Manage passkeys and sessions from the lock icon in the top bar.
 ## Configuration
 
 - `~/.squad/config.json`: `{ "port": 7340 }` to change the port.
-- Environment: `SQUAD_HOME` (data folder, default `~/.squad`), `SQUAD_PORT`, `SQUAD_NO_OPEN=1` (don't open a browser), `SQUAD_DEV=1` (dev mode; set by the server `dev` script).
+- Environment: `SQUAD_HOME` (data folder, default `~/.squad`), `SQUAD_PORT`, `SQUAD_NO_OPEN=1` (don't open a browser), `SQUAD_NO_UPDATE_CHECK=1` (don't check npm for updates), `SQUAD_DEV=1` (dev mode; set by the server `dev` script).
