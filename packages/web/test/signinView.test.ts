@@ -20,6 +20,7 @@ const api = {
   deletePasskey: vi.fn(async () => {}),
   revokeSession: vi.fn(async () => {}),
   signOutEverywhere: vi.fn(async () => {}),
+  signOut: vi.fn(async () => {}),
   addPasskey: vi.fn(async () => {}),
 };
 vi.mock("../src/lib/signin.ts", () => api);
@@ -38,17 +39,22 @@ beforeEach(async () => {
   // Signing this browser out only happens once the server has ended its session, so later refetches say so.
   serverSignedIn = false;
 });
-afterEach(() => { for (const c of cleanup) c(); cleanup = []; document.body.innerHTML = ""; });
+afterEach(() => { for (const c of cleanup) c(); cleanup = []; document.body.innerHTML = ""; vi.restoreAllMocks(); });
 
-async function render() {
+function mountView() {
   const target = document.createElement("div");
   document.body.append(target);
   const app = mount(SignInView, { target });
   cleanup.push(() => unmount(app));
   flushSync();
+  return target;
+}
+async function render() {
+  const target = mountView();
   await vi.waitFor(() => expect(target.querySelector("li")).toBeTruthy());
   return target;
 }
+const byText = (t: HTMLElement, text: string) => [...t.querySelectorAll("button")].find((b) => b.textContent === text)!;
 const button = (t: HTMLElement, label: string) => t.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement;
 
 describe("Sign-in view", () => {
@@ -87,10 +93,48 @@ describe("Sign-in view", () => {
     expect(api.revokeSession).toHaveBeenCalledWith("s1");
   });
 
-  it("fetches overview once on open, not on server messages", async () => {
+  it("fetches overview once on open, not on other server messages", async () => {
     await render();
     for (let i = 0; i < 5; i++) { deliver({ t: "agent.event", agentId: "a", event: { kind: "text_delta", text: "x" } }); flushSync(); }
     expect(api.overview).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetches when the server says the sign-in lists changed", async () => {
+    const t = await render();
+    data = { ...data, sessions: [...data.sessions, sess("s3", false)] };
+    deliver({ t: "signin.changed" });
+    flushSync();
+    await vi.waitFor(() => expect(t.textContent).toContain("Browser s3"));
+    expect(api.overview).toHaveBeenCalledTimes(2);
+  });
+
+  it("renames a passkey only when the name really changed", async () => {
+    const t = await render();
+    (t.querySelector('button[aria-label^="Passkey name: Laptop"]') as HTMLElement).click();
+    flushSync();
+    const input = t.querySelector('input[aria-label="Passkey name"]') as HTMLInputElement;
+    input.value = "Work laptop";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    flushSync();
+    await vi.waitFor(() => expect(api.renamePasskey).toHaveBeenCalledWith("k1", "Work laptop"));
+    expect(api.renamePasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it("Add passkey registers one and refetches", async () => {
+    const t = await render();
+    api.overview.mockClear();
+    byText(t, "Add passkey").click();
+    await vi.waitFor(() => expect(api.overview).toHaveBeenCalledTimes(1));
+    expect(api.addPasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it("Sign out signs only this browser out", async () => {
+    const t = await render();
+    byText(t, "Sign out").click();
+    await vi.waitFor(() => expect(ui.session?.signedIn).toBe(false));
+    expect(api.signOut).toHaveBeenCalledTimes(1);
+    expect(api.signOutEverywhere).not.toHaveBeenCalled();
   });
 
   it("stops the socket and leaves the Sign-in view when this browser signs out", async () => {
@@ -103,10 +147,10 @@ describe("Sign-in view", () => {
 
   it("Sign out everywhere asks first, then signs this browser out", async () => {
     const t = await render();
-    const signOutBtn = [...t.querySelectorAll("button")].find((b) => b.textContent === "Sign out everywhere")!;
+    const signOutBtn = byText(t, "Sign out everywhere");
     vi.spyOn(window, "confirm").mockReturnValueOnce(false);
     signOutBtn.click();
-    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
     expect(api.signOutEverywhere).not.toHaveBeenCalled();
     expect(ui.session?.signedIn).toBe(true);
     vi.spyOn(window, "confirm").mockReturnValueOnce(true);
@@ -117,7 +161,7 @@ describe("Sign-in view", () => {
 
   it("a 401 on refetch signs this browser out", async () => {
     api.overview.mockRejectedValueOnce(Object.assign(new Error("Request failed (401)"), { status: 401 }));
-    await render().catch(() => {});
+    mountView();
     await vi.waitFor(() => expect(ui.session?.signedIn).toBe(false));
   });
 

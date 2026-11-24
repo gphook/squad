@@ -91,8 +91,10 @@
 - Passkey sign-in (fingerprint, face, device PIN, phone or security key). The first run opens a single-use setup link
   (valid 10 minutes) to create your first passkey; nothing reusable is ever put in a URL.
 - At sign-in choose "Remember this browser" (30 days since last use, survives restarts) or "Until Squad restarts".
-- Sign-in view (lock icon in the top bar): list, rename and delete passkeys (not the last one), and list and revoke
-  sessions. Deleting a passkey ends every session it created.
+- Sign-in view (lock icon in the top bar, available before any project exists): list, add, rename and delete passkeys
+  (not the last one), list and revoke sessions, sign out, or sign out everywhere. Deleting a passkey ends every session
+  it created. The lists update live when another browser signs in or something changes.
+- Tabs share a sign-in: signing in from one tab signs in the others, and doesn't sign them out.
 - `--reset-sign-in` opens a fresh setup link (or prints it, with `--no-open` or in dev) so you can add a passkey after
   losing access.
 

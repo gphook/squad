@@ -13,12 +13,19 @@ export const ui: {
   session: SessionStatus | null;
   /** True while /api/session can't be reached and start() is retrying. */
   unreachable: boolean;
+  /** The page was opened from a setup link that had expired or was already used (/?setup=expired). */
+  setupExpired: boolean;
+  /** Bumped when the server says the passkey or session lists changed; an open Sign-in view refetches. */
+  signinVersion: number;
   view: "chat" | "messages" | "shares" | "usage" | "plugins" | "signin";
   focus: string | null;
   viewer: string | null;
   /** The squadmate picked in the Plugins view; `/plugin` sets it to the squadmate it was typed in. */
   pluginMate: string | null;
-} = $state({ s: emptyState(), connected: false, session: null, unreachable: false, view: "chat", focus: null, viewer: null, pluginMate: null });
+} = $state({
+  s: emptyState(), connected: false, session: null, unreachable: false, setupExpired: false, signinVersion: 0,
+  view: "chat", focus: null, viewer: null, pluginMate: null,
+});
 
 let conn: ReturnType<typeof connect> | null = null;
 
@@ -30,8 +37,29 @@ function remembered(): string | null {
   }
 }
 
-/** Loads the session status and, when signed in, connects the WebSocket. Retries with backoff while Squad is unreachable. */
-export async function start(): Promise<void> {
+/** Retry delays while Squad can't be reached: 1 s, doubling, at most 10 s. */
+export const nextDelay = (delay: number): number => Math.min(delay * 2, 10_000);
+
+let starting: Promise<void> | null = null;
+
+/**
+ * Loads the session status and, when signed in, connects the WebSocket. Retries with backoff while Squad is
+ * unreachable. Calls made while one is running share it.
+ */
+export function start(): Promise<void> {
+  starting ??= run().finally(() => (starting = null));
+  return starting;
+}
+
+async function run(): Promise<void> {
+  // A failed setup link lands on /?setup=expired: remember it, then tidy the address bar, whatever screen shows.
+  const params = new URLSearchParams(location.search);
+  if (params.get("setup") === "expired") {
+    ui.setupExpired = true;
+    params.delete("setup");
+    const query = params.toString();
+    history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + location.hash);
+  }
   let delay = 1000;
   for (;;) {
     try {
@@ -41,7 +69,7 @@ export async function start(): Promise<void> {
     } catch {
       ui.unreachable = true;
       await new Promise((r) => setTimeout(r, delay));
-      delay = Math.min(delay * 2, 10_000);
+      delay = nextDelay(delay);
     }
   }
   if (ui.session.signedIn) connectSocket();
@@ -56,7 +84,24 @@ let sessionEpoch = 0;
 export function signedIn(): void {
   sessionEpoch++;
   ui.session = { signedIn: true, setupNeeded: false, setupGrant: false };
+  ui.setupExpired = false;
   connectSocket();
+  tabs?.postMessage("signed-in");
+}
+
+/**
+ * Tabs of this browser share one cookie: when one signs in, the others leave their sign-in screen. Also checks again
+ * when a signed-out tab comes back into view, in case another browser window signed in meanwhile.
+ */
+const tabs: BroadcastChannel | null = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("squad-signin");
+const recheckIfSignedOut = (): void => {
+  if (ui.session && !ui.session.signedIn) void start();
+};
+tabs?.addEventListener("message", recheckIfSignedOut);
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") recheckIfSignedOut();
+  });
 }
 
 /**
@@ -85,6 +130,7 @@ function connectSocket(): void {
   conn = connect({
     onMsg: (m) => {
       ui.s = reduce(ui.s, m);
+      if (m.t === "signin.changed") ui.signinVersion++;
       if (m.t === "ui.open") {
         ui.view = m.view;
         ui.pluginMate = m.agentId;

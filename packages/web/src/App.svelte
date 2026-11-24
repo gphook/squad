@@ -40,14 +40,16 @@
   {#if ui.s.error}
     <div class="error" role="alert">{ui.s.error} <button onclick={() => (ui.s = { ...ui.s, error: null })}>×</button></div>
   {/if}
-  {#if !ui.s.projectId}
+  {#if !ui.s.projectId && ui.view !== "signin"}
     <main class="empty">
       <p>No projects yet.</p>
       <button class="primary" onclick={() => (editingProject = { p: null })}>Create a project</button>
     </main>
   {:else}
     <div class="body">
-      <Sidebar onedit={(a) => (editingAgent = { a })} oneditproject={(p) => (editingProject = { p })} onopentile={(id) => saveLayout(openTile(layout(), id))} onshow={show} />
+      {#if ui.s.projectId}
+        <Sidebar onedit={(a) => (editingAgent = { a })} oneditproject={(p) => (editingProject = { p })} onopentile={(id) => saveLayout(openTile(layout(), id))} onshow={show} />
+      {/if}
       {#if ui.view === "messages"}<MessagesView onjump={show} />
       {:else if ui.view === "shares"}<SharedFilesPanel />
       {:else if ui.view === "usage"}<UsageView onjump={show} />
