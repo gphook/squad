@@ -81,3 +81,95 @@ describe("PluginService", () => {
     expect((await svc.snapshot(p)).marketplaces).toHaveLength(3);
   });
 });
+
+describe("PluginService caching, pruning and launch sets", () => {
+  const SP = "superpowers@claude-plugins-official"; // on in the terminal
+  const BU = "browser-use@claude-plugins-official"; // off in the terminal
+  let source: FakePluginSource, calls: Record<string, number>, now: number, cached: PluginService;
+  beforeEach(() => {
+    source = new FakePluginSource({ delayMs: 0 });
+    calls = { installed: 0, installs: 0, search: 0 };
+    for (const k of ["installed", "installs", "search"] as const) {
+      const orig = source[k].bind(source) as (...args: unknown[]) => unknown;
+      (source as unknown as Record<string, unknown>)[k] = (...args: unknown[]) => { calls[k]++; return orig(...args); };
+    }
+    now = 0;
+    cached = new PluginService(source, store, kit, { now: () => now });
+  });
+
+  it("asks the source once for repeated snapshots, again after an install, not after a switch", async () => {
+    await cached.snapshot(p);
+    await cached.snapshot(p);
+    expect(calls).toMatchObject({ installed: 1, search: 1 });
+    await cached.switch(p, SP, a, false);
+    await cached.snapshot(p);
+    expect(calls).toMatchObject({ installed: 1, search: 1 });
+    await cached.install(p, FD, a);
+    await cached.snapshot(p);
+    expect(calls.installed).toBeGreaterThan(1);
+    expect(calls.search).toBeGreaterThan(1);
+  });
+
+  it("refreshes the available list after 10 minutes", async () => {
+    await cached.snapshot(p);
+    now = 599_000;
+    await cached.snapshot(p);
+    expect(calls.search).toBe(1);
+    now = 600_001;
+    await cached.snapshot(p);
+    expect(calls.search).toBe(2);
+  });
+
+  it("refreshes the installed list for a launch only when it's over 30 seconds old", async () => {
+    await cached.launchSet(a);
+    now = 29_000;
+    await cached.launchSet(a);
+    expect(calls.installs).toBe(1);
+    now = 30_001;
+    await cached.launchSet(a);
+    expect(calls.installs).toBe(2);
+  });
+
+  it("refresh() drops the installed list", async () => {
+    await cached.snapshot(p);
+    cached.refresh();
+    await cached.snapshot(p);
+    expect(calls.installed).toBe(2);
+  });
+
+  it("shares one fetch between callers asking at once", async () => {
+    await Promise.all([cached.launchSet(a), cached.launchSet(a), cached.snapshot(p)]);
+    expect(calls.installs).toBe(1);
+  });
+
+  it("doesn't keep a failed fetch", async () => {
+    const orig = source.installs.bind(source);
+    source.installs = () => Promise.reject(new Error("CLI broke"));
+    await expect(cached.launchSet(a)).rejects.toThrow("CLI broke");
+    source.installs = orig;
+    await expect(cached.launchSet(a)).resolves.toBeTruthy();
+  });
+
+  it("drops switches for plugins no longer installed", async () => {
+    store.setPluginSwitch(p, "gone@x", a, true);
+    store.setPluginSwitch(p, SP, null, false);
+    await cached.snapshot(p);
+    expect(store.listPluginSwitches(p)).toEqual([{ pluginId: SP, agentId: null, enabled: false }]);
+  });
+
+  it("works out what each squadmate loads and switches off", async () => {
+    expect(await cached.launchSet(a)).toEqual({ paths: [], off: [] });
+    store.setPluginSwitch(p, BU, null, true);
+    store.setPluginSwitch(p, SP, a, false);
+    expect(await cached.launchSet(a)).toEqual({ paths: ["/fake/browser-use"], off: [SP] });
+    store.setPluginSwitch(p, SP, a, true); // on here and in the terminal: nothing extra
+    store.setPluginSwitch(p, BU, a, false); // off here and in the terminal: nothing
+    expect(await cached.launchSet(a)).toEqual({ paths: [], off: [] });
+  });
+
+  it("compares launch sets by value", async () => {
+    const { sameLaunch } = await import("../src/plugins/service.ts");
+    expect(sameLaunch({ paths: ["a", "b"], off: [] }, { paths: ["b", "a"], off: [] })).toBe(true);
+    expect(sameLaunch({ paths: ["a"], off: [] }, { paths: ["a"], off: ["x"] })).toBe(false);
+  });
+});

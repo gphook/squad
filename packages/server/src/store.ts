@@ -290,6 +290,13 @@ export class Store {
   }
 
   /** Forgets every project's switches for a plugin (it was uninstalled). */
+  /** Drops every switch for a plugin not in `installedIds` (uninstalled outside Squad). */
+  prunePluginSwitches(installedIds: string[]): void {
+    const keep = new Set(installedIds);
+    const ids = this.db.prepare("SELECT DISTINCT plugin_id FROM plugin_switches").all() as { plugin_id: string }[];
+    for (const { plugin_id } of ids) if (!keep.has(plugin_id)) this.deletePluginSwitches(plugin_id);
+  }
+
   deletePluginSwitches(pluginId: string): void {
     this.db.prepare("DELETE FROM plugin_switches WHERE plugin_id = ?").run(pluginId);
   }
