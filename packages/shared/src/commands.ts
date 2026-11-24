@@ -19,7 +19,6 @@ const NOT_YET = "isn't available in Squad yet.";
 export const UNAVAILABLE_COMMANDS: Record<string, string> = {
   resume: "isn't needed: Squad resumes the squadmate's previous conversation when it launches. Picking an older one is coming.",
   plugin: NOT_YET,
-  skills: NOT_YET,
   config: "isn't available in Squad.",
   model: "isn't available in Squad. Set the model in the squadmate's settings.",
 };
@@ -39,7 +38,8 @@ export function parseSlashCommand(text: string): { name: string; args: string } 
   return m ? { name: m[1].toLowerCase(), args: (m[2] ?? "").trim() } : null;
 }
 
-export type CommandRoute = { kind: "clear" } | { kind: "stop" } | { kind: "notice"; text: string } | { kind: "sdk" };
+export type CommandRoute =
+  | { kind: "clear" } | { kind: "stop" } | { kind: "skills" } | { kind: "notice"; text: string } | { kind: "sdk" };
 
 /** What Squad does with `/name`, after resolving Squad's and the SDK's aliases. */
 export function routeCommand(name: string, sdkCommands: SlashCommandInfo[]): CommandRoute {
@@ -49,5 +49,6 @@ export function routeCommand(name: string, sdkCommands: SlashCommandInfo[]): Com
     : (all.find((c) => c.aliases?.includes(name))?.name ?? (Object.hasOwn(UNAVAILABLE_ALIASES, name) ? UNAVAILABLE_ALIASES[name] : name));
   if (resolved === "clear") return { kind: "clear" };
   if (resolved === "exit") return { kind: "stop" };
+  if (resolved === "skills") return { kind: "skills" }; // the SDK says "isn't available in this environment"
   return isUnavailableCommand(resolved) ? { kind: "notice", text: `\`/${resolved}\` ${UNAVAILABLE_COMMANDS[resolved]}` } : { kind: "sdk" };
 }

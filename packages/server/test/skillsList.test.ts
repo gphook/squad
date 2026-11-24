@@ -1,0 +1,44 @@
+import { describe, it, expect } from "vitest";
+import { formatSkills, type SkillInfo } from "../src/skillsList.ts";
+
+const skill = (name: string, description: string, builtin?: boolean): SkillInfo =>
+  ({ name, description, argumentHint: "", ...(builtin ? { builtin } : {}) });
+
+describe("formatSkills", () => {
+  const list = [
+    skill("superpowers:b", "(superpowers) Plan things. Then more."),
+    skill("simplify", "Review the changed code.", true),
+    skill("mine", "Do it. More. (user)"),
+    skill("squad-kit:squad-radio", "(squad-kit) Use whenever you message a squadmate."),
+    skill("proj", "P (project)"),
+    skill("odd", "x"),
+  ];
+  const md = formatSkills(list);
+
+  it("groups by source: Built-in, Personal, Project, plugins A–Z, then Other", () => {
+    const headings = md.split("\n").filter((l) => l.startsWith("**"));
+    expect(headings).toEqual(["**Built-in**", "**Personal**", "**Project**", "**squad-kit**", "**superpowers**", "**Other**"]);
+  });
+  it("shows each skill's name and the first sentence of its description, without the source marker", () => {
+    expect(md).toContain("`mine` — Do it.\n");
+    expect(md).toContain("`superpowers:b` — Plan things.\n");
+    expect(md).toContain("`proj` — P\n");
+  });
+  it("clips a long description to 120 characters", () => {
+    const line = formatSkills([skill("long", "a".repeat(300))]).split("\n").find((l) => l.startsWith("`long`"))!;
+    expect(line).toHaveLength(120);
+    expect(line.endsWith("…")).toBe(true);
+  });
+  it("uses the first line of a multi-line description", () => {
+    expect(formatSkills([skill("ml", "First line\nsecond line")])).toContain("`ml` — First line\n");
+  });
+  it("shows just the name when the description is only the source marker", () => {
+    expect(formatSkills([skill("superpowers:b", "(superpowers)")])).toContain("`superpowers:b`\n");
+  });
+  it("keeps markdown characters in a name literal, inside code", () => {
+    expect(formatSkills([skill("a_b*c", "x")])).toContain("`a_b*c` — x");
+  });
+  it("says so when there are no skills", () => {
+    expect(formatSkills([])).toBe("No skills.");
+  });
+});
