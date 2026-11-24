@@ -64,6 +64,7 @@ export function buildApp(opts: {
 
   sup.on("status", (p, state) => broadcast(p, { t: "agent.status", state }));
   sup.on("event", (p, agentId, event) => broadcast(p, { t: "agent.event", agentId, event }));
+  sup.on("commands", (p, agentId, commands) => broadcast(p, { t: "agent.commands", agentId, commands }));
   sup.on("approval", (p, approval) => broadcast(p, { t: "approval.request", approval }));
   sup.on("approvalResolved", (p, approvalId) => broadcast(p, { t: "approval.resolved", approvalId }));
   sup.on("message", (p, message) => broadcast(p, { t: "message.logged", message }));
@@ -87,6 +88,7 @@ export function buildApp(opts: {
         if (!store.getProject(m.projectId)) return out(ws, { t: "error", message: "Unknown project" });
         sockets.get(ws)!.projectId = m.projectId;
         out(ws, stateMsg(m.projectId));
+        for (const a of store.listAgents(m.projectId)) out(ws, { t: "agent.commands", agentId: a.id, commands: sup.commands(a.id) });
         await Promise.all(store.listAgents(m.projectId).map(async (a) => {
           const events = a.sessionId ? await loadHistory(a.sessionId, a.folder) : [];
           // `$ cmd` blocks still running or not yet handed over aren't in the transcript yet.

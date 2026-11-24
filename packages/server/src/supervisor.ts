@@ -3,7 +3,8 @@ import { copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import {
-  errorMessage, firstLine, isExternalUrl, shareFileName,
+  errorMessage, firstLine, isExternalUrl, parseSlashCommand, routeCommand, shareFileName, SQUAD_COMMANDS, UNAVAILABLE_COMMANDS,
+  type SlashCommandInfo,
   type AgentAction, type AgentEvent, type AgentState, type AuthStatus, type Approval, type ApprovalDecision, type LoggedMessage, type SharedFile,
 } from "@squad/shared";
 import { shareDir } from "./paths.ts";
@@ -22,7 +23,8 @@ const PEER_MATCH_WINDOW_MS = 60_000;
  * Owns every AgentRunner. Events, each with projectId first:
  * "status"(p, AgentState) "event"(p, agentId, AgentEvent) "approval"(p, Approval) "approvalResolved"(p, id)
  * "message"(p, LoggedMessage) "share"(p, SharedFile) "shareRemoved"(p, id)
- * "usage"(p) after a turn's usage is stored, "turnEnd"() after any turn, "rateLimit"(rate_limit_info).
+ * "usage"(p) after a turn's usage is stored, "turnEnd"() after any turn, "rateLimit"(rate_limit_info),
+ * "commands"(p, agentId, SlashCommandInfo[]) when a squadmate's command list changes.
  */
 export interface AuthSource {
   current: AuthStatus | null;
@@ -87,6 +89,7 @@ export class Supervisor extends EventEmitter {
     r.on("event", (ev: AgentEvent) => this.onEvent(pid, agentId, nameOf, ev));
     r.on("result", (res: TurnResult) => this.recordUsage(pid, agentId, res));
     r.on("rateLimit", (info: unknown) => this.emit("rateLimit", info));
+    r.on("commands", () => this.emit("commands", pid, agentId, this.commands(agentId)));
     this.runners.set(agentId, r);
     return r;
   }
@@ -162,8 +165,33 @@ export class Supervisor extends EventEmitter {
     }
   }
 
+  /** What the picker offers: Squad's own commands, then the session's, without the ones Squad won't run. */
+  commands(agentId: string): SlashCommandInfo[] {
+    const own = new Set(SQUAD_COMMANDS.flatMap((c) => [c.name, ...(c.aliases ?? [])]));
+    const session = (this.runners.get(agentId)?.commands ?? []).filter((c) => !own.has(c.name) && !(c.name in UNAVAILABLE_COMMANDS));
+    return [...SQUAD_COMMANDS, ...session];
+  }
+
+  /** A message from the user. `/` commands Squad owns run here, so the session never changes behind its back. */
   async send(agentId: string, text: string, images?: string[]): Promise<void> {
-    await this.runner(agentId).send(text, images);
+    const r = this.runner(agentId);
+    const cmd = images?.length ? null : parseSlashCommand(text);
+    const route = cmd ? routeCommand(cmd.name, r.commands) : { kind: "sdk" as const };
+    const show = (ev: AgentEvent) => this.emit("event", this.store.getAgent(agentId)!.projectId, agentId, ev);
+    switch (route.kind) {
+      case "sdk":
+        return r.send(text, images);
+      case "clear":
+        return this.action(agentId, "clear");
+      case "stop":
+        show({ kind: "user_text", text });
+        if (r.running) await r.stop();
+        return;
+      case "notice":
+        show({ kind: "user_text", text });
+        show({ kind: "command_output", text: route.text, notice: true });
+        return;
+    }
   }
 
   async action(agentId: string, action: AgentAction): Promise<void> {

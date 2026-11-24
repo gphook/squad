@@ -390,3 +390,72 @@ describe("clear all", () => {
     expect(store.listMessages(other.id)).toHaveLength(1);
   });
 });
+
+describe("slash commands", () => {
+  const events = () => {
+    const out: AgentEvent[] = [];
+    sup.on("event", (_p: string, id: string, ev: AgentEvent) => { if (id === a.id) out.push(ev); });
+    return out;
+  };
+  const started = async () => {
+    await sup.action(a.id, "launch");
+    f.queries[0].initialize({ commands: [
+      { name: "context", description: "c", argumentHint: "" },
+      { name: "model", description: "m", argumentHint: "" },
+      { name: "clear", description: "sdk clear", argumentHint: "", aliases: ["reset", "new"] },
+    ] });
+    f.queries[0].emit({ type: "system", subtype: "init", session_id: "s1" });
+    await tick();
+  };
+
+  it("/clear while working does what Clear does, and never reaches the session", async () => {
+    await started();
+    await sup.send(a.id, "hello");
+    const ev = events();
+    await sup.send(a.id, "/clear");
+    expect(f.queries[0].inputs).toHaveLength(1);
+    expect(store.getAgent(a.id)!.sessionId).toBeNull();
+    expect(ev).toContainEqual({ kind: "cleared" });
+  });
+  it("/new, the SDK's alias for clear, does the same", async () => {
+    await started();
+    await sup.send(a.id, "/new");
+    expect(f.queries[0].inputs).toHaveLength(0);
+    expect(store.getAgent(a.id)!.sessionId).toBeNull();
+  });
+  it("/exit on a stopped squadmate doesn't launch it", async () => {
+    await sup.send(a.id, "/exit");
+    expect(f.queries).toHaveLength(0);
+  });
+  it("/quit stops a running squadmate without sending anything", async () => {
+    await started();
+    await sup.send(a.id, "/quit");
+    expect(f.queries[0].inputs).toHaveLength(0);
+    expect(sup.runner(a.id).state.status).toBe("stopped");
+  });
+  it("an unavailable command shows the command and a notice, without launching", async () => {
+    const ev = events();
+    await sup.send(a.id, "/plugin");
+    expect(f.queries).toHaveLength(0);
+    expect(ev[0]).toEqual({ kind: "user_text", text: "/plugin" });
+    expect(ev[1]).toMatchObject({ kind: "command_output", notice: true });
+    expect((ev[1] as { text: string }).text).toContain("/plugin");
+  });
+  it("sends other commands, and messages starting with a path, to the session unchanged", async () => {
+    await started();
+    await sup.send(a.id, "/context");
+    await sup.send(a.id, "/home/me/notes.txt is broken");
+    await tick();
+    expect(f.queries[0].inputs.map((m) => m.message.content)).toEqual(["/context", "/home/me/notes.txt is broken"]);
+  });
+  it("lists Squad's commands before launch, then merges the session's and leaves out unavailable ones", async () => {
+    expect(sup.commands(a.id).map((c) => c.name)).toEqual(["clear", "exit"]);
+    const seen: string[][] = [];
+    sup.on("commands", (_p: string, id: string, list: { name: string }[]) => { if (id === a.id) seen.push(list.map((c) => c.name)); });
+    await started();
+    const list = sup.commands(a.id);
+    expect(list.map((c) => c.name).sort()).toEqual(["clear", "context", "exit"]);
+    expect(list.find((c) => c.name === "clear")!.description).toContain("Squad");
+    expect(seen.at(-1)!.sort()).toEqual(["clear", "context", "exit"]);
+  });
+});
