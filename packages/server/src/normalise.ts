@@ -13,7 +13,9 @@ export type SdkMsg = {
   // Set by Claude Code on user messages it wrote itself rather than the person typing.
   isReplay?: boolean; isSynthetic?: boolean; isMeta?: boolean; isCompactSummary?: boolean;
   event?: { type?: string; delta?: { type?: string; text?: string } };
-  message?: { content?: string | Block[] };
+  message?: { content?: string | Block[]; model?: string };
+  /** A transcript `system` line's text, e.g. a local command's output. */
+  content?: string;
   modelUsage?: Record<string, Record<string, number>>;
   rate_limit_info?: unknown;
 };
@@ -22,7 +24,15 @@ export type SdkMsg = {
 const isHarnessMessage = (m: SdkMsg) => Boolean(m.isReplay || m.isSynthetic || m.isMeta || m.isCompactSummary);
 /** Slash commands are stored as `<command-name>/x</command-name>…`; their output as `<local-command-stdout>`. */
 const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
-const COMMAND_OUTPUT_PREFIX = "<local-command-stdout>";
+const COMMAND_OUTPUT_RE = /^<local-command-stdout>([\s\S]*?)(?:<\/local-command-stdout>)?$/;
+/** Claude Code's model name on messages it wrote itself, such as a local command's live output. */
+const SYNTHETIC_MODEL = "<synthetic>";
+
+/** A local command's output as an event; nothing when it printed nothing. */
+function commandOutput(text: string): AgentEvent[] {
+  const t = text.trim();
+  return t ? [{ kind: "command_output", text: t }] : [];
+}
 
 /** History ids for `$ cmd` blocks read back from a transcript; live ones are UUIDs. */
 let historyShellSeq = 0;
@@ -100,6 +110,7 @@ export function normalise(raw: unknown): AgentEvent[] {
         : [];
     }
     case "assistant": {
+      if (msg.message?.model === SYNTHETIC_MODEL) return commandOutput(blockText(msg.message.content));
       const out: AgentEvent[] = [];
       for (const b of (msg.message?.content ?? []) as Block[]) {
         if (b.type === "text" && b.text) out.push({ kind: "assistant_text", text: b.text });
@@ -132,7 +143,8 @@ export function normalise(raw: unknown): AgentEvent[] {
           });
       }
       const { shells, rest: raw } = withShellBlocks(blockText(content));
-      if (raw.startsWith(COMMAND_OUTPUT_PREFIX)) return shells;
+      const output = COMMAND_OUTPUT_RE.exec(raw);
+      if (output) return [...shells, ...commandOutput(output[1])];
       const text = COMMAND_RE.exec(raw)?.[1] ?? raw;
       const peer = parsePeerMessage(text);
       if (peer) return [...shells, { kind: "peer_in", from: peer.from, text: peer.body }];
@@ -141,8 +153,13 @@ export function normalise(raw: unknown): AgentEvent[] {
       const shown = agentShell === null ? text : `!${agentShell}`;
       return shown || images.length ? [...shells, { kind: "user_text", text: shown, ...(images.length ? { images } : {}) }] : shells;
     }
-    case "system":
-      return msg.subtype === "compact_boundary" ? [{ kind: "compacted" }] : [];
+    case "system": {
+      if (msg.subtype === "compact_boundary") return [{ kind: "compacted" }];
+      if (msg.subtype !== "local_command" || typeof msg.content !== "string") return [];
+      // In a transcript: a command's output, or (for one Claude Code refused) the command itself.
+      const output = COMMAND_OUTPUT_RE.exec(msg.content);
+      return output ? commandOutput(output[1]) : [{ kind: "user_text", text: msg.content }];
+    }
     case "result":
       return msg.subtype === "success" && !msg.is_error
         ? [{ kind: "turn_end", ok: true }]
