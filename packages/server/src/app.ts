@@ -85,6 +85,12 @@ export function buildApp(opts: {
     approvals: sup.pendingApprovals(projectId), messages: store.listMessages(projectId), shares: store.listShares(projectId),
   });
 
+  /** Tells the project's pages which running squadmates need a restart to pick up plugin changes. */
+  async function sendRestarts(projectId: string): Promise<void> {
+    broadcast(projectId, { t: "plugins.restart", projectId, agents: await sup.pendingRestarts(projectId) });
+  }
+  sup.on("pluginsChanged", (p: string) => void sendRestarts(p));
+
   /** Sends a fresh plugins snapshot to every page on `projectId`, or on any project (machine-wide changes). */
   async function refreshPlugins(projectId: string | null): Promise<void> {
     if (!plugins) return;
@@ -92,6 +98,7 @@ export function buildApp(opts: {
     await Promise.all(ids.map(async (id) => {
       try {
         broadcast(id, await plugins.snapshot(id));
+        await sendRestarts(id);
       } catch (e) {
         // The change itself went through; only the fresh view of it failed.
         broadcast(id, { t: "plugins.error", action: "plugins.get", message: errorMessage(e) });
@@ -104,7 +111,10 @@ export function buildApp(opts: {
     try {
       if (!plugins) throw new Error("Plugins aren't available.");
       switch (m.t) {
-        case "plugins.get": return out(ws, await plugins.snapshot(m.projectId));
+        case "plugins.get":
+          plugins.refresh(); // see plugins switched in the terminal
+          out(ws, await plugins.snapshot(m.projectId));
+          return out(ws, { t: "plugins.restart", projectId: m.projectId, agents: await sup.pendingRestarts(m.projectId) });
         case "plugins.search": {
           const r = await plugins.search(m.query, m.marketplace);
           return out(ws, { t: "plugins.results", query: m.query, marketplace: m.marketplace, ...r });
