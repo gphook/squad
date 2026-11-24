@@ -1,6 +1,6 @@
-import { statSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
 import type { AvailablePlugin, InstalledPlugin, Marketplace, PluginInventory } from "@squad/shared";
-import type { ClaudeRunner } from "./cli.ts";
+import { failureMessage, type ClaudeRunner } from "./cli.ts";
 import type { PluginSource } from "./source.ts";
 
 /** One row of `claude plugin list --json`: a plugin can be installed at several scopes. */
@@ -18,6 +18,7 @@ type RawAvailable = { pluginId: string; name: string; description?: string; mark
 type RawMarket = { name: string; source: string; repo?: string; url?: string; path?: string; installLocation?: string };
 
 const SHORT = 20_000;
+const LONG = 60_000;
 const OFFICIAL = "claude-plugins-official";
 const UNREADABLE = "Claude Code returned something Squad couldn't read.";
 
@@ -124,12 +125,63 @@ export class CliPluginSource implements PluginSource {
     return { ...plugin, ...parseDetails(text) };
   }
 
-  install(_id: string): Promise<void> { return Promise.reject(new Error("not yet")); }
-  uninstall(_id: string): Promise<void> { return Promise.reject(new Error("not yet")); }
-  update(_id: string): Promise<void> { return Promise.reject(new Error("not yet")); }
-  addMarketplace(_source: string): Promise<Marketplace> { return Promise.reject(new Error("not yet")); }
-  removeMarketplace(_name: string): Promise<void> { return Promise.reject(new Error("not yet")); }
-  updateMarketplace(_name: string): Promise<void> { return Promise.reject(new Error("not yet")); }
+  /** Runs a changing command and rejects unless its JSON result line says ok. */
+  private async act(args: string[], opts: { cwd?: string; timeoutMs: number }): Promise<void> {
+    const out = await this.run(args, opts);
+    const line = out.trim().split("\n").pop() ?? "";
+    let r: { outcome?: string; message?: string } | null = null;
+    try {
+      r = JSON.parse(line);
+    } catch {}
+    if (r?.outcome !== "ok") throw new Error(r?.message ?? failureMessage(args, out, ""));
+  }
+
+  async install(id: string): Promise<void> {
+    mkdirSync(this.squadFolder, { recursive: true });
+    await this.act(["plugin", "install", id, "--scope", "local", "--json"], { cwd: this.squadFolder, timeoutMs: LONG });
+  }
+
+  /** The scopes of `id` Squad may change (user, and its own folder), or a rejection saying why there are none. */
+  private async changeable(id: string, verb: string): Promise<{ scope: string; cwd?: string }[]> {
+    const rows = (await this.installs()).filter((r) => r.id === id);
+    if (!rows.length) throw new Error(`${id} isn't installed.`);
+    if (rows.every((r) => r.scope === "synced")) throw new Error("Managed by claude.ai.");
+    const mine = rows.filter((r) => r.scope === "user" || (r.scope === "local" && r.projectPath === this.squadFolder));
+    if (!mine.length) {
+      const where = rows.find((r) => r.projectPath)?.projectPath ?? "another folder";
+      throw new Error(`${id} is installed only in ${where}; ${verb} it there.`);
+    }
+    return mine.map((r) => (r.scope === "user" ? { scope: "user" } : { scope: "local", cwd: this.squadFolder }));
+  }
+
+  async uninstall(id: string): Promise<void> {
+    for (const s of await this.changeable(id, "uninstall")) {
+      await this.act(["plugin", "uninstall", id, "--scope", s.scope, "--json"], { ...(s.cwd ? { cwd: s.cwd } : {}), timeoutMs: SHORT });
+    }
+  }
+
+  async update(id: string): Promise<void> {
+    for (const s of await this.changeable(id, "update")) {
+      await this.act(["plugin", "update", id, "--scope", s.scope, "--json"], { ...(s.cwd ? { cwd: s.cwd } : {}), timeoutMs: LONG });
+    }
+  }
+
+  async addMarketplace(source: string): Promise<Marketplace> {
+    const before = new Set((await this.marketplaces()).map((m) => m.name));
+    await this.act(["plugin", "marketplace", "add", source, "--json"], { timeoutMs: LONG });
+    const after = await this.marketplaces();
+    const added = after.find((m) => m.location === source) ?? after.find((m) => !before.has(m.name));
+    if (!added) throw new Error(`Added ${source}, but it isn't in the marketplace list.`);
+    return added;
+  }
+
+  removeMarketplace(name: string): Promise<void> {
+    return this.act(["plugin", "marketplace", "remove", name, "--json"], { timeoutMs: SHORT });
+  }
+
+  updateMarketplace(name: string): Promise<void> {
+    return this.act(["plugin", "marketplace", "update", name, "--json"], { timeoutMs: LONG });
+  }
 }
 
 function mtime(path: string | undefined): string {

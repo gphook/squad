@@ -133,3 +133,94 @@ describe("tokens", () => {
     expect(formatTokens(20)).toBe("≈50");
   });
 });
+
+describe("CliPluginSource actions", () => {
+  const ok = (cmd: string) => JSON.stringify({ command: cmd, outcome: "ok", message: "done" });
+  const rows = [
+    { id: FD, version: "1", scope: "user", enabled: true, installPath: "/u" },
+    { id: FD, version: "1", scope: "local", enabled: true, installPath: "/s", projectPath: SQUAD },
+    { id: FD, version: "1", scope: "local", enabled: true, installPath: "/o", projectPath: "/games/a" },
+    { id: "elsewhere@m", version: "1", scope: "project", enabled: true, installPath: "/e", projectPath: "/games/b" },
+    { id: "design@synced", scope: "synced", enabled: true, installPath: "/d" },
+  ];
+  const actions = (extra: Record<string, string | Error> = {}) =>
+    fake({ "plugin list --json": JSON.stringify(rows), "plugin marketplace list --json": JSON.stringify(MARKETS),
+      "plugin list --json --available": JSON.stringify({ installed: rows, available: AVAILABLE }), ...extra });
+
+  it("installs at local scope from Squad's folder, creating it, without -y", async () => {
+    const { mkdtempSync, existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const folder = join(mkdtempSync(join(tmpdir(), "squad-cli-")), "plugins");
+    const f = fake({ [`plugin install ${FD} --scope local --json`]: ok("install") });
+    await new CliPluginSource(f.run, folder).install(FD);
+    expect(f.calls).toEqual([{ args: ["plugin", "install", FD, "--scope", "local", "--json"], cwd: folder, timeoutMs: 60_000 }]);
+    expect(existsSync(folder)).toBe(true);
+  });
+
+  it("rejects with the CLI's message when the result isn't ok", async () => {
+    const f = fake({ [`plugin install ${FD} --scope local --json`]: JSON.stringify({ outcome: "error", message: "Run it from the terminal" }) });
+    await expect(new CliPluginSource(f.run, "/tmp").install(FD)).rejects.toThrow("Run it from the terminal");
+  });
+
+  it("uninstalls from the user scope and Squad's folder, leaving other folders alone", async () => {
+    const f = actions({
+      [`plugin uninstall ${FD} --scope user --json`]: ok("uninstall"),
+      [`plugin uninstall ${FD} --scope local --json`]: ok("uninstall"),
+    });
+    await new CliPluginSource(f.run, SQUAD).uninstall(FD);
+    const changes = f.calls.filter((c) => c.args[1] === "uninstall");
+    expect(changes).toEqual([
+      { args: ["plugin", "uninstall", FD, "--scope", "user", "--json"], timeoutMs: 20_000 },
+      { args: ["plugin", "uninstall", FD, "--scope", "local", "--json"], cwd: SQUAD, timeoutMs: 20_000 },
+    ]);
+  });
+
+  it("won't uninstall or update a plugin installed only in another folder", async () => {
+    const f = actions();
+    const src = new CliPluginSource(f.run, SQUAD);
+    await expect(src.uninstall("elsewhere@m")).rejects.toThrow("elsewhere@m is installed only in /games/b; uninstall it there.");
+    await expect(src.update("elsewhere@m")).rejects.toThrow("elsewhere@m is installed only in /games/b; update it there.");
+    expect(f.calls.every((c) => c.args[1] === "list")).toBe(true);
+  });
+
+  it("won't touch claude.ai's plugins", async () => {
+    const f = actions();
+    const src = new CliPluginSource(f.run, SQUAD);
+    await expect(src.uninstall("design@synced")).rejects.toThrow("Managed by claude.ai.");
+    await expect(src.update("design@synced")).rejects.toThrow("Managed by claude.ai.");
+    expect(f.calls.every((c) => c.args[1] === "list")).toBe(true);
+  });
+
+  it("updates each scope Squad may change", async () => {
+    const f = actions({
+      [`plugin update ${FD} --scope user --json`]: ok("update"),
+      [`plugin update ${FD} --scope local --json`]: ok("update"),
+    });
+    await new CliPluginSource(f.run, SQUAD).update(FD);
+    expect(f.calls.filter((c) => c.args[1] === "update")).toEqual([
+      { args: ["plugin", "update", FD, "--scope", "user", "--json"], timeoutMs: 60_000 },
+      { args: ["plugin", "update", FD, "--scope", "local", "--json"], cwd: SQUAD, timeoutMs: 60_000 },
+    ]);
+  });
+
+  it("adds, removes and updates marketplaces", async () => {
+    MARKETS.push({ name: "owner-mine", source: "github", repo: "owner/mine", installLocation: "/x" });
+    const f = actions({
+      "plugin marketplace add owner/mine --json": ok("marketplace add"),
+      "plugin marketplace remove mine --json": ok("marketplace remove"),
+      "plugin marketplace update mine --json": ok("marketplace update"),
+    });
+    const src = new CliPluginSource(f.run, SQUAD);
+    try {
+      expect(await src.addMarketplace("owner/mine")).toMatchObject({ name: "owner-mine", location: "owner/mine" });
+    } finally {
+      MARKETS.pop();
+    }
+    await src.removeMarketplace("mine");
+    await src.updateMarketplace("mine");
+    const timeouts = Object.fromEntries(f.calls.filter((c) => c.args[1] === "marketplace" && c.args[2] !== "list")
+      .map((c) => [c.args[2], c.timeoutMs]));
+    expect(timeouts).toEqual({ add: 60_000, remove: 20_000, update: 60_000 });
+  });
+});
