@@ -22,10 +22,11 @@ export interface FakeUsage {
 }
 
 /** A controllable stand-in for the SDK query(): the test emits SDK messages and reads what the runner sent. */
-export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; usage: FakeUsage; models: FakeUsage } {
+export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; usage: FakeUsage; models: FakeUsage; skills: FakeUsage } {
   const queries: FakeQuery[] = [];
   const usage: FakeUsage = { response: { rate_limits_available: false, rate_limits: null }, calls: 0 };
   const models: FakeUsage = { response: [], calls: 0 };
+  const skills: FakeUsage = { response: [], calls: 0 };
   const factory: QueryFactory = ({ prompt, options }) => {
     const pending: unknown[] = [];
     let wake: (() => void) | null = null;
@@ -56,6 +57,10 @@ export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; us
         models.calls++;
         return typeof models.response === "function" ? (models.response as () => Promise<unknown>)() : models.response;
       },
+      reloadSkills: async () => {
+        skills.calls++;
+        return { skills: typeof skills.response === "function" ? await (skills.response as () => Promise<unknown>)() : skills.response };
+      },
       usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: async () => {
         usage.calls++;
         return typeof usage.response === "function" ? (usage.response as () => Promise<unknown>)() : usage.response;
@@ -64,7 +69,7 @@ export function fakeFactory(): { factory: QueryFactory; queries: FakeQuery[]; us
     queries.push(fq);
     return iter as any;
   };
-  return { factory, queries, usage, models };
+  return { factory, queries, usage, models, skills };
 }
 
 export const tick = () => new Promise((r) => setTimeout(r, 0));
