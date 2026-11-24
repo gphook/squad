@@ -84,7 +84,7 @@
         <tr>
           <td>
             <div class="name">{p.name}{#if p.required}<span class="required">Required</span>{:else}<span class="tag">{p.marketplace}</span>{/if}</div>
-            <div class="meta">{p.description}{#if p.version} · v{p.version}{/if}{#if p.tokens} · {p.tokens} tokens{/if}</div>
+            <div class="meta">{[p.description, p.version && `v${p.version}`, p.tokens && `${p.tokens} tokens`].filter(Boolean).join(" · ")}</div>
           </td>
           <td class="col">{@render toggle(p, null)}</td>
           <td class="col">{#if mate}{@render toggle(p, mate.id)}{/if}</td>
@@ -104,7 +104,7 @@
   <section class="details" aria-label="{details.name} details">
     <div class="dhead">
       <h3>{details.name}</h3>
-      <span class="hint">{details.required ? "Squad" : details.marketplace}{#if details.version} · v{details.version}{/if}</span>
+      <span class="hint">{[details.required ? "Squad" : details.marketplace, details.version && `v${details.version}`].filter(Boolean).join(" · ")}</span>
       <span class="grow"></span>
       <button type="button" onclick={() => (detailsId = null)}>Close</button>
     </div>
