@@ -25,12 +25,22 @@ See [FEATURES.md](FEATURES.md) for the full list.
 You need Node 24+, git, and [Claude Code](https://claude.com/claude-code) installed and signed in. Details are in [docs/INSTALL.md](docs/INSTALL.md).
 
 ```bash
+npx @gphook/squad
+```
+
+Squad opens your browser to set up sign-in with a passkey (if it can't, it prints a single-use setup link). Create a project, add an agent for each repo, and send the first message.
+
+**Use it like an app:** in Chrome or Edge, choose **Install Squad** (the install icon in the address bar, or the browser menu). Squad then opens in its own window with its own icon in your dock or taskbar.
+
+Prefer a fixed command? `npm i -g @gphook/squad`, then run `squad`. Squad tells you when a newer version is out.
+
+**From source** (to contribute):
+
+```bash
 git clone https://github.com/gphook/squad.git
 cd squad
 npm install && npm run build && npm start
 ```
-
-Squad opens your browser to set up sign-in with a passkey (if it can't, it prints a single-use setup link). Create a project, add an agent for each repo, and send the first message.
 
 > Agents run Claude Code with your permissions and on your Claude account. Each agent's tool use is billed like any other Claude Code session.
 
@@ -52,6 +62,7 @@ browser (Svelte) ──WebSocket──► Squad server (Node, Fastify)
 | `packages/web` | The Svelte UI |
 | `kit/` | The `squad-kit` plugin: skills loaded into every agent |
 | `docs/` | Install guide |
+| `scripts/` | Packaging (`npm run package`), the install smoke test, icon rendering |
 
 ## Keys
 

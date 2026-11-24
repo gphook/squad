@@ -61,6 +61,35 @@ These are deliberate design choices. Changes that break them need a design discu
 - **Squad never restarts an agent by itself.**
 - **Local only.** Keep the security model in [SECURITY.md](SECURITY.md) intact.
 
+## Packaging and releases
+
+`npm run package` builds the publishable `@gphook/squad` into `release/`: the server bundled by esbuild into
+`dist/server.js`, the built UI in `web/`, `kit/`, and a `package.json` generated from the server's. `npm run smoke`
+installs that tarball into a temp folder and checks it starts, serves the UI, guards the API and finds the Claude
+Code binary. CI runs both on every PR.
+
+To cut a release, bump `version` in the root `package.json`, commit, then tag and push:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The Release workflow checks, tests, packages, smoke-tests and publishes with npm trusted publishing (no token).
+
+**One-time setup (owner):** trusted publishing can only be linked to a package that exists, so publish the first
+version by hand while signed in to npm as `gphook` with 2FA:
+
+```bash
+npm run package
+cd release && npm publish --access public
+```
+
+Then on npmjs.com open the package's **Settings → Trusted publishing**, choose GitHub Actions, and enter repository
+`gphook/squad` and workflow `release.yml`. From then on, pushing a `v*` tag publishes.
+
+App icons: edit `packages/web/public/icon.svg` (and `icon-maskable.svg`), then run `npx tsx scripts/icons.ts` (needs
+`rsvg-convert`) and commit the PNGs.
+
 ## Making a change
 
 1. Open an issue first for anything bigger than a small fix, so we can agree on the approach.

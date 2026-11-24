@@ -98,7 +98,16 @@
 - `--reset-sign-in` opens a fresh setup link (or prints it, with `--no-open` or in dev) so you can add a passkey after
   losing access.
 
+### Install and run
+- `npx @gphook/squad`, or `npm i -g @gphook/squad` and then `squad`. Options: `--port`, `--no-open`,
+  `--reset-sign-in`, `--version`, `--help`. A clear message when the port is in use or Node is too old.
+- Installable as an app (Chrome, Edge): its own window and Squad icon. The service worker caches nothing.
+- An update notice in the terminal and the top bar when a newer version is on npm (anonymous check, opt out with
+  `SQUAD_NO_UPDATE_CHECK=1`).
+- Releases publish from GitHub on a `v*` tag, with npm provenance.
+
 ## Later
+- An AppImage with Node bundled, for machines without Node.
 - Several agents in one repo (git worktrees), only if needed.
 - Publish the `squad-kit` plugin (squad-radio and later skills) for use outside Squad.
 - Optional Rust rewrite of the server against the same WebSocket protocol.
