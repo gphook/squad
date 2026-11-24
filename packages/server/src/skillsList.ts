@@ -5,14 +5,16 @@ export type SkillInfo = SlashCommandInfo & { builtin?: boolean };
 
 const MAX_LINE = 120;
 const PLUGIN_MARKER = /^\([^)]*\)\s*/;
-const SCOPE_MARKER = /\s*\((user|project)\)$/;
+/** Where Claude Code says a skill outside any plugin comes from, at the end of its description. */
+const SCOPE_MARKER = /\s*\((user|project|claude\.ai sync)\)$/;
+const SCOPE_GROUPS: Record<string, string> = { user: "Personal", project: "Project", "claude.ai sync": "claude.ai" };
 const FIXED_GROUPS = ["Built-in", "Personal", "Project"];
 
 function group(s: SkillInfo): string {
   if (s.builtin) return "Built-in";
   if (s.name.includes(":")) return s.name.slice(0, s.name.indexOf(":"));
   const scope = SCOPE_MARKER.exec(s.description.split("\n")[0])?.[1];
-  return scope === "user" ? "Personal" : scope === "project" ? "Project" : "Other";
+  return scope ? SCOPE_GROUPS[scope] : "Other";
 }
 
 /** The first sentence of the description's first line, without its `(plugin)` / `(user)` marker. */
@@ -33,7 +35,8 @@ export function formatSkills(skills: SkillInfo[]): string {
   if (!skills.length) return "No skills.";
   const groups = new Map<string, SkillInfo[]>();
   for (const s of skills) groups.set(group(s), [...(groups.get(group(s)) ?? []), s]);
-  const rank = (g: string) => (FIXED_GROUPS.includes(g) ? FIXED_GROUPS.indexOf(g) : g === "Other" ? 99 : 50);
+  // Built-in, Personal and Project first, then plugins A–Z, then claude.ai and Other.
+  const rank = (g: string) => (FIXED_GROUPS.includes(g) ? FIXED_GROUPS.indexOf(g) : g === "claude.ai" ? 98 : g === "Other" ? 99 : 50);
   const order = [...groups.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   return order.map((g) => {
     const lines = groups.get(g)!.sort((a, b) => a.name.localeCompare(b.name)).map(line);
