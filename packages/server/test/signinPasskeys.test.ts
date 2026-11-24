@@ -15,24 +15,34 @@ let t: number;
 let n: number;
 let calls: Record<string, any[]>;
 let fail: boolean;
+let unverified: boolean;
 let lib: WebAuthnLib;
 let pk: Passkeys;
 
+async function checkChallenge(o: any): Promise<void> {
+  const c = JSON.parse(Buffer.from(o.response.response.clientDataJSON, "base64url").toString()).challenge;
+  if (!(await o.expectedChallenge(c))) throw new Error("challenge rejected");
+}
+
 beforeEach(() => {
   store = new Store(join(mkdtempSync(join(tmpdir(), "squad-passkeys-")), "squad.db"));
-  t = 1_000_000; n = 0; fail = false;
+  t = 1_000_000; n = 0; fail = false; unverified = false;
   calls = { reg: [], regVerify: [], auth: [], authVerify: [] };
   lib = {
     generateRegistrationOptions: async (o: any) => { calls.reg.push(o); return { challenge: `c${++n}` } as any; },
     generateAuthenticationOptions: async (o: any) => { calls.auth.push(o); return { challenge: `c${++n}` } as any; },
     verifyRegistrationResponse: async (o: any) => {
       calls.regVerify.push(o);
+      await checkChallenge(o);
       if (fail) throw new Error("boom");
+      if (unverified) return { verified: false } as any;
       return { verified: true, registrationInfo: { credential: { id: "cred1", publicKey: new Uint8Array([1, 2]), counter: 0, transports: ["internal"] } } } as any;
     },
     verifyAuthenticationResponse: async (o: any) => {
       calls.authVerify.push(o);
+      await checkChallenge(o);
       if (fail) throw new Error("boom");
+      if (unverified) return { verified: false } as any;
       return { verified: true, authenticationInfo: { newCounter: 7 } } as any;
     },
   };
@@ -52,6 +62,7 @@ describe("Passkeys", () => {
     expect(row.transports).toEqual(["internal"]);
     expect(calls.regVerify[0].expectedOrigin).toBe(ORIGIN);
     expect(calls.regVerify[0].expectedRPID).toBe("localhost");
+    expect(calls.regVerify[0].requireUserVerification).toBe(true);
   });
 
   it("login returns the passkey id and updates the counter", async () => {
@@ -60,6 +71,9 @@ describe("Passkeys", () => {
     expect(await pk.verifyLogin(resp(`c${n}`), ORIGIN)).toBe("cred1");
     expect(store.getPasskey("cred1")!.counter).toBe(7);
     expect(calls.authVerify[0].credential.id).toBe("cred1");
+    expect(calls.authVerify[0].requireUserVerification).toBe(true);
+    expect(calls.authVerify[0].expectedRPID).toBe("localhost");
+    expect(calls.authVerify[0].expectedOrigin).toBe(ORIGIN);
   });
 
   it("a challenge cannot be used twice", async () => {
@@ -118,5 +132,21 @@ describe("Passkeys", () => {
   it("loginOptions asks for user verification and no allowCredentials", async () => {
     await pk.loginOptions();
     expect(calls.auth[0]).toEqual({ rpID: "localhost", userVerification: "required" });
+  });
+
+  it("an unverified result returns null", async () => {
+    unverified = true;
+    await pk.registrationOptions();
+    expect(await pk.verifyRegistration(resp("c1"), ORIGIN, "A")).toBeNull();
+    expect(store.listPasskeys()).toHaveLength(0);
+    await pk.loginOptions();
+    expect(await pk.verifyLogin(resp("c2"), ORIGIN)).toBeNull();
+  });
+
+  it("keeps at most 1000 challenges, evicting the oldest", async () => {
+    for (let i = 0; i < 1001; i++) await pk.loginOptions();
+    expect(await pk.verifyRegistration(resp("c1"), ORIGIN, "A")).toBeNull();
+    expect(calls.regVerify).toHaveLength(0);
+    expect(await pk.verifyRegistration(resp("c1001"), ORIGIN, "A")).toBe("cred1");
   });
 });
