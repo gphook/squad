@@ -277,7 +277,8 @@ export function buildApp(opts: {
       if (plan?.current) out(ws, { t: "usage.plan", plan: plan.current });
       if (auth?.current) out(ws, { t: "auth", status: auth.current });
       if (login && login.current.phase !== "idle") out(ws, { t: "auth.login", login: login.current });
-      if (connectors && connectors.login.phase !== "idle") out(ws, { t: "connector.login", login: connectors.login });
+      // Even when idle: a page reconnecting after a restart may still show a sign-in that no longer exists.
+      if (connectors) out(ws, { t: "connector.login", login: connectors.login });
       if (update?.current) out(ws, { t: "update", ...update.current });
       if (sockets.size === 1) void auth?.refresh(); // someone may have signed in or out while nobody was looking
       if (sockets.size === 1 && plan) {

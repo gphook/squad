@@ -500,6 +500,11 @@ describe("connectors", () => {
     }
   });
 
+  it("tells a newly connected page the sign-in state even when idle, so a stale one clears", async () => {
+    const c = await connect();
+    expect(await c.next("connector.login")).toEqual({ t: "connector.login", login: { phase: "idle" } });
+  });
+
   it("answers a bad host with connector.error", async () => {
     const c = await connect();
     send(c.ws, { t: "connector.add", template: "gitlab", name: "", host: "https://gitlab.com" });
