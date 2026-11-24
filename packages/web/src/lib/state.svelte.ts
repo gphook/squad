@@ -11,12 +11,14 @@ export const ui: {
   connected: boolean;
   /** Null until /api/session has answered. */
   session: SessionStatus | null;
+  /** True while /api/session can't be reached and start() is retrying. */
+  unreachable: boolean;
   view: "chat" | "messages" | "shares" | "usage" | "plugins";
   focus: string | null;
   viewer: string | null;
   /** The squadmate picked in the Plugins view; `/plugin` sets it to the squadmate it was typed in. */
   pluginMate: string | null;
-} = $state({ s: emptyState(), connected: false, session: null, view: "chat", focus: null, viewer: null, pluginMate: null });
+} = $state({ s: emptyState(), connected: false, session: null, unreachable: false, view: "chat", focus: null, viewer: null, pluginMate: null });
 
 let conn: ReturnType<typeof connect> | null = null;
 
@@ -28,13 +30,19 @@ function remembered(): string | null {
   }
 }
 
-/** Loads the session status and, when signed in, connects the WebSocket. */
+/** Loads the session status and, when signed in, connects the WebSocket. Retries with backoff while Squad is unreachable. */
 export async function start(): Promise<void> {
-  try {
-    ui.session = await fetchSession();
-  } catch {
-    // Server unreachable: leave the status unknown and show nothing until a reload.
-    return;
+  let delay = 1000;
+  for (;;) {
+    try {
+      ui.session = await fetchSession();
+      ui.unreachable = false;
+      break;
+    } catch {
+      ui.unreachable = true;
+      await new Promise((r) => setTimeout(r, delay));
+      delay = Math.min(delay * 2, 10_000);
+    }
   }
   if (ui.session.signedIn) connectSocket();
 }

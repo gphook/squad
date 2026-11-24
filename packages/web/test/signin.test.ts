@@ -5,7 +5,8 @@ const browser = vi.hoisted(() => ({ startAuthentication: vi.fn(), startRegistrat
 vi.mock("@simplewebauthn/browser", () => browser);
 
 import SignInScreen from "../src/components/SignInScreen.svelte";
-import { ui } from "../src/lib/state.svelte.ts";
+import App from "../src/App.svelte";
+import { ui, start } from "../src/lib/state.svelte.ts";
 import { rememberedChoice, saveChoice } from "../src/lib/signin.ts";
 
 class FakeWS {
@@ -133,5 +134,32 @@ describe("SignInScreen", () => {
     document.body.innerHTML = "";
     t = render({ signedIn: false, setupNeeded: false, setupGrant: false });
     expect(t.querySelector<HTMLInputElement>('input[value="remember"]')!.checked).toBe(true);
+  });
+
+  it("says it can't reach Squad, retries, then shows the sign-in screen", async () => {
+    vi.useFakeTimers();
+    try {
+      let n = 0;
+      vi.stubGlobal("fetch", vi.fn(async () => {
+        if (n++ === 0) throw new Error("down");
+        return { ok: true, status: 200, json: async () => ({ signedIn: false, setupNeeded: false, setupGrant: false }) };
+      }));
+      ui.session = null;
+      const target = document.createElement("div");
+      document.body.append(target);
+      const app = mount(App, { target });
+      cleanup.push(() => unmount(app));
+      const started = start();
+      await vi.advanceTimersByTimeAsync(0);
+      flushSync();
+      expect(target.textContent).toContain("Can't reach Squad. Retrying…");
+      await vi.advanceTimersByTimeAsync(1000);
+      await started;
+      flushSync();
+      expect(target.textContent).not.toContain("Can't reach Squad");
+      expect(target.querySelector("h1")?.textContent).toBe("Sign in to Squad");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -15,6 +15,11 @@
     setupNeeded && ui.session?.setupGrant ? "setup" : urlExpired || setupNeeded ? "expired" : "signin",
   );
 
+  function messageFor(err: unknown): string {
+    if (!(err instanceof Error)) return "Something went wrong.";
+    return err.name === "NotAllowedError" ? "Passkey request was cancelled." : err.message;
+  }
+
   async function submit(e: SubmitEvent) {
     e.preventDefault();
     busy = true;
@@ -24,7 +29,7 @@
       await (mode === "setup" ? createPasskey(remember) : signIn(remember));
       signedIn();
     } catch (err) {
-      error = err instanceof Error && err.name === "NotAllowedError" ? "Passkey request was cancelled." : err instanceof Error ? err.message : "Something went wrong.";
+      error = messageFor(err);
     } finally {
       busy = false;
     }
