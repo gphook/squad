@@ -1,6 +1,8 @@
 <script lang="ts">
   import { send, ui } from "../lib/state.svelte.ts";
   import InstalledTab from "./plugins/InstalledTab.svelte";
+  import DiscoverTab from "./plugins/DiscoverTab.svelte";
+  import MarketplacesTab from "./plugins/MarketplacesTab.svelte";
 
   type Tab = "installed" | "discover" | "markets";
   let tab = $state<Tab>("installed");
@@ -35,13 +37,16 @@
     <p class="hint">Loading plugins…</p>
   {:else if tab === "installed"}
     <InstalledTab />
+  {:else if tab === "discover"}
+    <DiscoverTab />
   {:else}
-    <p class="hint">{tab}</p>
+    <MarketplacesTab />
   {/if}
 </section>
 
 <style>
-  .plugins { padding: 14px 16px 28px; display: flex; flex-direction: column; gap: 14px; overflow: auto; min-height: 0; height: 100%; }
+  .plugins { width: 100%; max-width: 1200px; padding: 14px 16px 28px; display: flex; flex-direction: column; gap: 14px; overflow: auto; min-height: 0; height: 100%; }
+  .plugins > :global(*) { flex-shrink: 0; }
   .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   h2 { margin: 0; font-size: 18px; }
   .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
