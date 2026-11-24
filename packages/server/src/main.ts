@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.ts";
+import { FakePluginSource } from "./plugins/fakeSource.ts";
+import { PluginService, kitPlugin } from "./plugins/service.ts";
 import { squadHome } from "./paths.ts";
 import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
@@ -25,7 +27,9 @@ const auth = new AuthTracker();
 supervisor.setAuth(auth);
 void auth.refresh();
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
-const app = buildApp({ store, supervisor, key, plan, models, auth, webDist: existsSync(webDist) ? webDist : undefined });
+// Made-up plugins until the next pass wires in the `claude plugin` CLI.
+const plugins = new PluginService(new FakePluginSource(), store, kitPlugin(join(repoRoot, "kit")));
+const app = buildApp({ store, supervisor, key, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
 
 await app.listen({ port, host: "127.0.0.1" });
 console.log(`Squad: http://localhost:${port}/?key=${key}`);

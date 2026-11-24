@@ -10,6 +10,8 @@ import { Store } from "../src/store.ts";
 import { Supervisor } from "../src/supervisor.ts";
 import { PlanUsageTracker } from "../src/planUsage.ts";
 import { fakeFactory, tick } from "./fakeQuery.ts";
+import { FakePluginSource } from "../src/plugins/fakeSource.ts";
+import { PluginService, kitPlugin } from "../src/plugins/service.ts";
 
 const KEY = "k".repeat(64);
 let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fakeFactory>, plan: PlanUsageTracker;
@@ -27,7 +29,8 @@ beforeEach(async () => {
   projectId = store.saveProject({ name: "P", rules: "", permissionMode: "default" }).id;
   agentId = store.saveAgent({ projectId, name: "starfade", role: "r", folder, model: null }).id;
   plan = new PlanUsageTracker({ queryFactory: f.factory, source: () => null, probeCwd: process.env.SQUAD_HOME });
-  app = buildApp({ store, supervisor: sup, key: KEY, plan });
+  const plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
+  app = buildApp({ store, supervisor: sup, key: KEY, plan, plugins });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
 });
@@ -114,6 +117,43 @@ describe("websocket", () => {
     const c = await connect();
     send(c.ws, { t: "subscribe", projectId });
     expect(await c.next("agent.commands")).toMatchObject({ agentId, commands: [{ name: "clear" }, { name: "exit" }, { name: "plugin" }, { name: "skills" }] });
+  });
+
+  it("answers plugins.get, and shows a switch flipped on one page to another page on the project", async () => {
+    const c1 = await connect(), c2 = await connect();
+    for (const c of [c1, c2]) { send(c.ws, { t: "subscribe", projectId }); await c.next("state"); }
+    send(c1.ws, { t: "plugins.get", projectId });
+    const first = (await c1.next("plugins")) as Extract<ServerMsg, { t: "plugins" }>;
+    const id = first.installed[1].id;
+    c2.msgs.length = 0;
+    send(c1.ws, { t: "plugins.switch", projectId, pluginId: id, agentId: null, enabled: false });
+    const seen = (await c2.next("plugins")) as Extract<ServerMsg, { t: "plugins" }>;
+    expect(seen.switches).toEqual([{ pluginId: id, agentId: null, enabled: false }]);
+  });
+
+  it("answers a bad marketplace source with plugins.error and adds nothing", async () => {
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    send(c.ws, { t: "marketplace.add", source: "hello" });
+    expect(await c.next("plugins.error")).toMatchObject({ action: "marketplace.add", message: expect.stringContaining('"hello"') });
+    send(c.ws, { t: "plugins.get", projectId });
+    expect(((await c.next("plugins")) as Extract<ServerMsg, { t: "plugins" }>).marketplaces).toHaveLength(3);
+  });
+
+  it("answers plugins.search only to the page that asked", async () => {
+    const c = await connect();
+    send(c.ws, { t: "plugins.search", query: "front", marketplace: null });
+    expect(await c.next("plugins.results")).toMatchObject({ query: "front", items: [{ name: "frontend-design" }] });
+  });
+
+  it("opens the Plugins view on the page that typed /plugin, with that squadmate picked", async () => {
+    const c1 = await connect(), c2 = await connect();
+    for (const c of [c1, c2]) { send(c.ws, { t: "subscribe", projectId }); await c.next("state"); }
+    send(c1.ws, { t: "agent.send", agentId, text: "/plugin" });
+    expect(await c1.next("ui.open")).toEqual({ t: "ui.open", view: "plugins", agentId });
+    await tick();
+    expect(c2.msgs.some((m) => m.t === "ui.open")).toBe(false);
   });
 
   it("broadcasts status when a message is sent to an agent", async () => {

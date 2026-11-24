@@ -482,6 +482,15 @@ describe("slash commands", () => {
     await sup.send(a.id, "/skills");
     expect(ev.at(-1)).toEqual({ kind: "command_output", text: "`/skills` couldn't list skills: boom", notice: true });
   });
+  it("/plugin shows the command and a notice, and never starts the squadmate", async () => {
+    const ev = events();
+    await sup.send(a.id, "/plugin");
+    expect(f.queries).toHaveLength(0);
+    expect(ev).toEqual([
+      { kind: "user_text", text: "/plugin" },
+      { kind: "command_output", text: "Opened Plugins for starfade.", notice: true },
+    ]);
+  });
   it("/exit on a stopped squadmate doesn't launch it", async () => {
     await sup.send(a.id, "/exit");
     expect(f.queries).toHaveLength(0);

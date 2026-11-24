@@ -8,8 +8,10 @@ import { createReadStream, mkdirSync } from "node:fs";
 import { basename, extname } from "node:path";
 import type { WebSocket } from "ws";
 import {
-  MAX_EVENTS, USAGE_RANGES, errorMessage, normaliseLayout, parseClientMsg, type ClientMsg, type ServerMsg, type UsageRange,
+  MAX_EVENTS, USAGE_RANGES, errorMessage, normaliseLayout, parseClientMsg, parseSlashCommand, routeCommand,
+  type ClientMsg, type ServerMsg, type UsageRange,
 } from "@squad/shared";
+import type { PluginService } from "./plugins/service.ts";
 import { loadHistory } from "./history.ts";
 import { shareDir } from "./paths.ts";
 import type { PlanUsageTracker } from "./planUsage.ts";
@@ -34,8 +36,9 @@ function cookieKey(req: FastifyRequest): string | undefined {
 
 export function buildApp(opts: {
   store: Store; supervisor: Supervisor; key: string; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker;
+  plugins?: PluginService;
 }): FastifyInstance {
-  const { store, supervisor: sup, key, plan, models, auth } = opts;
+  const { store, supervisor: sup, key, plan, models, auth, plugins } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
@@ -82,7 +85,45 @@ export function buildApp(opts: {
     approvals: sup.pendingApprovals(projectId), messages: store.listMessages(projectId), shares: store.listShares(projectId),
   });
 
+  /** Sends a fresh plugins snapshot to every page on `projectId`, or on any project (machine-wide changes). */
+  async function refreshPlugins(projectId: string | null): Promise<void> {
+    if (!plugins) return;
+    const ids = projectId ? [projectId] : [...new Set([...sockets.values()].map((s) => s.projectId).filter((p) => p !== null))];
+    await Promise.all(ids.map(async (id) => broadcast(id, await plugins.snapshot(id))));
+  }
+
+  /** The Plugins view's messages. A failure goes back to the page that asked, as `plugins.error`. */
+  async function handlePlugins(ws: WebSocket, m: Extract<ClientMsg, { t: `plugins.${string}` | `marketplace.${string}` }>) {
+    try {
+      if (!plugins) throw new Error("Plugins aren't available.");
+      switch (m.t) {
+        case "plugins.get": return out(ws, await plugins.snapshot(m.projectId));
+        case "plugins.search": {
+          const r = await plugins.search(m.query, m.marketplace);
+          return out(ws, { t: "plugins.results", query: m.query, marketplace: m.marketplace, ...r });
+        }
+        case "plugins.details": return out(ws, { t: "plugins.details", details: await plugins.details(m.pluginId) });
+        case "plugins.switch":
+          await plugins.switch(m.projectId, m.pluginId, m.agentId, m.enabled);
+          return refreshPlugins(m.projectId);
+        case "plugins.install":
+          await plugins.install(m.projectId, m.pluginId, m.agentId);
+          return refreshPlugins(null); // other projects' Discover counts change too
+        case "plugins.uninstall": await plugins.uninstall(m.pluginId); return refreshPlugins(null);
+        case "plugins.update": await plugins.update(m.pluginId); return refreshPlugins(null);
+        case "marketplace.add": await plugins.addMarketplace(m.source); return refreshPlugins(null);
+        case "marketplace.remove": await plugins.removeMarketplace(m.name); return refreshPlugins(null);
+        case "marketplace.update": await plugins.updateMarketplace(m.name); return refreshPlugins(null);
+      }
+    } catch (e) {
+      out(ws, { t: "plugins.error", action: m.t, message: errorMessage(e) });
+    }
+  }
+
   async function handle(ws: WebSocket, m: ClientMsg): Promise<void> {
+    if (m.t.startsWith("plugins.") || m.t.startsWith("marketplace.")) {
+      return handlePlugins(ws, m as Parameters<typeof handlePlugins>[1]);
+    }
     switch (m.t) {
       case "subscribe": {
         if (!store.getProject(m.projectId)) return out(ws, { t: "error", message: "Unknown project" });
@@ -127,8 +168,12 @@ export function buildApp(opts: {
         return broadcast(m.projectId, stateMsg(m.projectId)); // empty message log and shares for every page
       case "agent.action":
         return sup.action(m.agentId, m.action);
-      case "agent.send":
+      case "agent.send": {
+        // `/plugin` opens the Plugins view on this page (only), with that squadmate picked.
+        const cmd = m.images?.length ? null : parseSlashCommand(m.text);
+        if (cmd && routeCommand(cmd.name, []).kind === "plugins") out(ws, { t: "ui.open", view: "plugins", agentId: m.agentId });
         return sup.send(m.agentId, m.text, m.images);
+      }
       case "agent.shellKill":
         return sup.killShell(m.agentId, m.id);
       case "auth.check":
