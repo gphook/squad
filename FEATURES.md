@@ -56,7 +56,8 @@
   its tile and puts the cursor in it.
 - Maximise a tile (double-click its header, or its maximise button) to give it most of the screen, with the other
   tiles in a column on the right. `Alt+N` swaps tile N into the maximised spot; with nothing maximised it moves the
-  cursor to tile N.
+  cursor to tile N. Drag the bar between the maximised tile and the column to resize it (arrow keys work when it
+  has focus; double-click resets it). The width is remembered per browser.
 - Up to 10 tiles (slots 1–9, 0), stable numbering, opened via drag from the sidebar or menu.
 
 ### Plugins

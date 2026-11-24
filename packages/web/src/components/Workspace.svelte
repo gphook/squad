@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SlotKey } from "@squad/shared";
   import { closeTile, moveTile, openAgents, openTile, pressAlt, pruneLayout, toggleMaximise } from "../lib/layout.ts";
+  import { clampSplit, loadSplit, saveSplit, stepSplit } from "../lib/split.ts";
   import { layout as currentLayout, saveLayout, ui } from "../lib/state.svelte.ts";
   import ChatPane from "./ChatPane.svelte";
 
@@ -49,6 +50,39 @@
   }
   const dragTile = (e: DragEvent, id: string) => e.dataTransfer?.setData(TILE, id);
   const close = (id: string) => saveLayout(closeTile(layout, id));
+
+  // The bar between the maximised tile and the side column: drag it (or use the arrow keys) to change the split,
+  // double-click it to go back to the default.
+  let split = $state(loadSplit());
+  let dragging = $state(false);
+  let row: HTMLDivElement | undefined = $state();
+  function startDrag(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragging = true;
+  }
+  function drag(e: PointerEvent) {
+    if (!dragging || !row) return;
+    const r = row.getBoundingClientRect();
+    split = clampSplit((e.clientX - r.left) / r.width);
+  }
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    saveSplit(split);
+  }
+  function splitKey(e: KeyboardEvent) {
+    const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!dir) return;
+    e.preventDefault();
+    split = stepSplit(split, dir);
+    saveSplit(split);
+  }
+  function resetSplit() {
+    split = null;
+    saveSplit(null);
+  }
 </script>
 
 <svelte:window {onkeydown} />
@@ -68,10 +102,18 @@
   {:else if !tiles.length}
     <p class="hint center">Click a squadmate to open it here.</p>
   {:else if big}
-    <div class="maximised">
+    <div class="maximised" class:dragging bind:this={row}>
       <!-- Keyed so a different squadmate gets a fresh pane (focus, scroll) rather than the last one's. -->
-      <div class="big">{#key big}{@render tile(tiles.find(([, id]) => id === big)![0], big)}{/key}</div>
+      <div class="big" class:sized={split !== null && side.length} style:--split={split}>
+        {#key big}{@render tile(tiles.find(([, id]) => id === big)![0], big)}{/key}
+      </div>
       {#if side.length}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div class="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the maximised tile"
+          aria-valuemin={30} aria-valuemax={90} aria-valuenow={split === null ? undefined : Math.round(split * 100)}
+          tabindex="0" title="Drag to resize · double-click to reset"
+          onpointerdown={startDrag} onpointermove={drag} onpointerup={endDrag} onpointercancel={endDrag}
+          onlostpointercapture={endDrag} ondblclick={resetSplit} onkeydown={splitKey}></div>
         <div class="side">{#each side as [slot, id] (id)}{@render tile(slot, id)}{/each}</div>
       {/if}
     </div>
@@ -86,12 +128,24 @@
   .workspace { flex: 1; min-width: 0; display: flex; padding: 8px; }
   .center { margin: auto; }
   .grid { flex: 1; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; }
-  .maximised { flex: 1; display: flex; gap: 8px; min-width: 0; }
+  .maximised { flex: 1; display: flex; min-width: 0; }
+  .maximised.dragging { cursor: col-resize; user-select: none; }
   .big { flex: 3; min-width: 0; display: flex; }
+  .big.sized { flex: 0 1 calc(var(--split) * 100%); }
+  .big.sized + .splitter + .side { max-width: none; }
+  /* Sits in the gap between the columns; a line shows on hover, focus or drag. */
+  .splitter { flex: 0 0 8px; cursor: col-resize; position: relative; touch-action: none; outline: none; }
+  .splitter::after { content: ""; position: absolute; inset: 0 3px; border-radius: 1px; }
+  .splitter:hover::after, .splitter:focus-visible::after, .dragging .splitter::after { background: var(--accent); }
   .big > .tile { flex: 1; }
   /* The other tiles stay full chats; the column scrolls once they'd get too short to use. */
-  .side { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 460px; overflow-y: auto; }
+  .side { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 200px; max-width: 460px; overflow-y: auto; }
   .side > .tile { flex: 1 0 220px; }
   .tile { min-height: 0; min-width: 0; }
-  @media (max-width: 800px) { .maximised { flex-direction: column; } .side { max-width: none; } }
+  @media (max-width: 800px) {
+    .maximised { flex-direction: column; gap: 8px; }
+    .big.sized { flex: 3; }
+    .splitter { display: none; }
+    .side { max-width: none; min-width: 0; }
+  }
 </style>
