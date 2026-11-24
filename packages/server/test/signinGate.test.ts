@@ -47,6 +47,16 @@ describe("checkRequest", () => {
     expect(req({ path: "/ws", upgrade: true })).toMatchObject({ status: 403 });
   });
 
+  it("treats HEAD like GET: no Origin needed, and a 127.0.0.1 page redirects", () => {
+    expect(req({ method: "HEAD" })).toEqual({ ok: true });
+    expect(req({ method: "HEAD", host: "127.0.0.1:7340", path: "/x" })).toEqual({ redirect: "http://localhost:7340/x" });
+  });
+
+  it("does not redirect 127.0.0.1 GETs under /files/ or /ws/", () => {
+    expect(req({ host: "127.0.0.1:7340", path: "/files/x" })).toEqual({ ok: true });
+    expect(req({ host: "127.0.0.1:7340", path: "/ws/" })).toEqual({ ok: true });
+  });
+
   it("allows a same-origin POST", () => {
     expect(req({ method: "POST", path: "/api/x", origin: "http://localhost:7340" })).toEqual({ ok: true });
   });
@@ -64,12 +74,21 @@ describe("isPublicPath", () => {
     expect(isPublicPath("GET", "/api/session")).toBe(true);
     expect(isPublicPath("POST", "/api/auth/login/options")).toBe(true);
     expect(isPublicPath("GET", "/setup")).toBe(true);
+    expect(isPublicPath("HEAD", "/")).toBe(true);
+    expect(isPublicPath("GET", "/filesx")).toBe(true);
+    expect(isPublicPath("GET", "/wsx")).toBe(true);
   });
 
   it("is false for everything else", () => {
     expect(isPublicPath("GET", "/api/usage")).toBe(false);
     expect(isPublicPath("GET", "/files")).toBe(false);
     expect(isPublicPath("GET", "/ws")).toBe(false);
+    expect(isPublicPath("GET", "/files/")).toBe(false);
+    expect(isPublicPath("GET", "/files/a/b")).toBe(false);
+    expect(isPublicPath("GET", "/ws/")).toBe(false);
+    expect(isPublicPath("GET", "/ws/x?y=1")).toBe(false);
+    expect(isPublicPath("HEAD", "/api/usage")).toBe(false);
+    expect(isPublicPath("OPTIONS", "/")).toBe(false);
     expect(isPublicPath("POST", "/api/auth/register/options")).toBe(false);
     expect(isPublicPath("POST", "/api/projects/p/shares")).toBe(false);
   });
