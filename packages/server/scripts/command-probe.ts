@@ -74,6 +74,9 @@ const slim = (m: any) => ({
   ...(m.message ? { message: { ...(m.message.model ? { model: m.message.model } : {}), content: text(m.message.content) } } : {}),
   ...(m.content !== undefined ? { content: text(m.content) } : {}),
 });
+// /cost prints the account's usage figures; the fixture keeps their shape, not the numbers.
+const accountless = (command: string, msgs: unknown[]) =>
+  command === "/cost" ? JSON.parse(JSON.stringify(msgs).replace(/\d+/g, "N")) : msgs;
 const keep = (m: any) => ["assistant", "user", "system", "result", "conversation_reset"].includes(m.type) && m.subtype !== "init";
 const commands = (results[0].commands as any[]).map(({ name, aliases, builtin }) => ({ name, ...(aliases ? { aliases } : {}), ...(builtin ? { builtin } : {}) }));
 writeFileSync(out, JSON.stringify({
@@ -81,8 +84,8 @@ writeFileSync(out, JSON.stringify({
   runs: results.map((r) => ({
     command: r.command, ms: r.ms, gotResult: r.gotResult,
     // /doctor is a prompt command: the model runs it, so its messages are an ordinary turn, not command output.
-    messages: r.command === "/doctor" ? [] : r.messages.filter(keep).map(slim),
-    transcript: r.command === "/doctor" ? [] : r.transcript.filter(keep).map(slim),
+    messages: r.command === "/doctor" ? [] : accountless(r.command, r.messages.filter(keep).map(slim)),
+    transcript: r.command === "/doctor" ? [] : accountless(r.command, r.transcript.filter(keep).map(slim)),
   })),
 }, null, 2) + "\n");
 console.log(`wrote ${out}`);
