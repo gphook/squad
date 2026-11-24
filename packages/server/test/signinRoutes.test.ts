@@ -252,3 +252,80 @@ describe("login and logout", () => {
     expect((await post("/api/auth/login/verify", { response: resp("c1") })).statusCode).toBe(400);
   });
 });
+
+describe("management", () => {
+  const addPasskey = (id: string, name: string, createdAt: number) =>
+    store.addPasskey({ id, publicKey: new Uint8Array([1]), counter: 0, transports: [], name, createdAt });
+  const sessionFor = (passkeyId: string | null) => {
+    const { id, idHash } = signin.sessions.create("remember", passkeyId, CHROME_LINUX);
+    return { idHash, cookies: { [sessionCookie()]: id } };
+  };
+  const call = (method: "GET" | "PATCH" | "DELETE" | "POST", url: string, cookies: Record<string, string>, payload?: object) =>
+    req({ method, url, cookies, ...(payload ? { payload } : {}), headers: { origin: `http://localhost:${port}` } });
+
+  it("GET /api/signin lists passkeys and sessions and marks the current one", async () => {
+    addPasskey("b", "Second", 20);
+    addPasskey("a", "First", 10);
+    const s1 = sessionFor("a"), s2 = sessionFor("b");
+    const r = await call("GET", "/api/signin", s1.cookies);
+    expect(r.statusCode).toBe(200);
+    const body = r.json();
+    expect(body.passkeys.map((p: { id: string }) => p.id)).toEqual(["a", "b"]);
+    expect(body.sessions).toHaveLength(2);
+    const cur = body.sessions.filter((s: { current: boolean }) => s.current);
+    expect(cur.map((s: { id: string }) => s.id)).toEqual([s1.idHash]);
+    expect(body.sessions.find((s: { id: string }) => s.id === s2.idHash).current).toBe(false);
+  });
+
+  it("deleting the only passkey is 409", async () => {
+    addPasskey("a", "Only", 10);
+    const s = sessionFor("a");
+    const r = await call("DELETE", "/api/signin/passkeys/a", s.cookies);
+    expect(r.statusCode).toBe(409);
+    expect(r.json().error).toBe("You can't delete your only passkey");
+    expect(store.listPasskeys()).toHaveLength(1);
+  });
+
+  it("deleting a passkey ends its sessions", async () => {
+    addPasskey("a", "A", 10);
+    addPasskey("b", "B", 20);
+    const sa = sessionFor("a"), sb = sessionFor("b");
+    const revoked: string[][] = [];
+    signin.sessions.on("revoked", (h: string[]) => revoked.push(h));
+    expect((await call("DELETE", "/api/signin/passkeys/a", sb.cookies)).statusCode).toBe(204);
+    expect((await call("GET", "/api/signin", sa.cookies)).statusCode).toBe(401);
+    expect((await call("GET", "/api/signin", sb.cookies)).statusCode).toBe(200);
+    expect(revoked).toEqual([[sa.idHash]]);
+  });
+
+  it("renaming validates length", async () => {
+    addPasskey("a", "A", 10);
+    const s = sessionFor("a");
+    const rename = (name: unknown) => call("PATCH", "/api/signin/passkeys/a", s.cookies, { name });
+    expect((await rename("")).statusCode).toBe(400);
+    expect((await rename("   ")).statusCode).toBe(400);
+    expect((await rename("x".repeat(61))).statusCode).toBe(400);
+    expect((await rename(5)).statusCode).toBe(400);
+    expect((await rename("  Laptop  ")).statusCode).toBe(204);
+    expect(store.getPasskey("a")!.name).toBe("Laptop");
+    expect((await call("PATCH", "/api/signin/passkeys/nope", s.cookies, { name: "x" })).statusCode).toBe(404);
+  });
+
+  it("revoking another session ends it; revoking your own clears the cookie", async () => {
+    const s1 = sessionFor(null), s2 = sessionFor(null);
+    expect((await call("DELETE", `/api/signin/sessions/${s2.idHash}`, s1.cookies)).statusCode).toBe(204);
+    expect((await call("GET", "/api/signin", s2.cookies)).statusCode).toBe(401);
+    const r = await call("DELETE", `/api/signin/sessions/${s1.idHash}`, s1.cookies);
+    expect(r.statusCode).toBe(204);
+    expect(cookieLine(r, sessionCookie())).toContain("Max-Age=0");
+    expect((await call("GET", "/api/signin", s1.cookies)).statusCode).toBe(401);
+  });
+
+  it("sign out everywhere ends every session and clears the caller's cookie", async () => {
+    const s1 = sessionFor(null), s2 = sessionFor(null);
+    const r = await call("POST", "/api/signin/sign-out-everywhere", s1.cookies);
+    expect(r.statusCode).toBe(204);
+    expect(cookieLine(r, sessionCookie())).toContain("Max-Age=0");
+    expect((await call("GET", "/api/signin", s2.cookies)).statusCode).toBe(401);
+  });
+});

@@ -1,6 +1,6 @@
 import type { AddressInfo } from "node:net";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { SessionKind, SessionStatus } from "@squad/shared";
+import type { SessionKind, SessionStatus, SignInOverview } from "@squad/shared";
 import type { SessionRow } from "../store.ts";
 import type { SignIn } from "./index.ts";
 import { checkRequest, isPublicPath } from "./gate.ts";
@@ -142,5 +142,50 @@ export function registerSignInRoutes(app: FastifyInstance, s: SignIn): void {
     if (req.session) s.sessions.revoke(req.session.idHash);
     reply.header("set-cookie", cookie(cookieName("session", serverPort(app, req)), "", 0));
     return { ok: true };
+  });
+
+  const clearSessionCookie = (req: FastifyRequest, reply: FastifyReply): void => {
+    reply.header("set-cookie", cookie(cookieName("session", serverPort(app, req)), "", 0));
+  };
+
+  app.get("/api/signin", async (req): Promise<SignInOverview> => ({
+    passkeys: s.store.listPasskeys().map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, lastUsedAt: p.lastUsedAt })),
+    sessions: s.store.listSessions().map((r) => ({
+      id: r.idHash, kind: r.kind, label: r.label, createdAt: r.createdAt, lastUsedAt: r.lastUsedAt, current: r.idHash === req.session?.idHash,
+    })),
+  }));
+
+  app.patch("/api/signin/passkeys/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const name = (req.body as { name?: unknown } | null)?.name;
+    const trimmed = typeof name === "string" ? name.trim() : "";
+    if (trimmed.length < 1 || trimmed.length > 60) return reply.code(400).send({ error: "Name must be 1 to 60 characters" });
+    if (!s.store.getPasskey(id)) return reply.code(404).send({ error: "Passkey not found" });
+    s.store.renamePasskey(id, trimmed);
+    return reply.code(204).send();
+  });
+
+  app.delete("/api/signin/passkeys/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!s.store.getPasskey(id)) return reply.code(404).send({ error: "Passkey not found" });
+    if (s.store.listPasskeys().length <= 1) return reply.code(409).send({ error: "You can't delete your only passkey" });
+    const hashes = s.store.listSessions().filter((r) => r.passkeyId === id).map((r) => r.idHash);
+    s.store.deletePasskey(id); // its sessions go with it (foreign key cascade)
+    s.sessions.onPasskeyDeleted(hashes);
+    if (req.session && hashes.includes(req.session.idHash)) clearSessionCookie(req, reply);
+    return reply.code(204).send();
+  });
+
+  app.delete("/api/signin/sessions/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    s.sessions.revoke(id);
+    if (id === req.session?.idHash) clearSessionCookie(req, reply);
+    return reply.code(204).send();
+  });
+
+  app.post("/api/signin/sign-out-everywhere", async (req, reply) => {
+    s.sessions.revokeAll();
+    clearSessionCookie(req, reply);
+    return reply.code(204).send();
   });
 }
