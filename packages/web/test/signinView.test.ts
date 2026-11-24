@@ -12,8 +12,9 @@ const key = (id: string, name: string) => ({ id, name, createdAt: 1_700_000_000_
 const sess = (id: string, current: boolean, kind: "remember" | "restart" = "remember") =>
   ({ id, kind, label: `Browser ${id}`, createdAt: 1_700_000_000_000, lastUsedAt: 1_700_000_100_000, current });
 let data: SignInOverview;
+let serverSignedIn = true;
 const api = {
-  fetchSession: vi.fn(async () => ({ signedIn: true, setupNeeded: false, setupGrant: false })),
+  fetchSession: vi.fn(async () => ({ signedIn: serverSignedIn, setupNeeded: false, setupGrant: false })),
   overview: vi.fn(async () => data),
   renamePasskey: vi.fn(async () => {}),
   deletePasskey: vi.fn(async () => {}),
@@ -32,7 +33,10 @@ beforeEach(async () => {
   stop.mockClear();
   ui.view = "signin";
   Object.values(api).forEach((f) => f.mockClear());
+  serverSignedIn = true;
   await start();
+  // Signing this browser out only happens once the server has ended its session, so later refetches say so.
+  serverSignedIn = false;
 });
 afterEach(() => { for (const c of cleanup) c(); cleanup = []; document.body.innerHTML = ""; });
 

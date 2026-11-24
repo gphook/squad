@@ -47,19 +47,37 @@ export async function start(): Promise<void> {
   if (ui.session.signedIn) connectSocket();
 }
 
-/** Called once the sign-in screen has signed in: show the app and connect. */
+const SIGNED_OUT: SessionStatus = { signedIn: false, setupNeeded: false, setupGrant: false };
+
+/** Bumped on every sign-in or sign-out, so a late /api/session answer can't undo a newer change. */
+let sessionEpoch = 0;
+
+/** Called once the sign-in screen has signed in: show the app and connect. Signing in ends any setup. */
 export function signedIn(): void {
-  ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: true };
+  sessionEpoch++;
+  ui.session = { signedIn: true, setupNeeded: false, setupGrant: false };
   connectSocket();
 }
 
-/** This browser's session is gone (revoked, expired or signed out): show the sign-in screen. */
+/**
+ * This browser's session is gone (revoked, expired or signed out): show the sign-in screen at once, then ask the
+ * server whether setup is needed now, since the flags seen before signing in are stale.
+ */
 export function signedOutHere(): void {
   conn?.stop();
   conn = null;
   ui.connected = false;
   ui.view = "chat";
-  ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: false };
+  ui.session = SIGNED_OUT;
+  const epoch = ++sessionEpoch;
+  fetchSession().then(
+    (status) => {
+      if (epoch !== sessionEpoch) return;
+      ui.session = status;
+      if (status.signedIn) connectSocket();
+    },
+    () => {}, // unreachable: keep the plain Sign in screen
+  );
 }
 
 function connectSocket(): void {
