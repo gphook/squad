@@ -197,6 +197,12 @@ describe("SetupCodes", () => {
     expect(codes.redeem(code)).not.toBeNull();
   });
 
+  it("expired grants are dropped when the next code is redeemed", () => {
+    const old = codes.redeem(codes.mint())!;
+    n += 10 * MIN;
+    codes.redeem(codes.mint());
+    expect((codes as unknown as { grants: Map<string, number> }).grants.has(old)).toBe(false);
+  });
   it("a grant is valid for 10 minutes and not after consumeGrant", () => {
     const grant = codes.redeem(codes.mint())!;
     expect(codes.grantValid(grant)).toBe(true);

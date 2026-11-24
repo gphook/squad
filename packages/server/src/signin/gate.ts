@@ -35,16 +35,15 @@ export function checkRequest(r: GateInput): GateResult {
     return { redirect: `http://localhost:${r.serverPort}${r.path}` };
   }
 
-  const originRequired = !get || r.upgrade;
-  if (r.origin === undefined ? originRequired : r.origin !== `http://${r.host}`) {
-    return { ok: false, status: 403, error: "Bad origin" };
-  }
-  return { ok: true };
+  const badOrigin = { ok: false, status: 403, error: "Bad origin" } as const;
+  // A state-changing request or an upgrade must say where it came from; a plain read may stay silent.
+  if (r.origin === undefined) return !get || r.upgrade ? badOrigin : { ok: true };
+  return r.origin === `http://${r.host}` ? { ok: true } : badOrigin;
 }
 
 export function isPublicPath(method: string, path: string): boolean {
   const p = pathname(path);
-  if (p.startsWith("/api/auth/login/")) return true;
+  if (p.startsWith("/api/auth/login/")) return method === "POST";
   if (!isRead(method)) return false;
   return !isNonPage(p) || p === "/api/session";
 }

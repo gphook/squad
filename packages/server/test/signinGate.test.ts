@@ -68,6 +68,11 @@ describe("checkRequest", () => {
 });
 
 describe("isPublicPath", () => {
+  it("opens the login endpoints to POST only", () => {
+    expect(isPublicPath("POST", "/api/auth/login/verify")).toBe(true);
+    expect(isPublicPath("DELETE", "/api/auth/login/verify")).toBe(false);
+    expect(isPublicPath("GET", "/api/auth/login/options")).toBe(false);
+  });
   it("is true for the shell, assets, session, login and setup", () => {
     expect(isPublicPath("GET", "/")).toBe(true);
     expect(isPublicPath("GET", "/assets/x.js")).toBe(true);

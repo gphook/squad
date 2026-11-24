@@ -367,6 +367,9 @@ describe("sign-in tables", () => {
     expect(store.deleteSessionsWhere("restart")).toEqual(["h2"]);
     expect(store.listSessions().map((s) => s.idHash)).toEqual(["h1"]);
     store.addSession(sess("h3", "restart", null));
+    expect(store.deleteSessionsWhere("remember")).toEqual(["h1"]);
+    expect(store.listSessions().map((s) => s.idHash)).toEqual(["h3"]);
+    store.addSession(sess("h1", "remember", null));
     expect(store.deleteSessionsWhere("all").sort()).toEqual(["h1", "h3"]);
     expect(store.listSessions()).toEqual([]);
   });

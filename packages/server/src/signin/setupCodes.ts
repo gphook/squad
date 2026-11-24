@@ -24,6 +24,7 @@ export class SetupCodes {
     const b = Buffer.from(cur.value);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
     this.code = null;
+    for (const [g, expires] of this.grants) if (this.now() >= expires) this.grants.delete(g);
     const grant = randomBytes(32).toString("base64url");
     this.grants.set(grant, this.now() + TTL_MS);
     return grant;
