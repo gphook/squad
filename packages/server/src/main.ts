@@ -1,12 +1,13 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { buildApp } from "./app.ts";
 import { runClaude } from "./plugins/cli.ts";
 import { CliPluginSource } from "./plugins/cliSource.ts";
 import { PluginService, kitPlugin } from "./plugins/service.ts";
-import { squadHome } from "./paths.ts";
+import { appPaths, appVersion, squadHome } from "./paths.ts";
+import { helpText, nodeTooOld, parseCli } from "./cli.ts";
+import { listenOrExplain } from "./listen.ts";
 import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
@@ -15,14 +16,33 @@ import { createSignIn } from "./signin/index.ts";
 import { appBaseUrl, openBrowser, parseStartupArgs, startupMessage, startupPlan, startupUrl } from "./signin/startup.ts";
 import { Supervisor } from "./supervisor.ts";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+if (nodeTooOld(process.versions.node)) {
+  console.error(`Squad needs Node 24 or later (you have ${process.versions.node}).`);
+  process.exit(1);
+}
+
+const paths = appPaths();
+const version = appVersion(paths);
 const configPath = join(squadHome(), "config.json");
 const config: { port?: number } = existsSync(configPath) ? JSON.parse(readFileSync(configPath, "utf8")) : {};
-const port = Number(process.env.SQUAD_PORT ?? config.port ?? 7340);
+const cli = parseCli(process.argv.slice(2), process.env, config.port);
+if (cli.help) {
+  console.log(helpText(version));
+  process.exit(0);
+}
+if (cli.version) {
+  console.log(version);
+  process.exit(0);
+}
+if (cli.unknown.length) {
+  console.error(`Squad: unknown option ${cli.unknown[0]}. Run squad --help.`);
+  process.exit(2);
+}
+const port = cli.port;
 
 const store = new Store(join(squadHome(), "squad.db"));
-const supervisor = new Supervisor(store, query, join(repoRoot, "kit"));
-const webDist = join(repoRoot, "packages/web/dist");
+const supervisor = new Supervisor(store, query, paths.kit);
+const webDist = paths.web;
 const startup = parseStartupArgs(process.argv.slice(2), process.env);
 const signin = createSignIn(store, { dev: startup.dev });
 signin.sessions.startup(signin.dev);
@@ -31,11 +51,14 @@ const auth = new AuthTracker();
 supervisor.setAuth(auth);
 void auth.refresh();
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
-const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(join(repoRoot, "kit")));
+const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(paths.kit));
 supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
 const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
 
-await app.listen({ port, host: "127.0.0.1" });
+if (!(await listenOrExplain(() => app.listen({ port, host: "127.0.0.1" }), port, (s) => console.error(s)))) {
+  await supervisor.stopAll();
+  process.exit(1);
+}
 const startupAction = startupPlan(startup, store.listPasskeys().length);
 const code = startupAction.mintCode ? signin.setup.mint() : null;
 const base = appBaseUrl(port, startup.dev);
