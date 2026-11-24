@@ -8,6 +8,7 @@
   import MessagesView from "./components/MessagesView.svelte";
   import SharedFilesPanel from "./components/SharedFilesPanel.svelte";
   import UsageView from "./components/UsageView.svelte";
+  import PluginsView from "./components/PluginsView.svelte";
   import ProjectEditor from "./components/ProjectEditor.svelte";
   import AgentEditor from "./components/AgentEditor.svelte";
 
@@ -43,6 +44,7 @@
       {#if ui.view === "messages"}<MessagesView onjump={show} />
       {:else if ui.view === "shares"}<SharedFilesPanel />
       {:else if ui.view === "usage"}<UsageView onjump={show} />
+      {:else if ui.view === "plugins"}<PluginsView />
       {:else}<Workspace />{/if}
     </div>
   {/if}
