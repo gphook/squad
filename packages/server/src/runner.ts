@@ -7,7 +7,7 @@ import type {
 import {
   SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, appendShellOutput, bashContextBlock, errorMessage,
   parseShellInput,
-  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type Project,
+  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type Project, type SlashCommandInfo,
 } from "@squad/shared";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
@@ -67,7 +67,7 @@ function userMessage(text: string, images: string[] = []): SDKUserMessage {
 /**
  * One agent's Claude Code session. Events: "status"(AgentState) "event"(AgentEvent)
  * "approval"(Approval) "approvalResolved"(id) "session"(sessionId)
- * "result"({ sessionId, modelUsage, resumed }) "rateLimit"(rate_limit_info).
+ * "result"({ sessionId, modelUsage, resumed }) "rateLimit"(rate_limit_info) "commands"(SlashCommandInfo[]).
  */
 export class AgentRunner extends EventEmitter {
   state: AgentState;
@@ -87,6 +87,8 @@ export class AgentRunner extends EventEmitter {
   private shellContext: string[] = [];
   /** Running and undelivered `$ cmd` blocks as the pane shows them, for a page that (re)subscribes. */
   private snapshots = new Map<string, ShellEvent>();
+  /** The session's `/` commands, as last announced; kept after a stop so the picker still has them. */
+  private sessionCommands: SlashCommandInfo[] = [];
   /** Bumped when queued output is dropped (Clear); a command started before then never queues its output. */
   private shellGeneration = 0;
 
@@ -109,6 +111,17 @@ export class AgentRunner extends EventEmitter {
 
   pendingApprovals(): Approval[] {
     return [...this.pending.values()].map((p) => p.approval);
+  }
+
+  get commands(): SlashCommandInfo[] {
+    return this.sessionCommands;
+  }
+
+  private setCommands(list: unknown): void {
+    if (!Array.isArray(list)) return;
+    this.sessionCommands = (list as SlashCommandInfo[]).map(({ name, description, argumentHint, aliases }) =>
+      ({ name, description: description ?? "", argumentHint: argumentHint ?? "", ...(aliases?.length ? { aliases } : {}) }));
+    this.emit("commands", this.sessionCommands);
   }
 
   get running(): boolean {
@@ -184,6 +197,7 @@ export class AgentRunner extends EventEmitter {
       (init) => {
         if (this.query !== q) return;
         const pid = (init as { pid?: unknown } | undefined)?.pid;
+        this.setCommands((init as { commands?: unknown } | undefined)?.commands);
         if (typeof pid === "number") this.sessionPid = pid;
         if (this.state.status === "starting") this.setStatus("idle");
       },
@@ -215,6 +229,8 @@ export class AgentRunner extends EventEmitter {
     if (m.type === "system" && m.subtype === "init") {
       if (m.session_id) this.emit("session", m.session_id);
       if (this.state.status === "starting") this.setStatus("idle");
+    } else if (m.type === "system" && m.subtype === "commands_changed") {
+      this.setCommands((m as { commands?: unknown }).commands);
     } else if (m.type === "command_lifecycle" && m.state === "started" && this.state.status === "idle") {
       this.setStatus("working");
     }

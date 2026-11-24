@@ -435,3 +435,27 @@ describe("AgentRunner shell commands", () => {
     expect(q().options.systemPrompt.append).toContain(block("ls", "a"));
   });
 });
+
+describe("command list", () => {
+  const context = { name: "context", description: "Show context usage", argumentHint: "" };
+  it("keeps the session's commands from init, and announces them", async () => {
+    const seen: unknown[] = [];
+    runner.on("commands", (c) => seen.push(c));
+    await runner.launch();
+    q().initialize({ commands: [context] });
+    await tick();
+    expect(runner.commands).toEqual([context]);
+    expect(seen).toEqual([[context]]);
+  });
+  it("replaces them on commands_changed and keeps them after stop", async () => {
+    await runner.launch();
+    q().initialize({ commands: [context] });
+    await tick();
+    const usage = { name: "usage", description: "u", argumentHint: "", aliases: ["cost"] };
+    q().emit({ type: "system", subtype: "commands_changed", commands: [context, usage] });
+    await tick();
+    expect(runner.commands).toEqual([context, usage]);
+    await runner.stop();
+    expect(runner.commands).toEqual([context, usage]);
+  });
+});
