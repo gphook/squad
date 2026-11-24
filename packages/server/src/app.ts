@@ -286,6 +286,14 @@ export function buildApp(opts: {
     return sup.shareUpload(projectId, file.name, file.data, to, note);
   });
 
+  // The page, service worker and manifest are always revalidated, so a new version (or a sign-out) takes effect at
+  // once; hashed files under /assets/ keep the default caching.
+  // (an onSend hook, because the static plugin writes its own Cache-Control after any setHeaders callback).
+  const ALWAYS_FRESH = new Set(["/", "/index.html", "/sw.js", "/manifest.webmanifest"]);
+  app.addHook("onSend", async (req, reply, payload) => {
+    if (ALWAYS_FRESH.has(req.url.split("?", 1)[0]!)) reply.header("cache-control", "no-cache");
+    return payload;
+  });
   if (opts.webDist) app.register(fastifyStatic, { root: opts.webDist });
   return app;
 }

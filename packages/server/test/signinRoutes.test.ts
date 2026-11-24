@@ -25,6 +25,8 @@ beforeEach(async () => {
   store = new Store(join(home, "squad.db"));
   const webDist = mkdtempSync(join(tmpdir(), "squad-web-"));
   writeFileSync(join(webDist, "index.html"), "<!doctype html><title>Squad</title>");
+  writeFileSync(join(webDist, "sw.js"), "// sw");
+  writeFileSync(join(webDist, "manifest.webmanifest"), "{}");
   n = 0; credN = 0;
   const lib: WebAuthnLib = {
     generateRegistrationOptions: async () => ({ challenge: `c${++n}` }) as any,
@@ -382,5 +384,15 @@ describe("management", () => {
     expect(r.statusCode).toBe(204);
     expect(cookieLine(r, sessionCookie())).toContain("Max-Age=0");
     expect((await call("GET", "/api/signin", s2.cookies)).statusCode).toBe(401);
+  });
+});
+
+describe("installable app files", () => {
+  it("serves the page, service worker and manifest without a session, never cached", async () => {
+    for (const url of ["/", "/index.html", "/sw.js", "/manifest.webmanifest"]) {
+      const r = await req({ url });
+      expect(r.statusCode, url).toBe(200);
+      expect(r.headers["cache-control"], url).toBe("no-cache");
+    }
   });
 });

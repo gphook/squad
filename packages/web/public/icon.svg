@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Squad: three chevrons in formation, a lead and two squadmates behind -->
+  <rect width="512" height="512" rx="112" fill="#3a6df0"/>
+  <g fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 214 L256 148 L322 214"/>
+    <path d="M100 340 L166 274 L232 340"/>
+    <path d="M280 340 L346 274 L412 340"/>
+  </g>
+</svg>
