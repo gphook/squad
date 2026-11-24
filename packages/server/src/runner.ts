@@ -435,6 +435,24 @@ export class AgentRunner extends EventEmitter {
     this.setStatus("stopped");
   }
 
+  /** Resolves once the session has left "starting", whether it came up, failed or was stopped. */
+  waitUntilStarted(timeoutMs: number): Promise<AgentStatus> {
+    if (this.state.status !== "starting") return Promise.resolve(this.state.status);
+    return new Promise((resolve) => {
+      const onStatus = (s: AgentState) => {
+        if (s.status === "starting") return;
+        clearTimeout(timer);
+        this.off("status", onStatus);
+        resolve(s.status);
+      };
+      const timer = setTimeout(() => {
+        this.off("status", onStatus);
+        resolve(this.state.status);
+      }, timeoutMs);
+      this.on("status", onStatus);
+    });
+  }
+
   waitUntilReady(timeoutMs: number): Promise<AgentStatus> {
     const ready = (s: AgentStatus) => s !== "starting" && s !== "stopped";
     if (ready(this.state.status)) return Promise.resolve(this.state.status);

@@ -25,9 +25,15 @@ function summary(description: string): string {
 }
 
 function line(s: SkillInfo): string {
-  const text = summary(s.description);
-  const full = text ? `\`${s.name}\` — ${text}` : `\`${s.name}\``;
-  return full.length > MAX_LINE ? full.slice(0, MAX_LINE - 1) + "…" : full;
+  const name = `\`${s.name}\``;
+  let text = summary(s.description);
+  if (!text) return name;
+  const room = MAX_LINE - name.length - 3;
+  if (text.length > room) text = text.slice(0, room - 1) + "…";
+  // A code span left open (a stray backtick, or one clipped above) would run into the next skill's line.
+  if ((text.match(/`/g) ?? []).length % 2) text = text.replaceAll("`", "\\`");
+  // `<file>`-style placeholders would otherwise read as HTML and vanish.
+  return `${name} — ${text.replaceAll("<", "\\<")}`;
 }
 
 /** The skills as markdown, grouped by where they come from: Built-in, Personal, Project, each plugin, then Other. */

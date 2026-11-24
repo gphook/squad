@@ -177,7 +177,9 @@ export class Supervisor extends EventEmitter {
   private async showSkills(r: AgentRunner, show: (ev: AgentEvent) => void): Promise<void> {
     if (!r.running) {
       await r.launch();
-      if ((await r.waitUntilReady(SUMMON_TIMEOUT_MS)) === "error") return; // the status already says why
+      await r.waitUntilStarted(SUMMON_TIMEOUT_MS);
+      // A failed launch shows in the status; a Stop or Clear while starting means the list isn't wanted.
+      if (!r.running || r.state.status === "error") return;
     }
     try {
       show({ kind: "command_output", text: formatSkills(await r.skills()) });
