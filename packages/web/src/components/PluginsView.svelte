@@ -10,9 +10,10 @@
   const project = $derived(ui.s.projects.find((p) => p.id === ui.s.projectId));
   const data = $derived(ui.s.plugins);
 
-  // Ask for a fresh snapshot whenever the view opens on a project.
+  // Ask for a fresh snapshot when the view opens, or its project changes. Effects read server data through
+  // $derived: `ui.s` is replaced on every server message, which would re-run an effect that reads it directly.
+  const projectId = $derived(ui.s.projectId);
   $effect(() => {
-    const projectId = ui.s.projectId;
     if (projectId) send({ t: "plugins.get", projectId });
   });
 

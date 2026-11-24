@@ -7,11 +7,14 @@
   let localError = $state<string | null>(null);
   let busy = $state<string | null>(null);
   let removing = $state<string | null>(null);
-  $effect(() => { void ui.s.plugins; void ui.s.pluginError; busy = null; });
+  // Read through $derived: `ui.s` is replaced on every server message.
+  const snapshot = $derived(ui.s.plugins);
+  const error = $derived(ui.s.pluginError);
+  $effect(() => { void snapshot; void error; busy = null; });
   // The form clears once the added marketplace shows up; after an error it keeps what was typed.
   let added = $state<string | null>(null);
   $effect(() => {
-    if (added && ui.s.plugins?.marketplaces.some((m) => m.location === added)) { source = ""; added = null; }
+    if (added && snapshot?.marketplaces.some((m) => m.location === added)) { source = ""; added = null; }
   });
 
   const serverError = $derived(ui.s.pluginError?.action.startsWith("marketplace.") ? ui.s.pluginError.message : null);

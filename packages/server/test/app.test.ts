@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,6 +16,7 @@ import { PluginService, kitPlugin } from "../src/plugins/service.ts";
 const KEY = "k".repeat(64);
 let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fakeFactory>, plan: PlanUsageTracker;
 let port: number, projectId: string, agentId: string, folder: string;
+let plugins: PluginService;
 const open: WebSocket[] = [];
 
 beforeEach(async () => {
@@ -29,7 +30,7 @@ beforeEach(async () => {
   projectId = store.saveProject({ name: "P", rules: "", permissionMode: "default" }).id;
   agentId = store.saveAgent({ projectId, name: "starfade", role: "r", folder, model: null }).id;
   plan = new PlanUsageTracker({ queryFactory: f.factory, source: () => null, probeCwd: process.env.SQUAD_HOME });
-  const plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
+  plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
   app = buildApp({ store, supervisor: sup, key: KEY, plan, plugins });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
@@ -139,6 +140,17 @@ describe("websocket", () => {
     expect(await c.next("plugins.error")).toMatchObject({ action: "marketplace.add", message: expect.stringContaining('"hello"') });
     send(c.ws, { t: "plugins.get", projectId });
     expect(((await c.next("plugins")) as Extract<ServerMsg, { t: "plugins" }>).marketplaces).toHaveLength(3);
+  });
+
+  it("reports a failed refresh as such, not as the change that succeeded", async () => {
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    const id = "superpowers@claude-plugins-official";
+    vi.spyOn(plugins, "snapshot").mockRejectedValueOnce(new Error("CLI timed out"));
+    send(c.ws, { t: "plugins.switch", projectId, pluginId: id, agentId: null, enabled: false });
+    expect(await c.next("plugins.error")).toEqual({ t: "plugins.error", action: "plugins.get", message: "CLI timed out" });
+    expect(store.listPluginSwitches(projectId)).toEqual([{ pluginId: id, agentId: null, enabled: false }]);
   });
 
   it("answers plugins.search only to the page that asked", async () => {

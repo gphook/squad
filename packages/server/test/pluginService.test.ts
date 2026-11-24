@@ -19,7 +19,30 @@ beforeEach(() => {
 });
 const FD = "frontend-design@claude-plugins-official";
 
+describe("PluginService with a source that fails", () => {
+  it("leaves the switches alone when the install or uninstall fails", async () => {
+    const source = new FakePluginSource({ delayMs: 0 });
+    source.install = () => Promise.reject(new Error("Network down"));
+    const failing = new PluginService(source, store, kit);
+    await expect(failing.install(p, FD, a)).rejects.toThrow("Network down");
+    store.setPluginSwitch(p, "superpowers@claude-plugins-official", a, true);
+    source.uninstall = () => Promise.reject(new Error("Busy"));
+    await expect(failing.uninstall("superpowers@claude-plugins-official")).rejects.toThrow("Busy");
+    expect(store.listPluginSwitches(p)).toEqual([{ pluginId: "superpowers@claude-plugins-official", agentId: a, enabled: true }]);
+  });
+});
+
 describe("PluginService", () => {
+  it("refuses to install for a squadmate from another project, before installing", async () => {
+    await expect(svc.install(p, FD, other)).rejects.toThrow("isn't a squadmate in this project");
+    expect((await svc.snapshot(p)).installed.map((x) => x.id)).not.toContain(FD);
+  });
+  it("refuses a project that no longer exists, before installing anything", async () => {
+    await expect(svc.install("gone", FD, null)).rejects.toThrow("That project no longer exists.");
+    expect((await svc.snapshot(p)).installed.map((x) => x.id)).not.toContain(FD);
+    await expect(svc.switch("gone", "superpowers@claude-plugins-official", null, true)).rejects.toThrow("That project no longer exists.");
+    await expect(svc.snapshot("gone")).rejects.toThrow("That project no longer exists.");
+  });
   it("lists squad-kit first, required and on, with the skills it carries", async () => {
     const s = await svc.snapshot(p);
     expect(s.installed[0]).toMatchObject({ id: SQUAD_KIT_ID, name: "squad-kit", required: true, enabled: true });
