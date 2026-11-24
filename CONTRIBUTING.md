@@ -37,6 +37,11 @@ Read the setup link from its output, run `scripts/virtual-passkey.js` (it adds a
 Playwright MCP's `browser_run_code_unsafe`), open the link, then click **Create passkey**. Never point checks at your real
 Squad or `~/.squad`.
 
+To register a second passkey (for example after `--reset-sign-in`), add a second authenticator first: a copy of
+`scripts/virtual-passkey.js` with `transport: "usb"`. One authenticator can hold only one Squad passkey, because Squad
+excludes the passkeys it already knows when registering.
+In dev, Vite must get port 5173 (it stops rather than move to another port), since that is the only dev origin Squad accepts.
+
 ## How the code is organised
 
 | Path | Owns |

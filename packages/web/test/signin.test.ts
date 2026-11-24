@@ -6,7 +6,7 @@ vi.mock("@simplewebauthn/browser", () => browser);
 
 import SignInScreen from "../src/components/SignInScreen.svelte";
 import App from "../src/App.svelte";
-import { ui, start, signedOutHere } from "../src/lib/state.svelte.ts";
+import { ui, start, signedOutHere, nextDelay } from "../src/lib/state.svelte.ts";
 import { rememberedChoice, saveChoice } from "../src/lib/signin.ts";
 
 class FakeWS {
@@ -43,6 +43,7 @@ const button = (t: HTMLElement, text: string) => [...t.querySelectorAll("button"
 beforeEach(() => {
   calls.length = 0;
   localStorage.clear();
+  ui.setupExpired = false;
   vi.stubGlobal("WebSocket", FakeWS);
   browser.startAuthentication.mockReset();
   browser.startRegistration.mockReset();
@@ -76,21 +77,34 @@ describe("SignInScreen", () => {
     expect(t.querySelector("button")).toBeNull();
   });
 
-  it("shows the expired message for ?setup=expired with no passkeys and removes it from the URL", () => {
+  /** Opens the page at /?setup=expired the way main.ts does: start() reads and tidies the URL first. */
+  async function openExpiredLink(session: { signedIn: boolean; setupNeeded: boolean; setupGrant: boolean }) {
     history.replaceState(null, "", "/?setup=expired");
-    const t = render({ signedIn: false, setupNeeded: true, setupGrant: false });
+    mockFetch(() => ({ json: session }));
+    await start();
+    return render(session);
+  }
+
+  it("shows the expired message for ?setup=expired with no passkeys and removes it from the URL", async () => {
+    const t = await openExpiredLink({ signedIn: false, setupNeeded: true, setupGrant: false });
     expect(t.textContent).toContain("This setup link has expired or was already used. Restart Squad to get a new one.");
     expect(t.querySelector("button")).toBeNull();
     expect(location.search).toBe("");
   });
 
-  it("a stale setup link with passkeys shows Sign in with a note", () => {
-    history.replaceState(null, "", "/?setup=expired");
-    const t = render({ signedIn: false, setupNeeded: false, setupGrant: false });
+  it("a stale setup link with passkeys shows Sign in with a note", async () => {
+    const t = await openExpiredLink({ signedIn: false, setupNeeded: false, setupGrant: false });
     expect(t.querySelector("h1")?.textContent).toBe("Sign in to Squad");
     expect(t.textContent).toContain("That setup link has expired or was already used.");
     expect(button(t, "Sign in with passkey")).toBeTruthy();
     expect(location.search).toBe("");
+  });
+
+  it("tidies ?setup=expired even when already signed in, keeping other query parameters", async () => {
+    history.replaceState(null, "", "/?setup=expired&x=1");
+    mockFetch((url) => ({ json: url === "/api/session" ? { signedIn: true, setupNeeded: false, setupGrant: false } : {} }));
+    await start();
+    expect(location.search).toBe("?x=1");
   });
 
   it("no setup note on a plain Sign in", () => {
@@ -208,5 +222,45 @@ describe("SignInScreen", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("start and other tabs", () => {
+  const signedOut = { signedIn: false, setupNeeded: false, setupGrant: false };
+
+  it("retries at 1 s, doubling, capped at 10 s", () => {
+    expect([1000, 2000, 4000, 8000, 10_000].map(nextDelay)).toEqual([2000, 4000, 8000, 10_000, 10_000]);
+  });
+
+  it("calls made while start() runs share one /api/session request", async () => {
+    mockFetch(() => ({ json: signedOut }));
+    await Promise.all([start(), start(), start()]);
+    expect(calls.filter((c) => c.url === "/api/session")).toHaveLength(1);
+  });
+
+  it("a signed-out tab checks again when another tab signs in", async () => {
+    mockFetch(() => ({ json: signedOut }));
+    await start();
+    calls.length = 0;
+    mockFetch(() => ({ json: { signedIn: true, setupNeeded: false, setupGrant: false } }));
+    const other = new BroadcastChannel("squad-signin");
+    other.postMessage("signed-in");
+    await vi.waitFor(() => expect(ui.session?.signedIn).toBe(true));
+    other.close();
+  });
+
+  it("the Sign-in view opens even with no projects", () => {
+    ui.session = { signedIn: true, setupNeeded: false, setupGrant: false };
+    ui.s = { ...ui.s, projectId: null };
+    ui.view = "signin";
+    mockFetch(() => ({ json: { passkeys: [], sessions: [] } }));
+    const target = document.createElement("div");
+    document.body.append(target);
+    const app = mount(App, { target });
+    cleanup.push(() => unmount(app));
+    flushSync();
+    expect(target.querySelector('[aria-label="Sign-in"]')).toBeTruthy();
+    expect(target.textContent).not.toContain("No projects yet");
+    ui.view = "chat";
   });
 });

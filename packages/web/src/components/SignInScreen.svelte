@@ -6,9 +6,8 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  // A failed setup link lands on /?setup=expired. Remember it, then tidy the address bar.
-  const urlExpired = new URLSearchParams(location.search).get("setup") === "expired";
-  if (urlExpired) history.replaceState(null, "", location.pathname + location.hash);
+  // start() notes /?setup=expired and tidies the address bar.
+  const urlExpired = $derived(ui.setupExpired);
 
   const setupNeeded = $derived(ui.session?.setupNeeded ?? false);
   // With no passkeys and no grant there is nothing to sign in with: say why, and how to get a setup link.

@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [svelte()],
   server: {
     port: 5173,
+    // The sign-in gate allows only localhost:5173 in dev, and the setup link points there: fail loudly if it's taken.
+    strictPort: true,
     // changeOrigin stays false so the server sees the browser's Host (localhost:5173): the sign-in gate matches Origin
     // against Host, and WebAuthn's expected origin is http://<Host>.
     proxy: {

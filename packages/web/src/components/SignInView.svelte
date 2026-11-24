@@ -1,7 +1,7 @@
 <script lang="ts">
   import { errorMessage, type SignInOverview } from "@squad/shared";
-  import { signedOutHere } from "../lib/state.svelte.ts";
-  import { addPasskey, deletePasskey, overview, renamePasskey, revokeSession, signOutEverywhere } from "../lib/signin.ts";
+  import { signedOutHere, ui } from "../lib/state.svelte.ts";
+  import { addPasskey, deletePasskey, overview, renamePasskey, revokeSession, signOut, signOutEverywhere } from "../lib/signin.ts";
   import EditableText from "./EditableText.svelte";
 
   let data = $state<SignInOverview | null>(null);
@@ -33,12 +33,18 @@
     else await refresh();
   }
 
-  // Once on open, not on server messages: the lists change only through this view's own actions (see issue #20).
+  // On open, then whenever the server says the lists changed (another browser signed in, a passkey was renamed…).
+  // Only that message counts, not every server message (see issue #20).
   $effect(() => {
+    void ui.signinVersion;
     void refresh();
   });
 
   const rename = (id: string, name: string) => run(() => renamePasskey(id, name));
+  /** EditableText's binding writes back every edit: save only a real change. */
+  const saveName = (k: { id: string; name: string }, v: string) => {
+    if (v !== k.name) void rename(k.id, v);
+  };
   const remove = (id: string) => run(() => deletePasskey(id));
   const revoke = (id: string, current: boolean) => run(() => revokeSession(id), current);
   const signOutAll = () => {
@@ -59,7 +65,7 @@
       <ul>
         {#each data.passkeys as k (k.id)}
           <li>
-            <span class="name"><EditableText label="Passkey name" placeholder="Unnamed passkey" bind:value={() => k.name, (v) => { if (v !== k.name) void rename(k.id, v); }} /></span>
+            <span class="name"><EditableText label="Passkey name" placeholder="Unnamed passkey" bind:value={() => k.name, (v) => saveName(k, v)} /></span>
             <span class="hint">Created {time(k.createdAt)}</span>
             <span class="hint">Last used {k.lastUsedAt ? time(k.lastUsedAt) : "never"}</span>
             <button class="danger" disabled={onlyOne} title={onlyOne ? "You can't delete your only passkey" : "Delete this passkey"}
@@ -83,7 +89,10 @@
       </ul>
     </section>
 
-    <footer><button class="danger" onclick={signOutAll}>Sign out everywhere</button></footer>
+    <footer>
+      <button onclick={() => run(signOut, true)}>Sign out</button>
+      <button class="danger" onclick={signOutAll}>Sign out everywhere</button>
+    </footer>
   {:else if !error}
     <p class="hint">Loading…</p>
   {/if}
@@ -100,6 +109,6 @@
   li { display: grid; grid-template-columns: minmax(140px, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
   .name { min-width: 0; }
   .here { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 10px; padding: 0 6px; margin-left: 6px; }
-  footer { margin-top: auto; }
+  footer { margin-top: auto; display: flex; gap: 8px; }
   @media (max-width: 720px) { li { grid-template-columns: 1fr auto; } }
 </style>
