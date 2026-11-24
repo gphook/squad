@@ -102,6 +102,10 @@ export type AgentEvent =
   /** Clear started a fresh conversation: everything before it is gone from the squadmate's context. */
   | { kind: "cleared" }
   | { kind: "turn_end"; ok: boolean; error?: string }
+  /** A `/` command's output, or Squad's notice about a command it won't run. */
+  | { kind: "command_output"; text: string; notice?: boolean }
+  /** A `/` command's output, or Squad's notice about a command it won't run. */
+  | { kind: "command_output"; text: string; notice?: boolean }
   /** A `$ cmd` Squad ran; live ones grow through shell_output and shell_end with the same id. */
   | {
       kind: "shell"; id: string; command: string; chunks: ShellChunk[]; running: boolean; code: number | null; signal: string | null;

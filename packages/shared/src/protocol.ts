@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PlanUsage } from "./usage.ts";
+import type { SlashCommandInfo } from "./commands.ts";
 import type {
   Agent, AuthStatus, ModelOption, AgentEvent, AgentState, Approval, Layout, LoggedMessage, Project, SharedFile,
 } from "./model.ts";
@@ -78,6 +79,7 @@ export type ServerMsg =
   | { t: "agent.status"; state: AgentState }
   | { t: "agent.event"; agentId: string; event: AgentEvent }
   | { t: "agent.history"; agentId: string; events: AgentEvent[] }
+  | { t: "agent.commands"; agentId: string; commands: SlashCommandInfo[] }
   | { t: "approval.request"; approval: Approval }
   | { t: "approval.resolved"; approvalId: string }
   | { t: "message.logged"; message: LoggedMessage }
