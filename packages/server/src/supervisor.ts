@@ -12,6 +12,7 @@ import { renamePeers } from "./normalise.ts";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
 import { AgentRunner, type QueryFactory, type TurnResult } from "./runner.ts";
 import { resolveInside } from "./safePath.ts";
+import { formatSkills } from "./skillsList.ts";
 import { createSquadTools } from "./squadTools.ts";
 import { turnRows } from "./turnUsage.ts";
 import type { Store } from "./store.ts";
@@ -172,6 +173,19 @@ export class Supervisor extends EventEmitter {
     return [...SQUAD_COMMANDS, ...session];
   }
 
+  /** Lists the squadmate's skills in its pane, launching it first if it's stopped (as any message would). */
+  private async showSkills(r: AgentRunner, show: (ev: AgentEvent) => void): Promise<void> {
+    if (!r.running) {
+      await r.launch();
+      if ((await r.waitUntilReady(SUMMON_TIMEOUT_MS)) === "error") return; // the status already says why
+    }
+    try {
+      show({ kind: "command_output", text: formatSkills(await r.skills()) });
+    } catch (e) {
+      show({ kind: "command_output", text: `\`/skills\` couldn't list skills: ${errorMessage(e)}`, notice: true });
+    }
+  }
+
   /** A message from the user. `/` commands Squad owns run here, so the session never changes behind its back. */
   async send(agentId: string, text: string, images?: string[]): Promise<void> {
     const r = this.runner(agentId);
@@ -187,6 +201,9 @@ export class Supervisor extends EventEmitter {
         show({ kind: "user_text", text });
         if (r.running) await r.stop();
         return;
+      case "skills":
+        show({ kind: "user_text", text });
+        return this.showSkills(r, show);
       case "notice":
         show({ kind: "user_text", text });
         show({ kind: "command_output", text: route.text, notice: true });

@@ -336,6 +336,15 @@ describe("signed out", () => {
     expect(f.queries).toHaveLength(0);
   });
 
+  it("/skills on a squadmate that can't launch shows no list and doesn't throw", async () => {
+    authWith("signedOut");
+    const ev: AgentEvent[] = [];
+    sup.on("event", (_p: string, _id: string, e: AgentEvent) => ev.push(e));
+    await sup.send(a.id, "/skills");
+    expect(f.queries).toHaveLength(0);
+    expect(ev.filter((e) => e.kind === "command_output" && !e.notice)).toEqual([]);
+  });
+
   it("checks again before refusing, so signing in elsewhere isn't met with a stale refusal", async () => {
     const auth = authWith("signedOut");
     auth.refresh = async () => {
@@ -438,6 +447,32 @@ describe("slash commands", () => {
     await sup.send(a.id, "/clear");
     expect(await decision).toMatchObject({ behavior: "deny" });
     expect(store.getAgent(a.id)!.sessionId).toBeNull();
+  });
+  it("/skills lists a running squadmate's skills, grouped, without sending anything", async () => {
+    await started();
+    f.skills.response = [{ name: "superpowers:b", description: "(superpowers) Plan things.", argumentHint: "" }];
+    const ev = events();
+    await sup.send(a.id, "/skills");
+    expect(f.queries[0].inputs).toHaveLength(0);
+    expect(ev[0]).toEqual({ kind: "user_text", text: "/skills" });
+    expect(ev[1]).toEqual({ kind: "command_output", text: "**superpowers**\n`superpowers:b` — Plan things.\n" });
+  });
+  it("/skills launches a stopped squadmate first", async () => {
+    f.skills.response = [{ name: "simplify", description: "Review.", argumentHint: "", builtin: true }];
+    const ev = events();
+    const sent = sup.send(a.id, "/skills");
+    await tick();
+    expect(f.queries).toHaveLength(1);
+    f.queries[0].initialize({});
+    await sent;
+    expect(ev.at(-1)).toMatchObject({ kind: "command_output", text: expect.stringContaining("**Built-in**") });
+  });
+  it("/skills says so when the session can't list them", async () => {
+    await started();
+    f.skills.response = () => Promise.reject(new Error("boom"));
+    const ev = events();
+    await sup.send(a.id, "/skills");
+    expect(ev.at(-1)).toEqual({ kind: "command_output", text: "`/skills` couldn't list skills: boom", notice: true });
   });
   it("/exit on a stopped squadmate doesn't launch it", async () => {
     await sup.send(a.id, "/exit");

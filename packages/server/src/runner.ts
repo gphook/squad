@@ -14,6 +14,9 @@ import { buildLaunchPrompt } from "./launchPrompt.ts";
 import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
 import { runShell } from "./shellCommand.ts";
 import { userShell } from "./shells/adapters.ts";
+import type { SkillInfo } from "./skillsList.ts";
+
+const SKILLS_TIMEOUT_MS = 10_000;
 
 export type QueryFactory = (args: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
 
@@ -122,6 +125,21 @@ export class AgentRunner extends EventEmitter {
     this.sessionCommands = (list as SlashCommandInfo[]).map(({ name, description, argumentHint, aliases }) =>
       ({ name, description: description ?? "", argumentHint: argumentHint ?? "", ...(aliases?.length ? { aliases } : {}) }));
     this.emit("commands", this.sessionCommands);
+  }
+
+  /** The session's skills, reloaded from disk so ones added since launch show too. */
+  async skills(): Promise<SkillInfo[]> {
+    const q = this.query;
+    if (!q) throw new Error(`${this.agent.name} isn't running`);
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("no answer from the session")), SKILLS_TIMEOUT_MS);
+    });
+    try {
+      return (await Promise.race([q.reloadSkills(), timeout])).skills as SkillInfo[];
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   get running(): boolean {
