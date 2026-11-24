@@ -33,6 +33,8 @@ export function parseCli(argv: string[], env: NodeJS.ProcessEnv, configPort: num
     } else o.unknown.push(a);
   }
   if (flagPort !== null) o.port = flagPort;
+  // --port wins over SQUAD_PORT, so a bad SQUAD_PORT only matters when it would have been used.
+  else if (env.SQUAD_PORT !== undefined && env.SQUAD_PORT !== "" && validPort(env.SQUAD_PORT) === null) o.unknown.push(`SQUAD_PORT=${env.SQUAD_PORT}`);
   return o;
 }
 

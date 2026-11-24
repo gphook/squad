@@ -4,6 +4,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -68,6 +69,24 @@ try {
     check(page.status === 200 && (await page.text()).includes("manifest.webmanifest"), "GET / serves the UI with its manifest");
     check((await get("/sw.js")).status === 200, "GET /sw.js is served");
     check((await get("/api/usage?days=7")).status === 401, "GET /api/usage without a session is 401");
+
+    // A second Squad on the same port and data folder must leave the running one alone: no sign-outs.
+    const db = new DatabaseSync(join(home, "squad.db"));
+    db.prepare("INSERT INTO sessions (id_hash, kind, passkey_id, created_at, last_used_at, user_agent, label) VALUES (?, 'restart', NULL, ?, ?, '', 'smoke')")
+      .run("smoke-session", Date.now(), Date.now());
+    let second = "";
+    let secondExit = 0;
+    try {
+      execFileSync(bin, ["--no-open", "--port", String(port)], { env: { ...cleanEnv, SQUAD_HOME: home, SQUAD_NO_UPDATE_CHECK: "1" }, encoding: "utf8", stdio: "pipe", timeout: 20_000 });
+    } catch (e) {
+      const err = e as { status?: number; stderr?: string };
+      secondExit = err.status ?? -1;
+      second = err.stderr ?? "";
+    }
+    check(secondExit === 1 && second.includes(`port ${port} is in use`), "a second squad on the same port says so and exits 1");
+    const kept = db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE id_hash = 'smoke-session'").get() as { n: number };
+    db.close();
+    check(kept.n === 1, "the second squad leaves the running one's sign-ins alone");
   } finally {
     child.kill();
   }

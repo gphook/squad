@@ -36,7 +36,7 @@ if (cli.version) {
   process.exit(0);
 }
 if (cli.unknown.length) {
-  console.error(`Squad: unknown option ${cli.unknown[0]}. Run squad --help.`);
+  console.error(`Squad: unknown or invalid option ${cli.unknown[0]}. Run squad --help.`);
   process.exit(2);
 }
 const port = cli.port;
@@ -46,11 +46,9 @@ const supervisor = new Supervisor(store, query, paths.kit);
 const webDist = paths.web;
 const startup = parseStartupArgs(process.argv.slice(2), process.env);
 const signin = createSignIn(store, { dev: startup.dev });
-signin.sessions.startup(signin.dev);
 const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });
 const auth = new AuthTracker();
 supervisor.setAuth(auth);
-void auth.refresh();
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
 const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(paths.kit));
 supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
@@ -61,6 +59,9 @@ if (!(await listenOrExplain(() => app.listen({ port, host: "127.0.0.1" }), port,
   await supervisor.stopAll();
   process.exit(1);
 }
+// Only once this process owns the port: a second Squad started by mistake must not sign anyone out of the first.
+signin.sessions.startup(signin.dev);
+void auth.refresh();
 const startupAction = startupPlan(startup, store.listPasskeys().length);
 const code = startupAction.mintCode ? signin.setup.mint() : null;
 const base = appBaseUrl(port, startup.dev);
