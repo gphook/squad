@@ -1,6 +1,7 @@
-import type { Agent, AgentAction, ClientMsg, Layout } from "@squad/shared";
+import type { Agent, AgentAction, ClientMsg, Layout, SessionStatus } from "@squad/shared";
 import { currentLayout, emptyState, forProject, reduce, withLayout, type UiState } from "./reducer.ts";
 import { connect } from "./ws.ts";
+import { fetchSession } from "./signin.ts";
 
 const LAST_PROJECT = "squad.lastProject";
 
@@ -8,13 +9,14 @@ const LAST_PROJECT = "squad.lastProject";
 export const ui: {
   s: UiState;
   connected: boolean;
-  keyExpired: boolean;
+  /** Null until /api/session has answered. */
+  session: SessionStatus | null;
   view: "chat" | "messages" | "shares" | "usage" | "plugins";
   focus: string | null;
   viewer: string | null;
   /** The squadmate picked in the Plugins view; `/plugin` sets it to the squadmate it was typed in. */
   pluginMate: string | null;
-} = $state({ s: emptyState(), connected: false, keyExpired: false, view: "chat", focus: null, viewer: null, pluginMate: null });
+} = $state({ s: emptyState(), connected: false, session: null, view: "chat", focus: null, viewer: null, pluginMate: null });
 
 let conn: ReturnType<typeof connect> | null = null;
 
@@ -26,7 +28,25 @@ function remembered(): string | null {
   }
 }
 
-export function start(): void {
+/** Loads the session status and, when signed in, connects the WebSocket. */
+export async function start(): Promise<void> {
+  try {
+    ui.session = await fetchSession();
+  } catch {
+    // Server unreachable: leave the status unknown and show nothing until a reload.
+    return;
+  }
+  if (ui.session.signedIn) connectSocket();
+}
+
+/** Called once the sign-in screen has signed in: show the app and connect. */
+export function signedIn(): void {
+  ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: true };
+  connectSocket();
+}
+
+function connectSocket(): void {
+  if (conn) return;
   conn = connect({
     onMsg: (m) => {
       ui.s = reduce(ui.s, m);
@@ -41,11 +61,14 @@ export function start(): void {
     },
     onOpen: () => {
       ui.connected = true;
-      ui.keyExpired = false;
       if (ui.s.projectId) send({ t: "subscribe", projectId: ui.s.projectId });
     },
     onDown: () => (ui.connected = false),
-    onUnauthorized: () => (ui.keyExpired = true),
+    onUnauthorized: () => {
+      conn = null;
+      ui.connected = false;
+      ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: false };
+    },
   });
 }
 
