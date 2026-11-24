@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fx from "./fixtures/sdk-messages.json" with { type: "json" };
+import cx from "./fixtures/command-messages.json" with { type: "json" };
 import { agentShellPrompt, bashContextBlock } from "@squad/shared";
 import { historyEvents, normalise, parsePeerMessage, peerAddress, renamePeers, summariseTool } from "../src/normalise.ts";
 
@@ -43,16 +44,18 @@ describe("normalise", () => {
     expect(n({ type: "user", isMeta: true, message: { content: "Base directory for this skill: /x" } })).toEqual([]);
     expect(n({ type: "user", isCompactSummary: true, message: { content: "This session is being continued" } })).toEqual([]);
   });
-  it("shows a slash command as the command and drops its local output", () => {
+  it("shows a slash command as the command, and its local output", () => {
     expect(n({ type: "user", message: { content: "<command-name>/compact</command-name>\n<command-message>compact</command-message>" } }))
       .toEqual([{ kind: "user_text", text: "/compact" }]);
-    expect(n({ type: "user", message: { content: "<local-command-stdout>Compacted </local-command-stdout>" } })).toEqual([]);
+    expect(n({ type: "user", message: { content: "<local-command-stdout>Compacted </local-command-stdout>" } }))
+      .toEqual([{ kind: "command_output", text: "Compacted" }]);
   });
   it("ignores messages from a subagent inside the agent's session", () => {
     expect(n({ type: "assistant", parent_tool_use_id: "toolu_x", message: { content: [{ type: "text", text: "sub" }] } })).toEqual([]);
   });
   it("ignores replayed user messages", () => {
-    expect(n({ type: "user", isReplay: true, message: { content: "<local-command-stdout>Compacted </local-command-stdout>" } })).toEqual([]);
+    expect(n({ type: "user", isReplay: true, message: { content: "<local-command-stdout>Compacted </local-command-stdout>" } }))
+      .toEqual([]);
   });
   it("maps compact_boundary and result", () => {
     expect(n(fx.compactBoundary)).toEqual([{ kind: "compacted" }]);
@@ -143,5 +146,36 @@ describe("squadmate addresses shown as names", () => {
 
   it("history names a reply's recipient from the address in the same transcript", () => {
     expect(historyEvents([delivered, reply]).find((e) => e.kind === "peer_out")).toEqual({ kind: "peer_out", to: "starfade", text: "Received." });
+  });
+});
+
+describe("slash command output", () => {
+  const run = (c: string) => cx.runs.find((r) => r.command === c)!;
+  it("shows live output, which arrives as a synthetic assistant message, as command output", () => {
+    const live = run("/context").messages.flatMap(n).filter((e) => e.kind !== "turn_end");
+    expect(live).toHaveLength(1);
+    expect(live[0]).toMatchObject({ kind: "command_output" });
+    expect((live[0] as { text: string }).text).toMatch(/^## Context Usage/);
+  });
+  it("restores output from the transcript's local_command line, once", () => {
+    const hist = run("/context").transcript.flatMap(n);
+    expect(hist.filter((e) => e.kind === "command_output")).toHaveLength(1);
+    expect(hist).toContainEqual({ kind: "user_text", text: "/context" });
+    const out = hist.find((e) => e.kind === "command_output") as { text: string };
+    expect(out.text).toMatch(/^## Context Usage/);
+    expect(out.text).not.toContain("local-command-stdout");
+  });
+  it("shows a refused command and the SDK's answer from the transcript", () => {
+    expect(run("/permissions").transcript.flatMap(n)).toEqual([
+      { kind: "user_text", text: "/permissions" },
+      { kind: "command_output", text: "/permissions isn't available in this environment." },
+    ]);
+  });
+  it("shows nothing for empty output", () => {
+    expect(run("/clear").transcript.flatMap(n).filter((e) => e.kind === "command_output")).toEqual([]);
+  });
+  it("still reads the older <local-command-stdout> user message form", () => {
+    const m = { type: "user", message: { content: "<local-command-stdout>hi</local-command-stdout>" } };
+    expect(n(m)).toEqual([{ kind: "command_output", text: "hi" }]);
   });
 });
