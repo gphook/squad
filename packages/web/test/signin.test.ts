@@ -69,17 +69,33 @@ describe("SignInScreen", () => {
     expect(button(t, "Create passkey")).toBeTruthy();
   });
 
-  it("shows the expired message when setupNeeded without a grant", () => {
+  it("says Squad needs setting up when there are no passkeys and no grant", () => {
     const t = render({ signedIn: false, setupNeeded: true, setupGrant: false });
-    expect(t.textContent).toContain("This setup link has expired or was already used. Restart Squad to get a new one.");
+    expect(t.textContent).toContain("Squad needs setting up. Restart Squad to get a fresh setup link.");
+    expect(t.textContent).not.toContain("expired");
     expect(t.querySelector("button")).toBeNull();
   });
 
-  it("shows the expired message for ?setup=expired and removes it from the URL", () => {
+  it("shows the expired message for ?setup=expired with no passkeys and removes it from the URL", () => {
+    history.replaceState(null, "", "/?setup=expired");
+    const t = render({ signedIn: false, setupNeeded: true, setupGrant: false });
+    expect(t.textContent).toContain("This setup link has expired or was already used. Restart Squad to get a new one.");
+    expect(t.querySelector("button")).toBeNull();
+    expect(location.search).toBe("");
+  });
+
+  it("a stale setup link with passkeys shows Sign in with a note", () => {
     history.replaceState(null, "", "/?setup=expired");
     const t = render({ signedIn: false, setupNeeded: false, setupGrant: false });
-    expect(t.textContent).toContain("This setup link has expired or was already used.");
+    expect(t.querySelector("h1")?.textContent).toBe("Sign in to Squad");
+    expect(t.textContent).toContain("That setup link has expired or was already used.");
+    expect(button(t, "Sign in with passkey")).toBeTruthy();
     expect(location.search).toBe("");
+  });
+
+  it("no setup note on a plain Sign in", () => {
+    const t = render({ signedIn: false, setupNeeded: false, setupGrant: false });
+    expect(t.textContent).not.toContain("setup link");
   });
 
   it("shows Sign in when passkeys exist", () => {
