@@ -203,6 +203,10 @@ export class Supervisor extends EventEmitter {
         show({ kind: "user_text", text });
         if (r.running) await r.stop();
         return;
+      case "plugins": // the page that typed it opens the Plugins view (see app.ts)
+        show({ kind: "user_text", text });
+        show({ kind: "command_output", text: `Opened Plugins for ${this.store.getAgent(agentId)!.name}.`, notice: true });
+        return;
       case "skills":
         show({ kind: "user_text", text });
         return this.showSkills(r, show);
