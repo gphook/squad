@@ -12,6 +12,7 @@ import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
 import { Store } from "./store.ts";
 import { createSignIn } from "./signin/index.ts";
+import { openBrowser, parseStartupArgs, startupMessage, startupPlan } from "./signin/startup.ts";
 import { Supervisor } from "./supervisor.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -22,7 +23,8 @@ const port = Number(process.env.SQUAD_PORT ?? config.port ?? 7340);
 const store = new Store(join(squadHome(), "squad.db"));
 const supervisor = new Supervisor(store, query, join(repoRoot, "kit"));
 const webDist = join(repoRoot, "packages/web/dist");
-const signin = createSignIn(store, { dev: process.env.SQUAD_DEV === "1" });
+const startup = parseStartupArgs(process.argv.slice(2), process.env);
+const signin = createSignIn(store, { dev: startup.dev });
 signin.sessions.startup(signin.dev);
 const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });
 const auth = new AuthTracker();
@@ -34,7 +36,11 @@ supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
 const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
 
 await app.listen({ port, host: "127.0.0.1" });
-console.log(`Squad: http://localhost:${port}/`);
+const startupPlanned = startupPlan(startup, store.listPasskeys().length);
+const code = startupPlanned.mintCode ? signin.setup.mint() : null;
+const url = `http://localhost:${port}/` + (code ? `setup?code=${code}` : "");
+const opened = startupPlanned.open ? await openBrowser(url) : false;
+console.log(startupMessage(port, code, opened));
 void plan.refresh(); // fill the rings before the first page load asks
 
 const shutdown = async () => {

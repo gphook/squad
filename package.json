@@ -15,7 +15,7 @@
     "test": "npm test --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build -w @squad/web",
-    "start": "npm start -w @squad/server",
+    "start": "npm start -w @squad/server --",
     "check": "tsc -p packages/shared && tsc -p packages/server && npm run check -w @squad/web"
   },
   "devDependencies": {
