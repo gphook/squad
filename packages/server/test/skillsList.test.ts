@@ -38,6 +38,11 @@ describe("formatSkills", () => {
   it("keeps markdown characters in a name literal, inside code", () => {
     expect(formatSkills([skill("a_b*c", "x")])).toContain("`a_b*c` — x");
   });
+  it("groups skills synced from claude.ai after the plugins, without their marker", () => {
+    const md = formatSkills([skill("docx", "Use this for Word files. (claude.ai sync)"), skill("z:y", "(z) Z."), skill("odd", "x")]);
+    expect(md.split("\n").filter((l) => l.startsWith("**"))).toEqual(["**z**", "**claude.ai**", "**Other**"]);
+    expect(md).toContain("`docx` — Use this for Word files.\n");
+  });
   it("says so when there are no skills", () => {
     expect(formatSkills([])).toBe("No skills.");
   });
