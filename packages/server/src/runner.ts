@@ -15,6 +15,7 @@ import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
 import { runShell } from "./shellCommand.ts";
 import { userShell } from "./shells/adapters.ts";
 import type { SkillInfo } from "./skillsList.ts";
+import type { LaunchPlugins } from "./plugins/service.ts";
 
 const SKILLS_TIMEOUT_MS = 10_000;
 
@@ -31,6 +32,8 @@ export interface RunnerDeps {
   queryFactory: QueryFactory;
   mcpServer: McpServerConfig;
   kitPluginPath: string;
+  /** This squadmate's plugins besides squad-kit, worked out at each launch. */
+  launchPlugins?: () => Promise<LaunchPlugins>;
   shareDir: string;
   /** Resolves true when nobody is signed in to Claude, so a launch would only fail. */
   signedOut?: () => Promise<boolean>;
@@ -142,6 +145,9 @@ export class AgentRunner extends EventEmitter {
     }
   }
 
+  /** The plugins this session launched with; null while stopped. */
+  launchedPlugins: LaunchPlugins | null = null;
+
   get running(): boolean {
     return this.query !== null;
   }
@@ -185,6 +191,14 @@ export class AgentRunner extends EventEmitter {
       this.setStatus("error", NOT_SIGNED_IN);
       return;
     }
+    let plugins: LaunchPlugins = { paths: [], off: [] };
+    if (this.deps.launchPlugins) {
+      try {
+        plugins = await this.deps.launchPlugins();
+      } catch (e) {
+        this.emit("event", { kind: "command_output", text: `Plugins couldn't be loaded: ${errorMessage(e)}`, notice: true });
+      }
+    }
     this.stopping = false;
     this.input = new AsyncQueue<SDKUserMessage>();
     const options: Options = {
@@ -198,10 +212,12 @@ export class AgentRunner extends EventEmitter {
       additionalDirectories: [this.deps.shareDir],
       mcpServers: { squad: this.deps.mcpServer },
       allowedTools: SQUAD_TOOLS,
-      plugins: [{ type: "local", path: this.deps.kitPluginPath }],
+      plugins: [{ type: "local", path: this.deps.kitPluginPath }, ...plugins.paths.map((path) => ({ type: "local" as const, path }))],
       includePartialMessages: true,
       canUseTool: (toolName, input, opts) => this.askUser(toolName, input, opts.suggestions, opts.signal),
     };
+    if (plugins.off.length) options.settings = { enabledPlugins: Object.fromEntries(plugins.off.map((id) => [id, false])) };
+    this.launchedPlugins = plugins;
     if (this.agent.sessionId) options.resume = this.agent.sessionId;
     this.resumedFrom = this.agent.sessionId;
     if (this.agent.model) options.model = this.agent.model;
@@ -236,6 +252,7 @@ export class AgentRunner extends EventEmitter {
     }
     if (this.query !== q) return; // a newer session replaced this one
     this.query = null;
+    this.launchedPlugins = null;
     this.input = null;
     this.sessionPid = null;
     this.denyAll();
@@ -427,6 +444,7 @@ export class AgentRunner extends EventEmitter {
     if (!q) return;
     this.stopping = true;
     this.query = null;
+    this.launchedPlugins = null;
     this.sessionPid = null;
     this.denyAll();
     this.input?.end();

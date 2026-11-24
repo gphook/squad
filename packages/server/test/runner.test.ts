@@ -459,3 +459,34 @@ describe("command list", () => {
     expect(runner.commands).toEqual([context, usage]);
   });
 });
+
+describe("AgentRunner plugins", () => {
+  const withPlugins = (launchPlugins: () => Promise<{ paths: string[]; off: string[] }>) => new AgentRunner(project, agent, [agent], {
+    queryFactory: f.factory, mcpServer: { type: "sdk", name: "squad" } as any, kitPluginPath: "/kit", shareDir: "/share", launchPlugins,
+  });
+
+  it("loads switched-on plugins beside squad-kit and switches others off", async () => {
+    const r = withPlugins(async () => ({ paths: ["/p/x"], off: ["y@m"] }));
+    await r.launch();
+    expect(q().options.plugins).toEqual([{ type: "local", path: "/kit" }, { type: "local", path: "/p/x" }]);
+    expect(q().options.settings).toEqual({ enabledPlugins: { "y@m": false } });
+    expect(r.launchedPlugins).toEqual({ paths: ["/p/x"], off: ["y@m"] });
+    await r.stop();
+    expect(r.launchedPlugins).toBeNull();
+  });
+
+  it("passes no settings when nothing is switched off", async () => {
+    await withPlugins(async () => ({ paths: [], off: [] })).launch();
+    expect(q().options).not.toHaveProperty("settings");
+  });
+
+  it("still launches with squad-kit when the plugins can't be worked out, and says so", async () => {
+    const r = withPlugins(() => Promise.reject(new Error("boom")));
+    const events: AgentEvent[] = [];
+    r.on("event", (e) => events.push(e));
+    await r.launch();
+    expect(q().options.plugins).toEqual([{ type: "local", path: "/kit" }]);
+    expect(events).toContainEqual({ kind: "command_output", text: "Plugins couldn't be loaded: boom", notice: true });
+    expect(r.launchedPlugins).toEqual({ paths: [], off: [] });
+  });
+});
