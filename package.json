@@ -17,9 +17,13 @@
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build -w @squad/web",
     "start": "npm start -w @squad/server --",
-    "check": "tsc -p packages/shared && tsc -p packages/server && npm run check -w @squad/web"
+    "check": "tsc -p packages/shared && tsc -p packages/server && npm run check -w @squad/web",
+    "package": "tsx scripts/package.ts",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
