@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import {
+  type Connector, type ConnectorTemplateId,
   FIVE_HOUR_MS, SEVEN_DAY_MS, defaultLayout, normaliseLayout,
   type Activity, type ActivityInput, type Agent, type EffortLevel, type Layout, type LoggedMessage, type PermissionMode, type Project, type SharedFile, type UsageReport,
   type PluginSwitch, type UsageTurnRow, type SessionKind,
@@ -72,6 +73,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, user_agent TEXT NOT NULL, label TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS signin_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS connectors (
+  id TEXT PRIMARY KEY, template TEXT NOT NULL, name TEXT NOT NULL, host TEXT NOT NULL UNIQUE, created INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS connector_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `;
 
 type Row = Record<string, unknown>;
@@ -328,6 +333,38 @@ export class Store {
 
   deletePluginSwitches(pluginId: string): void {
     this.db.prepare("DELETE FROM plugin_switches WHERE plugin_id = ?").run(pluginId);
+  }
+
+  listConnectors(): Connector[] {
+    return (this.db.prepare("SELECT id, template, name, host FROM connectors ORDER BY created, rowid").all() as Row[])
+      .map((r) => ({ id: r.id as string, template: r.template as ConnectorTemplateId, name: r.name as string, host: r.host as string }));
+  }
+
+  addConnector(c: Omit<Connector, "id">): Connector {
+    if (this.db.prepare("SELECT 1 FROM connectors WHERE host = ?").get(c.host)) {
+      throw new Error(`A connector for ${c.host} already exists.`);
+    }
+    const made = { id: randomUUID(), ...c };
+    this.db.prepare("INSERT INTO connectors (id, template, name, host, created) VALUES (?, ?, ?, ?, ?)")
+      .run(made.id, made.template, made.name, made.host, Date.now());
+    return made;
+  }
+
+  renameConnector(id: string, name: string): void {
+    this.db.prepare("UPDATE connectors SET name = ? WHERE id = ?").run(name, id);
+  }
+
+  removeConnector(id: string): void {
+    this.db.prepare("DELETE FROM connectors WHERE id = ?").run(id);
+  }
+
+  /** Whether Squad has already added connectors for the hosts gh/glab were signed in to (done once). */
+  connectorsSeeded(): boolean {
+    return this.db.prepare("SELECT 1 FROM connector_meta WHERE key = 'seeded'").get() !== undefined;
+  }
+
+  markConnectorsSeeded(): void {
+    this.db.prepare("INSERT OR REPLACE INTO connector_meta (key, value) VALUES ('seeded', '1')").run();
   }
 
   addPasskey(p: Omit<PasskeyRow, "lastUsedAt">): void {
