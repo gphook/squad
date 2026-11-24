@@ -39,8 +39,9 @@
   it is summoned). Clear drops output it hasn't seen yet.
 - Slash commands: type `/` for a picker of the squadmate's commands (skills, plugins and built-ins); Tab completes,
   Enter runs a command typed in full. Command output (`/context`, `/usage`, …) shows in the pane and after a reload.
-  `/clear` and `/exit` do what Clear and Stop do. Commands that need a terminal screen (`/config`, `/model`, and for
-  now `/plugin`, `/resume`, `/skills`) say so instead.
+  `/clear` and `/exit` do what Clear and Stop do, and `/skills` lists the squadmate's skills grouped by where they
+  come from. Commands that need a terminal screen (`/config`, `/model`, and for now `/plugin`, `/resume`) say so
+  instead.
 - History restored after browser reload.
 - Images and links: local images from the agent's repo or share folder render inline
   (click to enlarge); `squad_show` tool lets an agent put an image or file in front of you;
