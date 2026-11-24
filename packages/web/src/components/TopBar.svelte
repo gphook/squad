@@ -18,7 +18,7 @@
   let { oneditproject }: { oneditproject: (p: Project | null) => void } = $props();
   const current = $derived(ui.s.projects.find((p) => p.id === ui.s.projectId) ?? null);
 
-  const toggleView = (v: "messages" | "shares" | "plugins") => (ui.view = ui.view === v ? "chat" : v);
+  const toggleView = (v: "messages" | "shares" | "plugins" | "signin") => (ui.view = ui.view === v ? "chat" : v);
   const showUsage = () => (ui.view = "usage");
   const plan = $derived(ui.s.plan?.available ? ui.s.plan : null);
 
@@ -42,6 +42,8 @@
   {/if}
   <span class="grow"></span>
   <AccountChip {now} />
+  <button class="icon" class:on={ui.view === "signin"} aria-pressed={ui.view === "signin"}
+    aria-label="Sign-in" title="Sign-in: passkeys and sessions" onclick={() => toggleView("signin")}><Icon name="lock" /></button>
   {#if plan}
     <div class="rings" role="group" aria-label="Plan usage">
       {#if plan.fiveHour}<UsageRing label="5h" name="Session" window={plan.fiveHour} windowMs={FIVE_HOUR_MS} {now} onclick={showUsage} />{/if}
