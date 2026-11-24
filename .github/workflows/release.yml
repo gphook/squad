@@ -20,8 +20,8 @@ jobs:
           node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
-      # Trusted publishing needs npm 11.5 or later.
-      - run: npm install -g npm@latest
+      # Trusted publishing needs npm 11.5 or later. Pinned to a major so a new npm can't change a release unannounced.
+      - run: npm install -g npm@11
       - run: npm ci
       - run: npm run check
       - run: npm test

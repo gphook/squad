@@ -38,8 +38,12 @@ for (const f of ["README.md", "LICENSE"]) cpSync(join(root, f), join(out, f));
 writeFileSync(join(out, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
 
 // The tarball must hold exactly what Squad needs, and nothing from the repo besides.
-const listing = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: out, encoding: "utf8" })) as { files: { path: string }[] }[];
-const files = listing[0]!.files.map((f) => f.path);
+// npm 11 prints an array of results, npm 12 an object keyed by package name.
+type PackResult = { files: { path: string }[] };
+const listing = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: out, encoding: "utf8" })) as PackResult[] | Record<string, PackResult>;
+const result = Array.isArray(listing) ? listing[0] : Object.values(listing)[0];
+if (!result) throw new Error("package: npm pack --dry-run --json listed nothing");
+const files = result.files.map((f) => f.path);
 const required = ["bin/squad.js", "dist/server.js", "web/index.html", "web/manifest.webmanifest", "web/sw.js", "kit/.claude-plugin/plugin.json"];
 const missing = required.filter((f) => !files.includes(f));
 const allowed = /^(bin|dist|web|kit)\/|^(README\.md|LICENSE|package\.json)$/;
