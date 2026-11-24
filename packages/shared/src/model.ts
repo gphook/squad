@@ -73,6 +73,17 @@ export interface AuthStatus {
   expiresAt?: number;
 }
 
+/** How `claude auth login` signs in: a Claude subscription, the Anthropic Console (API billing) or SSO. */
+export type LoginMethod = "claudeai" | "console" | "sso";
+
+/** A sign-in to Claude that Squad runs for the user (one at a time, shared by every page). */
+export type LoginState =
+  | { phase: "idle" }
+  | { phase: "starting" }
+  | { phase: "waiting"; url: string; error?: string }
+  | { phase: "verifying"; url: string }
+  | { phase: "failed"; message: string };
+
 /** A model the user's account offers, as Squad shows it. */
 export interface ModelOption {
   value: string;

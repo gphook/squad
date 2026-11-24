@@ -12,6 +12,7 @@ import { UpdateNotice, checkForUpdate, updateMessage } from "./updateCheck.ts";
 import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
+import { ClaudeLogin } from "./claudeLogin.ts";
 import { Store } from "./store.ts";
 import { createSignIn } from "./signin/index.ts";
 import { appBaseUrl, openBrowser, parseStartupArgs, startupMessage, startupPlan, startupUrl } from "./signin/startup.ts";
@@ -49,11 +50,12 @@ const signin = createSignIn(store, { dev: startup.dev });
 const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });
 const auth = new AuthTracker();
 supervisor.setAuth(auth);
+const login = new ClaudeLogin({ finished: () => auth.refresh() });
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
 const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(paths.kit));
 supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
 const update = new UpdateNotice();
-const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, update, webDist: existsSync(webDist) ? webDist : undefined });
+const app = buildApp({ store, supervisor, signin, plan, models, auth, login, plugins, update, webDist: existsSync(webDist) ? webDist : undefined });
 
 if (!(await listenOrExplain(() => app.listen({ port, host: "127.0.0.1" }), port, (s) => console.error(s)))) {
   await supervisor.stopAll();

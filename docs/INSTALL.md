@@ -39,7 +39,8 @@ curl -fsSL https://claude.ai/install.sh | bash
 claude                  # run once interactively and sign in
 ```
 
-The SDK uses the same sign-in as the `claude` CLI.
+The SDK uses the same sign-in as the `claude` CLI. You can also sign in later from inside Squad: click the account
+chip in the top bar.
 
 ## 3. git
 
