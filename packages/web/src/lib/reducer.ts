@@ -91,6 +91,8 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, states: { ...s.states, [m.state.agentId]: m.state } };
     case "agent.event":
       return { ...s, events: { ...s.events, [m.agentId]: addEvent(s.events[m.agentId], m.event) } };
+    case "agent.commands":
+      return s; // stored in Task 5 of the slash commands plan
     case "agent.history": {
       // `$ cmd` blocks that arrived live while history loaded are kept unless history has them too.
       const incoming = m.events.filter((e) => e.kind !== "text_delta");
