@@ -13,6 +13,9 @@ import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
 import { ClaudeLogin } from "./claudeLogin.ts";
+import { ConnectorService } from "./connectors/service.ts";
+import { makeTemplates } from "./connectors/templates.ts";
+import { realExec } from "./connectors/exec.ts";
 import { Store } from "./store.ts";
 import { createSignIn } from "./signin/index.ts";
 import { appBaseUrl, openBrowser, parseStartupArgs, startupMessage, startupPlan, startupUrl } from "./signin/startup.ts";
@@ -55,7 +58,9 @@ const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.
 const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(paths.kit));
 supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
 const update = new UpdateNotice();
-const app = buildApp({ store, supervisor, signin, plan, models, auth, login, plugins, update, webDist: existsSync(webDist) ? webDist : undefined });
+const connectors = new ConnectorService({ store, templates: makeTemplates(realExec) });
+void connectors.init().catch((err) => console.error(`Couldn't check connectors: ${(err as Error).message}`));
+const app = buildApp({ store, supervisor, signin, plan, models, auth, login, plugins, update, connectors, webDist: existsSync(webDist) ? webDist : undefined });
 
 if (!(await listenOrExplain(() => app.listen({ port, host: "127.0.0.1" }), port, (s) => console.error(s)))) {
   await supervisor.stopAll();

@@ -9,9 +9,10 @@ import { basename, extname } from "node:path";
 import type { WebSocket } from "ws";
 import {
   MAX_EVENTS, USAGE_RANGES, errorMessage, normaliseLayout, parseClientMsg, parseSlashCommand, routeCommand,
-  type ClientMsg, type ServerMsg, type UsageRange,
+  type ClientMsg, type ConnectorLogin, type ConnectorView, type Marketplace, type ServerMsg, type UsageRange,
 } from "@squad/shared";
 import type { PluginService } from "./plugins/service.ts";
+import type { ConnectorService } from "./connectors/service.ts";
 import { loadHistory } from "./history.ts";
 import { shareDir } from "./paths.ts";
 import type { PlanUsageTracker } from "./planUsage.ts";
@@ -26,6 +27,9 @@ import type { Store } from "./store.ts";
 const run = promisify(execFile);
 import type { Supervisor } from "./supervisor.ts";
 
+/** git's ways of saying it had no credentials, or the wrong ones, for a private repo. */
+const GIT_AUTH_FAILURE = /Authentication failed|could not read Username|Repository not found|HTTP Basic: Access denied/i;
+
 const MIME: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp",
   ".svg": "image/svg+xml", ".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
@@ -34,9 +38,9 @@ const MIME: Record<string, string> = {
 
 export function buildApp(opts: {
   store: Store; supervisor: Supervisor; signin: SignIn; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker; login?: ClaudeLogin;
-  plugins?: PluginService; update?: UpdateNotice;
+  plugins?: PluginService; update?: UpdateNotice; connectors?: ConnectorService;
 }): FastifyInstance {
-  const { store, supervisor: sup, signin, plan, models, auth, login, plugins, update } = opts;
+  const { store, supervisor: sup, signin, plan, models, auth, login, plugins, update, connectors } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
@@ -80,6 +84,8 @@ export function buildApp(opts: {
   auth?.on("change", (status) => broadcast(null, { t: "auth", status }));
   login?.on("change", (state) => broadcast(null, { t: "auth.login", login: state }));
   update?.on("change", (info: UpdateInfo) => broadcast(null, { t: "update", ...info }));
+  connectors?.on("connectors", (list: ConnectorView[]) => broadcast(null, { t: "connectors", connectors: list }));
+  connectors?.on("login", (state: ConnectorLogin) => broadcast(null, { t: "connector.login", login: state }));
   if (plan) {
     plan.on("change", (p) => broadcast(null, { t: "usage.plan", plan: p }));
     sup.on("rateLimit", (info) => plan.applyRateLimit(info));
@@ -97,13 +103,21 @@ export function buildApp(opts: {
   }
   sup.on("pluginsChanged", (p: string) => void sendRestarts(p));
 
+  /** The last marketplaces any snapshot listed, to find a marketplace's source when its update fails. */
+  let lastMarketplaces: Marketplace[] = [];
+  async function snapshotOf(projectId: string) {
+    const snap = await plugins!.snapshot(projectId);
+    lastMarketplaces = snap.marketplaces;
+    return snap;
+  }
+
   /** Sends a fresh plugins snapshot to every page on `projectId`, or on any project (machine-wide changes). */
   async function refreshPlugins(projectId: string | null): Promise<void> {
     if (!plugins) return;
     const ids = projectId ? [projectId] : [...new Set([...sockets.values()].map((s) => s.projectId).filter((p) => p !== null))];
     await Promise.all(ids.map(async (id) => {
       try {
-        broadcast(id, await plugins.snapshot(id));
+        broadcast(id, await snapshotOf(id));
         await sendRestarts(id);
       } catch (e) {
         // The change itself went through; only the fresh view of it failed.
@@ -119,7 +133,7 @@ export function buildApp(opts: {
       switch (m.t) {
         case "plugins.get":
           plugins.refresh(); // see plugins switched in the terminal
-          out(ws, await plugins.snapshot(m.projectId));
+          out(ws, await snapshotOf(m.projectId));
           return out(ws, { t: "plugins.restart", projectId: m.projectId, agents: await sup.pendingRestarts(m.projectId) });
         case "plugins.search": {
           const r = await plugins.search(m.query, m.marketplace);
@@ -139,7 +153,37 @@ export function buildApp(opts: {
         case "marketplace.update": await plugins.updateMarketplace(m.name); return refreshPlugins(null);
       }
     } catch (e) {
-      out(ws, { t: "plugins.error", action: m.t, message: errorMessage(e) });
+      let message = errorMessage(e);
+      // A private marketplace git couldn't reach: say which connector would let it in.
+      if ((m.t === "marketplace.add" || m.t === "marketplace.update") && GIT_AUTH_FAILURE.test(message) && connectors) {
+        const source = m.t === "marketplace.add" ? m.source : marketplaceLocation(m.name);
+        const hint = source ? connectors.hintFor(source) : null;
+        if (hint) message = `${message} ${hint}`;
+      }
+      out(ws, { t: "plugins.error", action: m.t, message });
+    }
+  }
+
+  /** The source a marketplace was added from, as last listed. */
+  function marketplaceLocation(name: string): string | null {
+    return lastMarketplaces.find((mk) => mk.name === name)?.location ?? null;
+  }
+
+  async function handleConnectors(ws: WebSocket, m: Extract<ClientMsg, { t: `connector${string}` }>): Promise<void> {
+    if (!connectors) return;
+    try {
+      switch (m.t) {
+        case "connectors.get": return out(ws, { t: "connectors", connectors: await connectors.refresh(true) });
+        case "connector.add": await connectors.add(m.template, m.name, m.host); return;
+        case "connector.rename": return connectors.rename(m.id, m.name);
+        case "connector.remove": return connectors.remove(m.id, m.signOut);
+        case "connector.login": return connectors.startLogin(m.id);
+        case "connector.token": return connectors.submitToken(m.token);
+        case "connector.cancel": return connectors.cancel();
+        case "connector.signOut": return connectors.signOut(m.id);
+      }
+    } catch (e) {
+      out(ws, { t: "connector.error", message: errorMessage(e) });
     }
   }
 
@@ -147,6 +191,7 @@ export function buildApp(opts: {
     if (m.t.startsWith("plugins.") || m.t.startsWith("marketplace.")) {
       return handlePlugins(ws, m as Parameters<typeof handlePlugins>[1]);
     }
+    if (m.t.startsWith("connector")) return handleConnectors(ws, m as Parameters<typeof handleConnectors>[1]);
     switch (m.t) {
       case "subscribe": {
         if (!store.getProject(m.projectId)) return out(ws, { t: "error", message: "Unknown project" });
@@ -232,6 +277,7 @@ export function buildApp(opts: {
       if (plan?.current) out(ws, { t: "usage.plan", plan: plan.current });
       if (auth?.current) out(ws, { t: "auth", status: auth.current });
       if (login && login.current.phase !== "idle") out(ws, { t: "auth.login", login: login.current });
+      if (connectors && connectors.login.phase !== "idle") out(ws, { t: "connector.login", login: connectors.login });
       if (update?.current) out(ws, { t: "update", ...update.current });
       if (sockets.size === 1) void auth?.refresh(); // someone may have signed in or out while nobody was looking
       if (sockets.size === 1 && plan) {

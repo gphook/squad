@@ -19,6 +19,8 @@ import { PluginService, kitPlugin } from "../src/plugins/service.ts";
 import { createSignIn, type SignIn } from "../src/signin/index.ts";
 import { signedInCookie } from "./signinHelper.ts";
 import { hashId } from "../src/signin/sessions.ts";
+import { ConnectorService } from "../src/connectors/service.ts";
+import type { ConnectorTemplate } from "../src/connectors/template.ts";
 
 const hashOf = (c: Record<string, string>): string => hashId(Object.values(c)[0]!);
 
@@ -28,6 +30,7 @@ let plugins: PluginService;
 let signin: SignIn, cookies: Record<string, string>;
 let update: UpdateNotice;
 let login: ClaudeLogin, loginInput: string[];
+let connectors: ConnectorService;
 const open: WebSocket[] = [];
 
 beforeEach(async () => {
@@ -57,7 +60,24 @@ beforeEach(async () => {
       return child;
     },
   });
-  app = buildApp({ store, supervisor: sup, signin, plan, plugins, update, login });
+  const tpl = (id: "github" | "gitlab"): ConnectorTemplate => ({
+    id, label: id === "github" ? "GitHub" : "GitLab", defaultHost: `${id}.com`, cli: { bin: id, label: id, installUrl: "x" },
+    available: async () => true, accounts: async () => [],
+    signInPlan: () => ({ kind: "device", args: [], env: {} }),
+    parseDevice: (o) => (o.includes("CODE") ? { code: "CODE-1", url: "https://example.com/device" } : null),
+    afterSignIn: async () => {}, signOut: async () => {},
+  });
+  connectors = new ConnectorService({
+    store, templates: { github: tpl("github"), gitlab: tpl("gitlab") },
+    spawn: () => {
+      const child = Object.assign(new EventEmitter(), {
+        stdout: new PassThrough(), stderr: new PassThrough(), kill: () => true, stdin: { write: () => true, end: () => {} },
+      });
+      setImmediate(() => child.stdout.write("CODE"));
+      return child;
+    },
+  });
+  app = buildApp({ store, supervisor: sup, signin, plan, plugins, update, login, connectors });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
   cookies = signedInCookie(signin, port);
@@ -466,5 +486,48 @@ describe("usage freshness", () => {
 
   it("a malformed rate-limit event is ignored", () => {
     expect(() => sup.emit("rateLimit", undefined)).not.toThrow();
+  });
+});
+
+describe("connectors", () => {
+  it("lists connectors on request and broadcasts an added one to every page", async () => {
+    const [c1, c2] = [await connect(), await connect()];
+    send(c1.ws, { t: "connectors.get" });
+    expect(await c1.next("connectors")).toEqual({ t: "connectors", connectors: [] });
+    send(c1.ws, { t: "connector.add", template: "github", name: "Acme", host: "github.acme.com" });
+    for (const c of [c1, c2]) {
+      expect(await c.next("connectors")).toMatchObject({ connectors: [{ name: "Acme", host: "github.acme.com", state: "signed-out" }] });
+    }
+  });
+
+  it("answers a bad host with connector.error", async () => {
+    const c = await connect();
+    send(c.ws, { t: "connector.add", template: "gitlab", name: "", host: "https://gitlab.com" });
+    expect(await c.next("connector.error")).toMatchObject({ message: expect.stringContaining("isn't a hostname") });
+  });
+
+  it("broadcasts a running sign-in, and sends it to a page that connects mid-way", async () => {
+    const c1 = await connect();
+    const made = await connectors.add("github", "", "github.com");
+    send(c1.ws, { t: "connector.login", id: made.id });
+    const waiting = { t: "connector.login", login: { phase: "waiting", id: made.id, code: "CODE-1", url: "https://example.com/device" } };
+    await vi.waitFor(async () => expect(connectors.login.phase).toBe("waiting"));
+    const c2 = await connect();
+    expect(await c2.next("connector.login")).toEqual(waiting);
+    send(c1.ws, { t: "connector.cancel" });
+    expect(await c2.next("connector.login")).toEqual({ t: "connector.login", login: { phase: "idle" } });
+  });
+
+  it("adds a connector hint to a marketplace add that failed to authenticate", async () => {
+    await connectors.add("github", "Acme", "github.acme.com");
+    vi.spyOn(plugins, "addMarketplace").mockRejectedValue(new Error("fatal: Authentication failed for 'https://github.acme.com/a/b.git/'"));
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    send(c.ws, { t: "marketplace.add", source: "https://github.acme.com/a/b.git" });
+    expect(await c.next("plugins.error")).toMatchObject({
+      action: "marketplace.add",
+      message: "fatal: Authentication failed for 'https://github.acme.com/a/b.git/' Sign in to Acme (github.acme.com) under Connectors, then try again.",
+    });
   });
 });
