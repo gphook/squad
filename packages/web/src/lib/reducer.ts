@@ -1,7 +1,7 @@
 import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
-  type AuthStatus, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
+  type AuthStatus, type LoginState, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
   type AvailablePlugin, type InstalledPlugin,
 } from "@squad/shared";
 import { pruneLayout } from "./layout.ts";
@@ -31,6 +31,8 @@ export interface UiState {
   models: ModelOption[] | null | undefined;
   /** The Claude account squadmates run on; null until the server says. */
   auth: AuthStatus | null;
+  /** A Claude sign-in Squad is running (any page may have started it). */
+  login: LoginState;
   error: string | null;
 }
 
@@ -38,13 +40,13 @@ export function emptyState(): UiState {
   return {
     projects: [], projectId: null, agents: [], states: {}, events: {}, commands: {},
     plugins: null, pluginResults: null, pluginDetails: null, pluginError: null, pluginRestarts: [],
-    approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, error: null,
+    approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, login: { phase: "idle" }, error: null,
   };
 }
 
 /** Fresh state for another project, keeping what isn't tied to a project. */
 export function forProject(s: UiState, projectId: string): UiState {
-  return { ...emptyState(), projects: s.projects, plan: s.plan, models: s.models, auth: s.auth, projectId };
+  return { ...emptyState(), projects: s.projects, plan: s.plan, models: s.models, auth: s.auth, login: s.login, projectId };
 }
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
@@ -143,6 +145,8 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return withLayout(s, m.projectId, m.layout);
     case "auth":
       return { ...s, auth: m.status };
+    case "auth.login":
+      return { ...s, login: m.login };
     case "models":
       return { ...s, models: m.models };
     case "usage.plan":

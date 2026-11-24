@@ -26,7 +26,7 @@ describe("account chip", () => {
     expect(chipTitle({ ...signedIn, expiresAt: now + 2 * DAY + 3600_000 }, now))
       .toBe("someone@example.com · Example Org · claude.ai · login expires in 2 days");
     expect(chipTitle({ ...signedIn, expiresAt: now + 3600_000 }, now)).toContain("login expires today");
-    expect(chipTitle({ state: "signedOut" }, now)).toBe("Not signed in to Claude: squadmates can't start. Click for help.");
+    expect(chipTitle({ state: "signedOut" }, now)).toBe("Not signed in to Claude: squadmates can't start. Click to sign in.");
     expect(chipTitle({ state: "unknown" }, now)).toBe("Couldn't read the Claude sign-in. Click for help.");
   });
 
@@ -38,5 +38,12 @@ describe("account chip", () => {
   it("stores the account and keeps it across project switches", () => {
     const s = reduce(emptyState(), { t: "auth", status: signedIn });
     expect(forProject(s, "p").auth).toEqual(signedIn);
+  });
+
+  it("stores the running Claude sign-in and keeps it across project switches", () => {
+    expect(emptyState().login).toEqual({ phase: "idle" });
+    const login = { phase: "waiting", url: "https://claude.ai/oauth/authorize?x" } as const;
+    const s = reduce(emptyState(), { t: "auth.login", login });
+    expect(forProject(s, "p").login).toEqual(login);
   });
 });

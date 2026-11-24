@@ -23,7 +23,7 @@ export function chipLabel(s: AuthStatus | null): string {
 /** The chip's tooltip: the full details, and the login expiry once it's close. */
 export function chipTitle(s: AuthStatus | null, now: number): string {
   if (!s) return "Checking the Claude sign-in…";
-  if (s.state === "signedOut") return "Not signed in to Claude: squadmates can't start. Click for help.";
+  if (s.state === "signedOut") return "Not signed in to Claude: squadmates can't start. Click to sign in.";
   if (s.state === "unknown") return "Couldn't read the Claude sign-in. Click for help.";
   const parts = [s.email, s.organization, s.method].filter((p): p is string => Boolean(p));
   if (s.expiresAt !== undefined && s.expiresAt - now < EXPIRY_WARN_DAYS * DAY_MS) {

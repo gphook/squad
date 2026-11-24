@@ -7,6 +7,9 @@ import type { FastifyInstance } from "fastify";
 import type { ServerMsg } from "@squad/shared";
 import { buildApp } from "../src/app.ts";
 import { UpdateNotice } from "../src/updateCheck.ts";
+import { ClaudeLogin } from "../src/claudeLogin.ts";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { Store } from "../src/store.ts";
 import { Supervisor } from "../src/supervisor.ts";
 import { PlanUsageTracker } from "../src/planUsage.ts";
@@ -24,6 +27,7 @@ let port: number, projectId: string, agentId: string, folder: string;
 let plugins: PluginService;
 let signin: SignIn, cookies: Record<string, string>;
 let update: UpdateNotice;
+let login: ClaudeLogin, loginInput: string[];
 const open: WebSocket[] = [];
 
 beforeEach(async () => {
@@ -40,7 +44,20 @@ beforeEach(async () => {
   plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
   signin = createSignIn(store, { dev: false });
   update = new UpdateNotice();
-  app = buildApp({ store, supervisor: sup, signin, plan, plugins, update });
+  loginInput = [];
+  login = new ClaudeLogin({
+    finished: async () => {},
+    signOut: async () => {},
+    spawn: () => {
+      const child = Object.assign(new EventEmitter(), {
+        stdout: new PassThrough(), stderr: new PassThrough(), kill: () => true,
+        stdin: { write: (s: string) => loginInput.push(s), end: () => {} },
+      });
+      setImmediate(() => child.stdout.write("visit:\nhttps://claude.ai/oauth/authorize?x\nPaste code here if prompted > "));
+      return child;
+    },
+  });
+  app = buildApp({ store, supervisor: sup, signin, plan, plugins, update, login });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
   cookies = signedInCookie(signin, port);
@@ -325,6 +342,25 @@ describe("websocket", () => {
     const c = await connect();
     send(c.ws, { t: "auth.check" });
     expect(await c.next("auth")).toMatchObject({ status: { state: "unknown" } });
+  });
+
+  it("runs a Claude sign-in for every page: the link out, a pasted code in", async () => {
+    const a = await connect();
+    const b = await connect();
+    send(a.ws, { t: "auth.login", method: "claudeai" });
+    const waiting = (m: ServerMsg) => m.t === "auth.login" && m.login.phase === "waiting";
+    const nextWaiting = async (c: Awaited<ReturnType<typeof connect>>) => {
+      while (!c.msgs.some(waiting)) await tick();
+      return c.msgs.find(waiting);
+    };
+    expect(await nextWaiting(b)).toEqual({ t: "auth.login", login: { phase: "waiting", url: "https://claude.ai/oauth/authorize?x" } });
+    send(b.ws, { t: "auth.code", code: "abc" });
+    while (!loginInput.length) await tick();
+    expect(loginInput).toEqual(["abc\n"]);
+    const late = await connect();
+    expect(await late.next("auth.login")).toEqual({ t: "auth.login", login: { phase: "verifying", url: "https://claude.ai/oauth/authorize?x" } });
+    send(a.ws, { t: "auth.cancel" });
+    while (!a.msgs.some((m) => m.t === "auth.login" && m.login.phase === "idle")) await tick();
   });
 
   it("saves and broadcasts a layout in the current shape, whatever the page sent", async () => {

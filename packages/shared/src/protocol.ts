@@ -3,7 +3,7 @@ import type { PlanUsage } from "./usage.ts";
 import type { SlashCommandInfo } from "./commands.ts";
 import type { AvailablePlugin, InstalledPlugin, Marketplace, PluginSwitch } from "./plugins.ts";
 import type {
-  Agent, AuthStatus, ModelOption, AgentEvent, AgentState, Approval, Layout, LoggedMessage, Project, SharedFile,
+  Agent, AuthStatus, LoginState, ModelOption, AgentEvent, AgentState, Approval, Layout, LoggedMessage, Project, SharedFile,
 } from "./model.ts";
 import {
   AGENT_ACTIONS, AGENT_NAME_RE, EFFORT_LEVELS, APPROVAL_DECISIONS, PERMISSION_MODES, SLOT_ORDER,
@@ -64,6 +64,11 @@ const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("agent.shellKill"), agentId: id, id }),
   z.object({ t: z.literal("models.get") }),
   z.object({ t: z.literal("auth.check") }),
+  /** Sign in to Claude (or switch account) by running `claude auth login`; `auth.code` passes the code claude.ai shows. */
+  z.object({ t: z.literal("auth.login"), method: z.enum(["claudeai", "console", "sso"]) }),
+  z.object({ t: z.literal("auth.code"), code: z.string().min(1).max(4096) }),
+  z.object({ t: z.literal("auth.cancel") }),
+  z.object({ t: z.literal("auth.logout") }),
   z.object({ t: z.literal("approval.answer"), approvalId: id, decision: z.enum(APPROVAL_DECISIONS) }),
   z.object({ t: z.literal("layout.save"), projectId: id, layout }),
   z.object({ t: z.literal("share.delete"), shareId: id }),
@@ -102,6 +107,7 @@ export type ServerMsg =
   | { t: "usage.plan"; plan: PlanUsage }
   | { t: "models"; models: ModelOption[] | null }
   | { t: "auth"; status: AuthStatus }
+  | { t: "auth.login"; login: LoginState }
   | { t: "error"; message: string }
   | { t: "plugins"; projectId: string; installed: InstalledPlugin[]; marketplaces: Marketplace[]; switches: PluginSwitch[]; available: number }
   | { t: "plugins.results"; query: string; marketplace: string | null; total: number; items: AvailablePlugin[] }
