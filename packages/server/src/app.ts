@@ -17,6 +17,7 @@ import { shareDir } from "./paths.ts";
 import type { PlanUsageTracker } from "./planUsage.ts";
 import type { ModelCatalog } from "./models.ts";
 import type { AuthTracker } from "./auth.ts";
+import type { UpdateInfo, UpdateNotice } from "./updateCheck.ts";
 import { resolveInside } from "./safePath.ts";
 import { registerSignInRoutes, type SignIn } from "./signin/index.ts";
 import type { Store } from "./store.ts";
@@ -32,9 +33,9 @@ const MIME: Record<string, string> = {
 
 export function buildApp(opts: {
   store: Store; supervisor: Supervisor; signin: SignIn; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker;
-  plugins?: PluginService;
+  plugins?: PluginService; update?: UpdateNotice;
 }): FastifyInstance {
-  const { store, supervisor: sup, signin, plan, models, auth, plugins } = opts;
+  const { store, supervisor: sup, signin, plan, models, auth, plugins, update } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
@@ -76,6 +77,7 @@ export function buildApp(opts: {
   sup.on("share", (p, share) => broadcast(p, { t: "share.added", share }));
   sup.on("shareRemoved", (p, shareId) => broadcast(p, { t: "share.removed", shareId }));
   auth?.on("change", (status) => broadcast(null, { t: "auth", status }));
+  update?.on("change", (info: UpdateInfo) => broadcast(null, { t: "update", ...info }));
   if (plan) {
     plan.on("change", (p) => broadcast(null, { t: "usage.plan", plan: p }));
     sup.on("rateLimit", (info) => plan.applyRateLimit(info));
@@ -219,6 +221,7 @@ export function buildApp(opts: {
       out(ws, { t: "projects", projects: store.listProjects() });
       if (plan?.current) out(ws, { t: "usage.plan", plan: plan.current });
       if (auth?.current) out(ws, { t: "auth", status: auth.current });
+      if (update?.current) out(ws, { t: "update", ...update.current });
       if (sockets.size === 1) void auth?.refresh(); // someone may have signed in or out while nobody was looking
       if (sockets.size === 1 && plan) {
         // The limits are only worth polling while someone is looking; the reading may be hours old by now.

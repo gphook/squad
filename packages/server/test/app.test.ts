@@ -6,6 +6,7 @@ import WebSocket from "ws";
 import type { FastifyInstance } from "fastify";
 import type { ServerMsg } from "@squad/shared";
 import { buildApp } from "../src/app.ts";
+import { UpdateNotice } from "../src/updateCheck.ts";
 import { Store } from "../src/store.ts";
 import { Supervisor } from "../src/supervisor.ts";
 import { PlanUsageTracker } from "../src/planUsage.ts";
@@ -22,6 +23,7 @@ let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fa
 let port: number, projectId: string, agentId: string, folder: string;
 let plugins: PluginService;
 let signin: SignIn, cookies: Record<string, string>;
+let update: UpdateNotice;
 const open: WebSocket[] = [];
 
 beforeEach(async () => {
@@ -37,7 +39,8 @@ beforeEach(async () => {
   plan = new PlanUsageTracker({ queryFactory: f.factory, source: () => null, probeCwd: process.env.SQUAD_HOME });
   plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
   signin = createSignIn(store, { dev: false });
-  app = buildApp({ store, supervisor: sup, signin, plan, plugins });
+  update = new UpdateNotice();
+  app = buildApp({ store, supervisor: sup, signin, plan, plugins, update });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
   cookies = signedInCookie(signin, port);
@@ -308,6 +311,14 @@ describe("websocket", () => {
     const c = await connect();
     send(c.ws, { t: "models.get" });
     expect(await c.next("models")).toMatchObject({ models: null });
+  });
+
+  it("tells open and newly opened pages about a newer version", async () => {
+    const c = await connect();
+    update.set({ latest: "9.0.0", current: "0.1.0" });
+    expect(await c.next("update")).toEqual({ t: "update", latest: "9.0.0", current: "0.1.0" });
+    const late = await connect();
+    expect(await late.next("update")).toEqual({ t: "update", latest: "9.0.0", current: "0.1.0" });
   });
 
   it("answers auth.check, as unknown without a tracker", async () => {

@@ -57,6 +57,12 @@
   <button class="icon" class:on={ui.view === "shares"} aria-pressed={ui.view === "shares"}
     aria-label="Shared files" title="Shared files" onclick={() => toggleView("shares")}><Icon name="files" /></button>
   <button class="icon" aria-label={themeLabel} title={themeLabel} onclick={cycleTheme}><Icon name={theme} /></button>
+  {#if ui.update}
+    <span class="update" role="status" title="You have {ui.update.current}. Run npx @gphook/squad@latest to update.">
+      Update available: {ui.update.latest} <code>npx @gphook/squad@latest</code>
+      <button class="dismiss" aria-label="Dismiss update notice" onclick={() => (ui.update = null)}>×</button>
+    </span>
+  {/if}
   {#if !ui.connected}<span class="offline" role="status">Reconnecting…</span>{/if}
 </header>
 
@@ -67,4 +73,7 @@
   .on { background: var(--accent); color: var(--on-accent); }
   .icon { display: inline-grid; place-items: center; width: 32px; height: 30px; padding: 0; }
   .offline { color: var(--bad); font-size: 12px; }
+  .update { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .update code { font-size: 11px; }
+  .dismiss { padding: 0 6px; }
 </style>
