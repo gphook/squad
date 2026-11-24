@@ -8,7 +8,8 @@ export interface SlashCommandInfo {
 
 /** Commands Squad runs itself, so the SDK session never changes behind Squad's back. */
 export const SQUAD_COMMANDS: SlashCommandInfo[] = [
-  { name: "clear", description: "Start a fresh session (Squad's Clear)", argumentHint: "" },
+  // Claude Code's own aliases, so they reach Squad's Clear even before the session has listed its commands.
+  { name: "clear", description: "Start a fresh session (Squad's Clear)", argumentHint: "", aliases: ["reset", "new"] },
   { name: "exit", description: "Stop this squadmate (Squad's Stop)", argumentHint: "", aliases: ["quit"] },
 ];
 
@@ -22,6 +23,12 @@ export const UNAVAILABLE_COMMANDS: Record<string, string> = {
   config: "isn't available in Squad.",
   model: "isn't available in Squad. Set the model in the squadmate's settings.",
 };
+
+/** Claude Code's aliases for the commands above, known before the session has listed its commands. */
+const UNAVAILABLE_ALIASES: Record<string, string> = { settings: "config" };
+
+/** True when `name` is one of the commands Squad answers with a notice (own keys only, so `constructor` isn't). */
+export const isUnavailableCommand = (name: string) => Object.hasOwn(UNAVAILABLE_COMMANDS, name);
 
 // A name can't contain `/`, so a message starting with a path is just a message.
 const COMMAND_RE = /^\/([A-Za-z0-9][\w:.-]*)(?:\s+([\s\S]*))?$/;
@@ -38,9 +45,9 @@ export type CommandRoute = { kind: "clear" } | { kind: "stop" } | { kind: "notic
 export function routeCommand(name: string, sdkCommands: SlashCommandInfo[]): CommandRoute {
   // A command's own name wins over another's alias, as in Claude Code.
   const all = [...SQUAD_COMMANDS, ...sdkCommands];
-  const resolved = all.some((c) => c.name === name) ? name : (all.find((c) => c.aliases?.includes(name))?.name ?? name);
+  const resolved = all.some((c) => c.name === name) ? name
+    : (all.find((c) => c.aliases?.includes(name))?.name ?? (Object.hasOwn(UNAVAILABLE_ALIASES, name) ? UNAVAILABLE_ALIASES[name] : name));
   if (resolved === "clear") return { kind: "clear" };
   if (resolved === "exit") return { kind: "stop" };
-  const notice = UNAVAILABLE_COMMANDS[resolved];
-  return notice ? { kind: "notice", text: `/${resolved} ${notice}` } : { kind: "sdk" };
+  return isUnavailableCommand(resolved) ? { kind: "notice", text: `/${resolved} ${UNAVAILABLE_COMMANDS[resolved]}` } : { kind: "sdk" };
 }
