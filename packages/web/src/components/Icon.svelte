@@ -20,6 +20,11 @@
     lock: ["M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z", "M8 11V8a4 4 0 0 1 8 0v3"],
     maximise: ["M4 9V4h5", "M20 9V4h-5", "M4 15v5h5", "M20 15v5h-5"],
     restore: ["M9 4v5H4", "M15 4v5h5", "M9 20v-5H4", "M15 20v-5h5"],
+    launch: ["M7 4.5v15l12-7.5z"],
+    clear: [
+      "M14.6 4.4l5 5a1.4 1.4 0 0 1 0 2L12 19H8l-3.6-3.6a1.4 1.4 0 0 1 0-2l8.2-9a1.4 1.4 0 0 1 2 0z",
+      "M9 9.5l5.5 5.5", "M12 19h8",
+    ],
   } as const;
   export type IconName = keyof typeof PATHS;
 </script>

@@ -72,12 +72,14 @@
       {#if agentState.error}<span class="errtxt" title={agentState.error}>{agentState.error}</span>{/if}
       <span class="grow"></span>
       {#if agentState.status === "stopped" || agentState.status === "error"}
-        <button onclick={() => act("launch")}>Launch</button>
+        <button class="icon" aria-label={`Launch ${agent.name}`} title="Launch"
+          onclick={() => act("launch")}><Icon name="launch" size={15} /></button>
       {:else}
         <button onclick={() => act("compact")}>Compact</button>
         <button onclick={() => act("stop")}>Stop</button>
       {/if}
-      <button onclick={() => act("clear")}>Clear</button>
+      <button class="icon" aria-label={`Clear ${agent.name}`} title="Clear (start fresh)"
+        onclick={() => act("clear")}><Icon name="clear" size={15} /></button>
       {#if onmaximise}
         <button class="icon" aria-label={maximised ? "Restore tiles" : `Maximise ${agent.name}`} title={maximised ? "Restore tiles" : "Maximise"}
           onclick={onmaximise}><Icon name={maximised ? "restore" : "maximise"} size={15} /></button>
