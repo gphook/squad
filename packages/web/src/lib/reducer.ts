@@ -2,7 +2,7 @@ import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
   type AuthStatus, type LoginState, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
-  type AvailablePlugin, type InstalledPlugin,
+  type AvailablePlugin, type InstalledPlugin, type ConnectorLogin, type ConnectorView,
 } from "@squad/shared";
 import { pruneLayout } from "./layout.ts";
 
@@ -33,6 +33,11 @@ export interface UiState {
   auth: AuthStatus | null;
   /** A Claude sign-in Squad is running (any page may have started it). */
   login: LoginState;
+  /** The user's connectors (machine-wide); null until the server says. */
+  connectors: ConnectorView[] | null;
+  /** A connector sign-in Squad is running (any page may have started it). */
+  connectorLogin: ConnectorLogin;
+  connectorError: string | null;
   error: string | null;
 }
 
@@ -40,13 +45,15 @@ export function emptyState(): UiState {
   return {
     projects: [], projectId: null, agents: [], states: {}, events: {}, commands: {},
     plugins: null, pluginResults: null, pluginDetails: null, pluginError: null, pluginRestarts: [],
-    approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, login: { phase: "idle" }, error: null,
+    approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, login: { phase: "idle" },
+    connectors: null, connectorLogin: { phase: "idle" }, connectorError: null, error: null,
   };
 }
 
 /** Fresh state for another project, keeping what isn't tied to a project. */
 export function forProject(s: UiState, projectId: string): UiState {
-  return { ...emptyState(), projects: s.projects, plan: s.plan, models: s.models, auth: s.auth, login: s.login, projectId };
+  return { ...emptyState(), projects: s.projects, plan: s.plan, models: s.models, auth: s.auth, login: s.login,
+    connectors: s.connectors, connectorLogin: s.connectorLogin, connectorError: s.connectorError, projectId };
 }
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
@@ -147,6 +154,12 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, auth: m.status };
     case "auth.login":
       return { ...s, login: m.login };
+    case "connectors":
+      return { ...s, connectors: m.connectors, connectorError: null };
+    case "connector.login":
+      return { ...s, connectorLogin: m.login, connectorError: null };
+    case "connector.error":
+      return { ...s, connectorError: m.message };
     case "models":
       return { ...s, models: m.models };
     case "usage.plan":

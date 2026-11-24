@@ -1,6 +1,7 @@
 <script lang="ts">
   import { marketplaceSourceError } from "@squad/shared";
   import { send, ui } from "../../lib/state.svelte.ts";
+  import ConnectorsPanel from "./ConnectorsPanel.svelte";
 
   const data = $derived(ui.s.plugins!);
   let source = $state("");
@@ -32,6 +33,8 @@
     send({ t: "marketplace.add", source: source.trim() });
   }
 </script>
+
+<ConnectorsPanel />
 
 <p class="explain">Marketplaces are shared with your terminal: adding one here adds it for Claude Code everywhere on this machine.</p>
 
