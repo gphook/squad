@@ -74,6 +74,13 @@
   command has to be installed from the terminal.
 - **Marketplaces**: Anthropic's, your own and any you add (GitHub repo, URL or path); Update and Remove. Shared with
   your terminal.
+- **Connectors** (top of the Marketplaces tab): sign git in to GitHub or GitLab, hosted or self-hosted, so private
+  marketplaces can be added and kept up to date. Add as many connectors as you like from the GitHub and GitLab
+  templates, one per host. Sign-in drives the host's own CLI (`gh` or `glab`): Squad shows the one-time code and link
+  for github.com, GitHub Enterprise and gitlab.com, and asks for an access token for self-managed GitLab (passed
+  straight to `glab`, never stored by Squad). Tokens live in your OS keyring and git uses them through the CLI's
+  credential helper. Hosts `gh`/`glab` were already signed in to appear on first run. A marketplace that fails to
+  authenticate points at the connector it needs. Other hosts: request a connector on GitHub.
 
 ### Messages
 - Log of agent-to-agent messages across the project, filterable by agent.
