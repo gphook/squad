@@ -3,8 +3,9 @@ import { flushSync, mount, unmount } from "svelte";
 import type { ServerMsg, SignInOverview } from "@squad/shared";
 
 let deliver: (m: ServerMsg) => void = () => {};
+const stop = vi.fn();
 vi.mock("../src/lib/ws.ts", () => ({
-  connect: (h: { onMsg: (m: ServerMsg) => void }) => { deliver = h.onMsg; return { send: () => {} }; },
+  connect: (h: { onMsg: (m: ServerMsg) => void }) => { deliver = h.onMsg; return { send: () => {}, stop }; },
 }));
 
 const key = (id: string, name: string) => ({ id, name, createdAt: 1_700_000_000_000, lastUsedAt: null });
@@ -28,6 +29,8 @@ const { default: SignInView } = await import("../src/components/SignInView.svelt
 let cleanup: (() => void)[] = [];
 beforeEach(async () => {
   data = { passkeys: [key("k1", "Laptop"), key("k2", "Phone")], sessions: [sess("s1", true), sess("s2", false, "restart")] };
+  stop.mockClear();
+  ui.view = "signin";
   Object.values(api).forEach((f) => f.mockClear());
   await start();
 });
@@ -84,5 +87,41 @@ describe("Sign-in view", () => {
     await render();
     for (let i = 0; i < 5; i++) { deliver({ t: "agent.event", agentId: "a", event: { kind: "text_delta", text: "x" } }); flushSync(); }
     expect(api.overview).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the socket and leaves the Sign-in view when this browser signs out", async () => {
+    const t = await render();
+    button(t, "Revoke Browser s1").click();
+    await vi.waitFor(() => expect(ui.session?.signedIn).toBe(false));
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(ui.view).toBe("chat");
+  });
+
+  it("Sign out everywhere asks first, then signs this browser out", async () => {
+    const t = await render();
+    const signOutBtn = [...t.querySelectorAll("button")].find((b) => b.textContent === "Sign out everywhere")!;
+    vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+    signOutBtn.click();
+    await Promise.resolve();
+    expect(api.signOutEverywhere).not.toHaveBeenCalled();
+    expect(ui.session?.signedIn).toBe(true);
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    signOutBtn.click();
+    await vi.waitFor(() => expect(ui.session?.signedIn).toBe(false));
+    expect(api.signOutEverywhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("a 401 on refetch signs this browser out", async () => {
+    api.overview.mockRejectedValueOnce(Object.assign(new Error("Request failed (401)"), { status: 401 }));
+    await render().catch(() => {});
+    await vi.waitFor(() => expect(ui.session?.signedIn).toBe(false));
+  });
+
+  it("a 401 from a manage call signs this browser out instead of showing an error", async () => {
+    const t = await render();
+    api.deletePasskey.mockRejectedValueOnce(Object.assign(new Error("Request failed (401)"), { status: 401 }));
+    button(t, "Delete Phone").click();
+    await vi.waitFor(() => expect(ui.session?.signedIn).toBe(false));
+    expect(t.querySelector("[role=alert]")).toBeNull();
   });
 });
