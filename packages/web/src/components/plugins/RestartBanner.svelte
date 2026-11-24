@@ -6,16 +6,18 @@
   const states = $derived(ui.s.states);
   const isWorking = (id: string) => ["working", "awaiting"].includes(states[id]?.status ?? "");
   /** Working squadmates waiting on "Restart anyway". */
-  let asking = $state<{ agentId: string; name: string }[]>([]);
+  let askingFor = $state<{ agentId: string; name: string }[]>([]);
+  // Only those still needing a restart: one that stopped meanwhile drops out of the question.
+  const asking = $derived(askingFor.filter((a) => restarts.some((r) => r.agentId === a.agentId)));
 
   const restart = (id: string) => send({ t: "agent.action", agentId: id, action: "restart" });
   function ask(list: { agentId: string; name: string }[]) {
     for (const a of list.filter((a) => !isWorking(a.agentId))) restart(a.agentId);
-    asking = list.filter((a) => isWorking(a.agentId));
+    askingFor = list.filter((a) => isWorking(a.agentId));
   }
   function confirmAsked() {
     for (const a of asking) restart(a.agentId);
-    asking = [];
+    askingFor = [];
   }
   const askedText = $derived(
     asking.length === 1
@@ -37,7 +39,7 @@
     {#if asking.length}
       <div class="confirm" role="alertdialog" aria-label="Confirm restart">
         <span>{askedText}</span>
-        <button type="button" onclick={() => (asking = [])}>Cancel</button>
+        <button type="button" onclick={() => (askingFor = [])}>Cancel</button>
         <button type="button" class="danger" onclick={confirmAsked}>Restart anyway</button>
       </div>
     {/if}

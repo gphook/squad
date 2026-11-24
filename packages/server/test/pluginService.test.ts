@@ -147,6 +147,7 @@ describe("PluginService caching, pruning and launch sets", () => {
     source.installs = () => Promise.reject(new Error("CLI broke"));
     await expect(cached.launchSet(a)).rejects.toThrow("CLI broke");
     source.installs = orig;
+    now = 5_001;
     await expect(cached.launchSet(a)).resolves.toBeTruthy();
   });
 
@@ -171,5 +172,55 @@ describe("PluginService caching, pruning and launch sets", () => {
     const { sameLaunch } = await import("../src/plugins/service.ts");
     expect(sameLaunch({ paths: ["a", "b"], off: [] }, { paths: ["b", "a"], off: [] })).toBe(true);
     expect(sameLaunch({ paths: ["a"], off: [] }, { paths: ["a"], off: ["x"] })).toBe(false);
+  });
+});
+
+describe("PluginService review fixes", () => {
+  let source: FakePluginSource, now: number, svc2: PluginService;
+  beforeEach(() => {
+    source = new FakePluginSource({ delayMs: 0 });
+    now = 0;
+    svc2 = new PluginService(source, store, kit, { now: () => now });
+  });
+
+  it("counts a plugin the squadmate's own folder switches on: no second load, and Squad's off reaches it", async () => {
+    // Squadmate a's folder is /tmp.
+    source.installs = async () => [{ id: "loc@m", scope: "local", enabled: true, installPath: "/c/loc", projectPath: "/tmp", version: "1" }];
+    store.setPluginSwitch(p, "loc@m", null, true);
+    expect(await svc2.launchSet(a)).toEqual({ paths: [], off: [] });
+    store.setPluginSwitch(p, "loc@m", a, false);
+    expect(await svc2.launchSet(a)).toEqual({ paths: [], off: ["loc@m"] });
+  });
+
+  it("keeps a switch made while an older plugin list was still being fetched", async () => {
+    let release!: () => void;
+    const orig = source.installed.bind(source);
+    const before = await orig();
+    source.installed = () => new Promise((r) => { release = () => r(before); });
+    const slow = svc2.snapshot(p);
+    source.installed = orig;
+    await svc2.install(p, FD, a);
+    release();
+    await slow;
+    expect(store.listPluginSwitches(p)).toEqual([{ pluginId: FD, agentId: a, enabled: true }]);
+  });
+
+  it("doesn't wipe the switches when the plugin list comes back empty", async () => {
+    store.setPluginSwitch(p, "superpowers@claude-plugins-official", a, false);
+    source.installed = async () => [];
+    await svc2.snapshot(p);
+    expect(store.listPluginSwitches(p)).toHaveLength(1);
+  });
+
+  it("remembers a failed plugin list for 5 seconds instead of asking again for every squadmate", async () => {
+    let calls = 0;
+    source.installs = () => { calls++; return Promise.reject(new Error("CLI broke")); };
+    await expect(svc2.launchSet(a)).rejects.toThrow("CLI broke");
+    now = 4_000;
+    await expect(svc2.launchSet(a)).rejects.toThrow("CLI broke");
+    expect(calls).toBe(1);
+    now = 5_001;
+    await expect(svc2.launchSet(a)).rejects.toThrow("CLI broke");
+    expect(calls).toBe(2);
   });
 });

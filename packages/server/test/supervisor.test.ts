@@ -556,6 +556,11 @@ describe("plugins and restarts", () => {
     expect(await sup.pendingRestarts(project.id)).toEqual([]);
   });
 
+  it("won't start a stopped squadmate when asked to restart it", async () => {
+    await sup.action(a.id, "restart");
+    expect(f.queries).toHaveLength(0);
+  });
+
   it("says when a squadmate starts or stops, so pages can update the banner", async () => {
     const seen: string[] = [];
     sup.on("pluginsChanged", (p: string) => seen.push(p));
