@@ -5,6 +5,7 @@ import type { AvailablePlugin, InstalledPlugin, Marketplace, PluginSwitch } from
 import type {
   Agent, AuthStatus, LoginState, ModelOption, AgentEvent, AgentState, Approval, Layout, LoggedMessage, Project, SharedFile,
 } from "./model.ts";
+import { CONNECTOR_TEMPLATES, type ConnectorLogin, type ConnectorView } from "./connectors.ts";
 import {
   AGENT_ACTIONS, AGENT_NAME_RE, EFFORT_LEVELS, APPROVAL_DECISIONS, PERMISSION_MODES, SLOT_ORDER,
 } from "./model.ts";
@@ -84,6 +85,16 @@ const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("marketplace.add"), source: z.string() }),
   z.object({ t: z.literal("marketplace.remove"), name: id }),
   z.object({ t: z.literal("marketplace.update"), name: id }),
+  z.object({ t: z.literal("connectors.get") }),
+  z.object({ t: z.literal("connector.add"), template: z.enum(CONNECTOR_TEMPLATES), name: z.string().max(100), host: z.string().max(300) }),
+  z.object({ t: z.literal("connector.rename"), id, name: z.string().max(100) }),
+  /** `signOut`: also sign the host's CLI out. */
+  z.object({ t: z.literal("connector.remove"), id, signOut: z.boolean() }),
+  z.object({ t: z.literal("connector.login"), id }),
+  /** An access token for a sign-in waiting on one; it goes to the host's CLI and nowhere else. */
+  z.object({ t: z.literal("connector.token"), token: z.string().min(1).max(4096) }),
+  z.object({ t: z.literal("connector.cancel") }),
+  z.object({ t: z.literal("connector.signOut"), id }),
 ]);
 
 export type ClientMsg = z.infer<typeof clientMsg>;
@@ -108,6 +119,9 @@ export type ServerMsg =
   | { t: "models"; models: ModelOption[] | null }
   | { t: "auth"; status: AuthStatus }
   | { t: "auth.login"; login: LoginState }
+  | { t: "connectors"; connectors: ConnectorView[] }
+  | { t: "connector.login"; login: ConnectorLogin }
+  | { t: "connector.error"; message: string }
   | { t: "error"; message: string }
   | { t: "plugins"; projectId: string; installed: InstalledPlugin[]; marketplaces: Marketplace[]; switches: PluginSwitch[]; available: number }
   | { t: "plugins.results"; query: string; marketplace: string | null; total: number; items: AvailablePlugin[] }

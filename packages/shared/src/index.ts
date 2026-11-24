@@ -5,3 +5,4 @@ export * from "./shell.ts";
 export * from "./commands.ts";
 export * from "./plugins.ts";
 export * from "./signin.ts";
+export * from "./connectors.ts";
