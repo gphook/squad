@@ -11,7 +11,8 @@ export interface GateInput {
 }
 export type GateResult = { ok: true } | { ok: false; status: 403 | 421; error: string } | { redirect: string };
 
-const DEV_PORT = 5173;
+/** The Vite dev server port: in dev the UI, and its proxied requests, come from here. */
+export const DEV_PORT = 5173;
 
 const pathname = (path: string): string => path.split(/[?#]/, 1)[0]!;
 
