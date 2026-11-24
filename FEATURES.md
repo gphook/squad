@@ -37,6 +37,10 @@
 - Shell commands: `!cmd` asks the squadmate to run it with its Bash tool; `$ cmd` has Squad run it in your `$SHELL`
   (POSIX shells such as sh/bash/zsh/dash/ksh, fish, nushell or PowerShell; anything else falls back to `/bin/sh`) in the squadmate's folder, streamed live with a Kill button, and passed to the squadmate with your next message (or when
   it is summoned). Clear drops output it hasn't seen yet.
+- Slash commands: type `/` for a picker of the squadmate's commands (skills, plugins and built-ins); Tab completes,
+  Enter runs a command typed in full. Command output (`/context`, `/usage`, …) shows in the pane and after a reload.
+  `/clear` and `/exit` do what Clear and Stop do. Commands that need a terminal screen (`/config`, `/model`, and for
+  now `/plugin`, `/resume`, `/skills`) say so instead.
 - History restored after browser reload.
 - Images and links: local images from the agent's repo or share folder render inline
   (click to enlarge); `squad_show` tool lets an agent put an image or file in front of you;
