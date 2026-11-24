@@ -25,7 +25,8 @@
     try {
       await action();
     } catch (e) {
-      error = errorMessage(e);
+      if ((e as { status?: number }).status === 401) signedOutHere();
+      else error = errorMessage(e);
       return;
     }
     if (thenSignedOut) signedOutHere();

@@ -55,8 +55,10 @@ export function signedIn(): void {
 
 /** This browser's session is gone (revoked, expired or signed out): show the sign-in screen. */
 export function signedOutHere(): void {
+  conn?.stop();
   conn = null;
   ui.connected = false;
+  ui.view = "chat";
   ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: false };
 }
 

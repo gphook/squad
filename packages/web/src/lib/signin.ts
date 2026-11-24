@@ -42,7 +42,7 @@ async function manage(method: "PATCH" | "DELETE" | "POST", url: string, body?: u
   const r = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
   if (r.ok) return;
   const data = await r.json().catch(() => ({}));
-  throw new Error((data as { error?: string }).error ?? `Request failed (${r.status})`);
+  throw Object.assign(new Error((data as { error?: string }).error ?? `Request failed (${r.status})`), { status: r.status });
 }
 
 export async function overview(): Promise<SignInOverview> {
