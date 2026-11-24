@@ -59,6 +59,7 @@ export class ConnectorService extends EventEmitter {
     if (!store.connectorsSeeded()) {
       for (const t of Object.values(templates)) {
         for (const a of await t.accounts().catch(() => [])) {
+          if (connectorHostError(a.host)) continue; // only ever pass a bare host to a CLI
           if (store.listConnectors().some((c) => c.host === a.host)) continue;
           store.addConnector({ template: t.id, name: this.defaultName(t, a.host), host: a.host });
         }
@@ -125,17 +126,19 @@ export class ConnectorService extends EventEmitter {
   }
 
   async startLogin(id: string): Promise<void> {
-    this.stop();
     const c = this.find(id);
     const t = this.deps.templates[c.template];
-    if (!(await t.available().catch(() => false))) {
-      return this.set({ phase: "failed", id, message: `Install ${t.cli.label} first.` });
-    }
+    // Claim the flow before any await, so a second click, Cancel or Remove meanwhile supersedes this one.
+    this.stop();
+    const flow = this.flow;
+    const mine = () => this.flow === flow;
+    this.set({ phase: "starting", id });
+    const available = await t.available().catch(() => false);
+    if (!mine()) return;
+    if (!available) return this.set({ phase: "failed", id, message: `Install ${t.cli.label} first.` });
     const plan = t.signInPlan(c.host);
     if (plan.kind === "token") return this.set({ phase: "token", id, tokenUrl: plan.tokenUrl });
 
-    const flow = ++this.flow;
-    const mine = () => this.flow === flow;
     let child: LoginChild;
     try {
       child = this.spawnChild(t.cli.bin, plan.args, plan.env);
@@ -143,7 +146,6 @@ export class ConnectorService extends EventEmitter {
       return this.set({ phase: "failed", id, message: `Couldn't run ${t.cli.bin}: ${(err as Error).message}` });
     }
     this.child = child;
-    this.set({ phase: "starting", id });
     let output = "";
     const read = (chunk: Buffer | string) => {
       if (!mine()) return;

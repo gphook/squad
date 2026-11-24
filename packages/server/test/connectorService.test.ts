@@ -175,4 +175,25 @@ describe("ConnectorService", () => {
     expect(svc.hintFor("https://github.acme.com/a/b.git")).toBeNull();
     void c;
   });
+
+  it("runs one sign-in when Sign in is clicked twice, and Cancel works before the CLI starts", async () => {
+    const { svc, children, logins } = setup();
+    const c = await svc.add("github", "", "github.com");
+    await Promise.all([svc.startLogin(c.id), svc.startLogin(c.id)]);
+    expect(children.filter((ch) => !ch.killed)).toHaveLength(1);
+    svc.cancel();
+    const pending = svc.startLogin(c.id);
+    svc.cancel();
+    await pending;
+    expect(children.filter((ch) => !ch.killed)).toHaveLength(0);
+    expect(logins.at(-1)).toEqual({ phase: "idle" });
+  });
+
+  it("doesn't seed a host that isn't a valid hostname", async () => {
+    const { svc, github } = setup();
+    github.signedIn.set("-oProxyCommand=x", "evil");
+    github.signedIn.set("github.com", "gphook");
+    await svc.init();
+    expect(svc.list.map((c) => c.host)).toEqual(["github.com"]);
+  });
 });
