@@ -59,15 +59,18 @@ export class Supervisor extends EventEmitter {
   /** Running squadmates in the project whose plugins changed since they launched. */
   async pendingRestarts(projectId: string): Promise<{ agentId: string; name: string }[]> {
     if (!this.launchSet) return [];
-    const out: { agentId: string; name: string }[] = [];
-    for (const agent of this.store.listAgents(projectId)) {
+    const launchSet = this.launchSet;
+    // All at once, so they share one fetch of the plugin list.
+    const checked = await Promise.all(this.store.listAgents(projectId).map(async (agent) => {
       const launched = this.runners.get(agent.id)?.launchedPlugins;
-      if (!launched) continue;
+      if (!launched) return null;
       try {
-        if (!sameLaunch(launched, await this.launchSet(agent.id))) out.push({ agentId: agent.id, name: agent.name });
-      } catch {} // can't tell: don't nag
-    }
-    return out;
+        return sameLaunch(launched, await launchSet(agent.id)) ? null : { agentId: agent.id, name: agent.name };
+      } catch {
+        return null; // can't tell: don't nag
+      }
+    }));
+    return checked.filter((x) => x !== null);
   }
 
   /** Where the Claude account is read from; launches are refused while it says signed out. */
@@ -253,6 +256,7 @@ export class Supervisor extends EventEmitter {
       case "interrupt": return r.interrupt();
       case "compact": return r.compact();
       case "restart":
+        if (!r.running) return; // stopped since the banner was shown: don't start it
         await r.stop();
         return this.runner(agentId).launch(); // refreshed with the stored session id, so it resumes
       case "clear": {

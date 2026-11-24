@@ -20,16 +20,20 @@ export function sameLaunch(a: LaunchPlugins, b: LaunchPlugins): boolean {
 const AVAILABLE_TTL = 10 * 60_000;
 /** Installed list: a launch refreshes it when it's older than this (plugins switched in the terminal). */
 const LAUNCH_TTL = 30_000;
+/** A failed fetch: asked again after this long. */
+const FAILURE_TTL = 5_000;
 
 /** One cached fetch, shared by callers asking at once; a failed fetch isn't kept. */
 class Cache<T> {
-  private entry: { at: number; value: Promise<T> } | null = null;
+  private entry: { at: number; value: Promise<T>; failed: boolean } | null = null;
   constructor(private now: () => number) {}
   get(maxAge: number, fetch: () => Promise<T>): Promise<T> {
-    if (this.entry && this.now() - this.entry.at <= maxAge) return this.entry.value;
-    const entry = { at: this.now(), value: fetch() };
+    const e = this.entry;
+    if (e && this.now() - e.at <= (e.failed ? FAILURE_TTL : maxAge)) return e.value;
+    const entry = { at: this.now(), value: fetch(), failed: false };
     this.entry = entry;
-    entry.value.catch(() => { if (this.entry === entry) this.entry = null; });
+    // A failure is kept briefly, so a broken CLI isn't asked again for every squadmate at once.
+    entry.value.catch(() => { entry.failed = true; entry.at = this.now(); });
     return entry.value;
   }
   clear(): void {
@@ -76,16 +80,22 @@ export class PluginService {
     this.availableCache = new Cache(now);
   }
 
+  /** Bumped whenever the installed lists are dropped: a fetch begun before then is out of date. */
+  private generation = 0;
+
   private installedList(): Promise<InstalledPlugin[]> {
     return this.installedCache.get(Infinity, async () => {
+      const gen = this.generation;
       const list = await this.source.installed();
-      this.store.prunePluginSwitches(list.map((p) => p.id));
+      // Prune only from a current, non-empty list: an older one may predate an install whose switch was just stored.
+      if (gen === this.generation && list.length) this.store.prunePluginSwitches(list.map((p) => p.id));
       return list;
     });
   }
 
   /** Drops the installed lists, so the next request sees plugins changed in the terminal. */
   refresh(): void {
+    this.generation++;
     this.installedCache.clear();
     this.installsCache.clear();
   }
@@ -106,7 +116,9 @@ export class PluginService {
     const out: LaunchPlugins = { paths: [], off: [] };
     for (const id of new Set(rows.map((r) => r.id))) {
       if (id === SQUAD_KIT_ID) continue;
-      const terminal = rows.some((r) => r.id === id && (r.scope === "user" || r.scope === "synced") && r.enabled);
+      // Loaded without Squad: on in the terminal, or switched on by the squadmate's own folder.
+      const terminal = rows.some((r) => r.id === id && r.enabled
+        && (r.scope === "user" || r.scope === "synced" || r.projectPath === agent.folder));
       const plugin = { id, enabled: terminal } as InstalledPlugin;
       const { on } = effectiveSwitch(plugin, switches, agentId);
       if (on && !terminal) {

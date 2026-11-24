@@ -120,6 +120,15 @@ describe("Restart banner", () => {
     expect(restarts()).toEqual(["a", "b"]);
   });
 
+  it("drops a working squadmate from the question once it no longer needs a restart", () => {
+    setUp();
+    feed({ t: "plugins.restart", projectId: "p", agents: [{ agentId: "a", name: "Ana" }, { agentId: "b", name: "Ben" }] });
+    click("Restart Ben");
+    feed({ t: "plugins.restart", projectId: "p", agents: [{ agentId: "a", name: "Ana" }] });
+    expect(document.querySelector('[aria-label="Confirm restart"]')).toBeNull();
+    expect(restarts()).toEqual([]);
+  });
+
   it("Restart all restarts idle ones at once and asks once for the working ones", () => {
     setUp();
     feed({ t: "plugins.restart", projectId: "p", agents: [{ agentId: "a", name: "Ana" }, { agentId: "b", name: "Ben" }] });
