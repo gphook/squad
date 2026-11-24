@@ -40,8 +40,8 @@
 - Slash commands: type `/` for a picker of the squadmate's commands (skills, plugins and built-ins); Tab completes,
   Enter runs a command typed in full. Command output (`/context`, `/usage`, …) shows in the pane and after a reload.
   `/clear` and `/exit` do what Clear and Stop do, and `/skills` lists the squadmate's skills grouped by where they
-  come from. Commands that need a terminal screen (`/config`, `/model`, and for now `/plugin`, `/resume`) say so
-  instead.
+  come from. `/plugin` opens the Plugins view (below) with that squadmate picked. Commands that need a terminal screen
+  (`/config`, `/model`, and for now `/resume`) say so instead.
 - History restored after browser reload.
 - Images and links: local images from the agent's repo or share folder render inline
   (click to enlarge); `squad_show` tool lets an agent put an image or file in front of you;
@@ -56,6 +56,18 @@
   tiles in a column on the right. `Alt+N` swaps tile N into the maximised spot; with nothing maximised it moves the
   cursor to tile N.
 - Up to 10 tiles (slots 1–9, 0), stable numbering, opened via drag from the sidebar or menu.
+
+### Plugins
+- A Plugins view (top bar, or `/plugin` in a squadmate's prompt box) with three tabs. **For now it runs on made-up
+  plugin data**: the next pass wires it to Claude Code's real plugins and applies the switches to squadmates.
+- **Installed**: each plugin is on or off for the project, and each squadmate (picked from a drop-down) follows the
+  project or has its own setting. A project follows your terminal's on/off until you change it there. Squad's own
+  `squad-kit` is listed as Required. Details shows what a plugin contains and its token cost, with Update, Uninstall
+  (confirmed; it reaches your terminal too) and Follow terminal. The switches are saved in Squad, never in repos or
+  your Claude settings.
+- **Discover**: search every marketplace's plugins; Install for the picked squadmate, or ▾ for the entire squad.
+- **Marketplaces**: Anthropic's, your own and any you add (GitHub repo, URL or path); Update and Remove. Shared with
+  your terminal.
 
 ### Messages
 - Log of agent-to-agent messages across the project, filterable by agent.
