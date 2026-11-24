@@ -28,6 +28,9 @@ describe("parseClientMsg", () => {
     const m = parseClientMsg(JSON.stringify({ t: "agent.send", agentId: "a1", text: "hi" }));
     expect(m).toEqual({ t: "agent.send", agentId: "a1", text: "hi" });
   });
+  it("accepts the restart action", () => {
+    expect(parseClientMsg(JSON.stringify({ t: "agent.action", agentId: "a", action: "restart" }))).toMatchObject({ action: "restart" });
+  });
   it("rejects malformed JSON", () => {
     expect(parseClientMsg("{nope")).toHaveProperty("error");
   });

@@ -168,6 +168,45 @@ describe("websocket", () => {
     expect(c2.msgs.some((m) => m.t === "ui.open")).toBe(false);
   });
 
+  it("tells the project's pages who needs a restart after a switch", async () => {
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    send(c.ws, { t: "plugins.switch", projectId, pluginId: "superpowers@claude-plugins-official", agentId: null, enabled: false });
+    expect(await c.next("plugins.restart")).toEqual({ t: "plugins.restart", projectId, agents: [] });
+  });
+
+  it("tells every open project's pages after an install", async () => {
+    const otherId = store.saveProject({ name: "Q", rules: "", permissionMode: "default" }).id;
+    const c1 = await connect(), c2 = await connect();
+    send(c1.ws, { t: "subscribe", projectId }); await c1.next("state");
+    send(c2.ws, { t: "subscribe", projectId: otherId }); await c2.next("state");
+    send(c1.ws, { t: "plugins.install", projectId, pluginId: "frontend-design@claude-plugins-official", agentId: null });
+    expect(await c2.next("plugins.restart")).toEqual({ t: "plugins.restart", projectId: otherId, agents: [] });
+  });
+
+  it("tells the project's pages when a squadmate starts or stops", async () => {
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    await c.next("state");
+    sup.emit("pluginsChanged", projectId);
+    expect(await c.next("plugins.restart")).toEqual({ t: "plugins.restart", projectId, agents: [] });
+  });
+
+  it("says who needs a restart when the Plugins view asks", async () => {
+    const c = await connect();
+    send(c.ws, { t: "plugins.get", projectId });
+    expect(await c.next("plugins.restart")).toEqual({ t: "plugins.restart", projectId, agents: [] });
+  });
+
+  it("re-reads the installed plugins when the Plugins view asks", async () => {
+    const spy = vi.spyOn(plugins, "refresh");
+    const c = await connect();
+    send(c.ws, { t: "plugins.get", projectId });
+    await c.next("plugins");
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
   it("broadcasts status when a message is sent to an agent", async () => {
     const c = await connect();
     send(c.ws, { t: "subscribe", projectId });

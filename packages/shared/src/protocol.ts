@@ -107,6 +107,8 @@ export type ServerMsg =
   | { t: "plugins.results"; query: string; marketplace: string | null; total: number; items: AvailablePlugin[] }
   | { t: "plugins.details"; details: InstalledPlugin }
   | { t: "plugins.error"; action: string; message: string }
+  /** Running squadmates whose plugins changed since they launched; empty hides the Restart banner. */
+  | { t: "plugins.restart"; projectId: string; agents: { agentId: string; name: string }[] }
   /** Sent to the page that typed `/plugin`: open the Plugins view with that squadmate picked. */
   | { t: "ui.open"; view: "plugins"; agentId: string | null };
 
