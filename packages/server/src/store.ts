@@ -5,10 +5,19 @@ import { dirname } from "node:path";
 import {
   FIVE_HOUR_MS, SEVEN_DAY_MS, defaultLayout, normaliseLayout,
   type Activity, type ActivityInput, type Agent, type EffortLevel, type Layout, type LoggedMessage, type PermissionMode, type Project, type SharedFile, type UsageReport,
-  type PluginSwitch, type UsageTurnRow,
+  type PluginSwitch, type UsageTurnRow, type SessionKind,
 } from "@squad/shared";
 
 export class StoreError extends Error {}
+
+export interface PasskeyRow {
+  id: string; publicKey: Uint8Array; counter: number; transports: string[]; name: string;
+  createdAt: number; lastUsedAt: number | null;
+}
+export interface SessionRow {
+  idHash: string; kind: SessionKind; passkeyId: string | null; createdAt: number; lastUsedAt: number;
+  userAgent: string; label: string;
+}
 
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
@@ -52,7 +61,17 @@ CREATE TABLE IF NOT EXISTS plugin_switches (
 );
 CREATE TABLE IF NOT EXISTS usage_baselines (
   agent_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, totals TEXT NOT NULL
-);`;
+);CREATE TABLE IF NOT EXISTS passkeys (
+  id TEXT PRIMARY KEY, public_key BLOB NOT NULL, counter INTEGER NOT NULL, transports TEXT NOT NULL,
+  name TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  id_hash TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('remember','restart')),
+  passkey_id TEXT REFERENCES passkeys(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, user_agent TEXT NOT NULL, label TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS signin_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+`;
 
 type Row = Record<string, unknown>;
 
@@ -70,6 +89,15 @@ const readLayout = (json: string): Layout => {
 const toActivity = (r: Row): Activity => ({
   id: r.id as string, name: r.name as string, ownerId: (r.owner_id as string | null) ?? null,
   reviewerIds: JSON.parse(r.reviewer_ids as string), description: r.description as string,
+});
+const toPasskey = (r: Row): PasskeyRow => ({
+  id: r.id as string, publicKey: new Uint8Array(r.public_key as Uint8Array), counter: Number(r.counter),
+  transports: JSON.parse(r.transports as string), name: r.name as string, createdAt: Number(r.created_at),
+  lastUsedAt: r.last_used_at === null ? null : Number(r.last_used_at),
+});
+const toSession = (r: Row): SessionRow => ({
+  idHash: r.id_hash as string, kind: r.kind as SessionKind, passkeyId: (r.passkey_id as string | null) ?? null,
+  createdAt: Number(r.created_at), lastUsedAt: Number(r.last_used_at), userAgent: r.user_agent as string, label: r.label as string,
 });
 const nameKey = (name: string) => name.trim().toLowerCase();
 const toAgent = (r: Row): Agent => ({
@@ -299,6 +327,75 @@ export class Store {
 
   deletePluginSwitches(pluginId: string): void {
     this.db.prepare("DELETE FROM plugin_switches WHERE plugin_id = ?").run(pluginId);
+  }
+
+  addPasskey(p: Omit<PasskeyRow, "lastUsedAt">): void {
+    this.db.prepare("INSERT INTO passkeys (id, public_key, counter, transports, name, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(p.id, p.publicKey, p.counter, JSON.stringify(p.transports), p.name, p.createdAt);
+  }
+
+  getPasskey(id: string): PasskeyRow | null {
+    const r = this.db.prepare("SELECT * FROM passkeys WHERE id = ?").get(id) as Row | undefined;
+    return r ? toPasskey(r) : null;
+  }
+
+  listPasskeys(): PasskeyRow[] {
+    return (this.db.prepare("SELECT * FROM passkeys ORDER BY created_at, id").all() as Row[]).map(toPasskey);
+  }
+
+  passkeyUsed(id: string, counter: number, at: number): void {
+    this.db.prepare("UPDATE passkeys SET counter = ?, last_used_at = ? WHERE id = ?").run(counter, at, id);
+  }
+
+  renamePasskey(id: string, name: string): void {
+    this.db.prepare("UPDATE passkeys SET name = ? WHERE id = ?").run(name, id);
+  }
+
+  /** Deletes a passkey; its sessions go with it (foreign key cascade). */
+  deletePasskey(id: string): void {
+    this.db.prepare("DELETE FROM passkeys WHERE id = ?").run(id);
+  }
+
+  addSession(s: SessionRow): void {
+    this.db.prepare("INSERT INTO sessions (id_hash, kind, passkey_id, created_at, last_used_at, user_agent, label) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(s.idHash, s.kind, s.passkeyId, s.createdAt, s.lastUsedAt, s.userAgent, s.label);
+  }
+
+  getSession(idHash: string): SessionRow | null {
+    const r = this.db.prepare("SELECT * FROM sessions WHERE id_hash = ?").get(idHash) as Row | undefined;
+    return r ? toSession(r) : null;
+  }
+
+  touchSession(idHash: string, at: number): void {
+    this.db.prepare("UPDATE sessions SET last_used_at = ? WHERE id_hash = ?").run(at, idHash);
+  }
+
+  deleteSession(idHash: string): void {
+    this.db.prepare("DELETE FROM sessions WHERE id_hash = ?").run(idHash);
+  }
+
+  listSessions(): SessionRow[] {
+    return (this.db.prepare("SELECT * FROM sessions ORDER BY created_at, id_hash").all() as Row[]).map(toSession);
+  }
+
+  /** Deletes the sessions of one kind (or all) and returns their id hashes. */
+  deleteSessionsWhere(kind: SessionKind | "all"): string[] {
+    const where = kind === "all" ? "" : " WHERE kind = ?";
+    const args = kind === "all" ? [] : [kind];
+    return this.transaction(() => {
+      const ids = (this.db.prepare(`SELECT id_hash FROM sessions${where}`).all(...args) as Row[]).map((r) => r.id_hash as string);
+      this.db.prepare(`DELETE FROM sessions${where}`).run(...args);
+      return ids;
+    });
+  }
+
+  signinMeta(key: string): string | null {
+    const r = this.db.prepare("SELECT value FROM signin_meta WHERE key = ?").get(key) as Row | undefined;
+    return r ? (r.value as string) : null;
+  }
+
+  setSigninMeta(key: string, value: string): void {
+    this.db.prepare("INSERT OR REPLACE INTO signin_meta (key, value) VALUES (?, ?)").run(key, value);
   }
 
   saveLayout(projectId: string, layout: Layout): void {

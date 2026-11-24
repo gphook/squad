@@ -4,3 +4,4 @@ export * from "./usage.ts";
 export * from "./shell.ts";
 export * from "./commands.ts";
 export * from "./plugins.ts";
+export * from "./signin.ts";
