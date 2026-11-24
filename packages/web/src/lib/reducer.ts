@@ -2,6 +2,7 @@ import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
   type AuthStatus, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
+  type AvailablePlugin, type InstalledPlugin,
 } from "@squad/shared";
 import { pruneLayout } from "./layout.ts";
 
@@ -11,6 +12,12 @@ export interface UiState {
   agents: Agent[];
   states: Record<string, AgentState>;
   events: Record<string, AgentEvent[]>;
+  /** The current project's plugins, switches and marketplaces; null until the Plugins view asks. */
+  plugins: Omit<Extract<ServerMsg, { t: "plugins" }>, "t"> | null;
+  pluginResults: { query: string; marketplace: string | null; total: number; items: AvailablePlugin[] } | null;
+  pluginDetails: InstalledPlugin | null;
+  /** The last plugin action that failed; cleared by the next fresh snapshot. */
+  pluginError: { action: string; message: string } | null;
   /** Each squadmate's `/` commands, for the prompt box's picker. */
   commands: Record<string, SlashCommandInfo[]>;
   approvals: Approval[];
@@ -28,6 +35,7 @@ export interface UiState {
 export function emptyState(): UiState {
   return {
     projects: [], projectId: null, agents: [], states: {}, events: {}, commands: {},
+    plugins: null, pluginResults: null, pluginDetails: null, pluginError: null,
     approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, error: null,
   };
 }
@@ -93,8 +101,19 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, states: { ...s.states, [m.state.agentId]: m.state } };
     case "agent.event":
       return { ...s, events: { ...s.events, [m.agentId]: addEvent(s.events[m.agentId], m.event) } };
-    case "plugins": case "plugins.results": case "plugins.details": case "plugins.error": case "ui.open":
-      return s; // stored by the Plugins view's state (slash commands plan, pass A, Task 5)
+    case "plugins": {
+      if (m.projectId !== s.projectId) return s;
+      const { t: _, ...plugins } = m;
+      return { ...s, plugins, pluginError: null };
+    }
+    case "plugins.results":
+      return { ...s, pluginResults: { query: m.query, marketplace: m.marketplace, total: m.total, items: m.items } };
+    case "plugins.details":
+      return { ...s, pluginDetails: m.details };
+    case "plugins.error":
+      return { ...s, pluginError: { action: m.action, message: m.message } };
+    case "ui.open":
+      return s; // view state: handled in state.svelte.ts
     case "agent.commands":
       return { ...s, commands: { ...s.commands, [m.agentId]: m.commands } };
     case "agent.history": {

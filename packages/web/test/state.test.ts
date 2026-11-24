@@ -11,6 +11,22 @@ const subscribed = () =>
   });
 
 describe("reduce", () => {
+  const snapshot = (projectId: string) => ({ t: "plugins" as const, projectId, installed: [], marketplaces: [], switches: [], available: 30 });
+  it("keeps the plugins snapshot for the current project only, and forgets it for another project", () => {
+    let s = reduce(subscribed(), snapshot("other"));
+    expect(s.plugins).toBeNull();
+    s = reduce(s, snapshot("p"));
+    expect(s.plugins).toMatchObject({ available: 30 });
+    expect(forProject(s, "q").plugins).toBeNull();
+  });
+  it("keeps search results, details and the last plugin error", () => {
+    let s = reduce(subscribed(), { t: "plugins.results", query: "co", marketplace: null, total: 1, items: [] });
+    expect(s.pluginResults).toMatchObject({ query: "co", total: 1 });
+    s = reduce(s, { t: "plugins.error", action: "marketplace.add", message: "nope" });
+    expect(s.pluginError).toEqual({ action: "marketplace.add", message: "nope" });
+    s = reduce(s, snapshot("p"));
+    expect(s.pluginError).toBeNull();
+  });
   it("keeps each squadmate's commands, and forgets them for another project", () => {
     const c = { name: "context", description: "Show context usage", argumentHint: "" };
     const s = reduce(subscribed(), { t: "agent.commands", agentId: "a", commands: [c] });

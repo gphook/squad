@@ -18,7 +18,7 @@
   let { oneditproject }: { oneditproject: (p: Project | null) => void } = $props();
   const current = $derived(ui.s.projects.find((p) => p.id === ui.s.projectId) ?? null);
 
-  const toggleView = (v: "messages" | "shares") => (ui.view = ui.view === v ? "chat" : v);
+  const toggleView = (v: "messages" | "shares" | "plugins") => (ui.view = ui.view === v ? "chat" : v);
   const showUsage = () => (ui.view = "usage");
   const plan = $derived(ui.s.plan?.available ? ui.s.plan : null);
 
@@ -48,6 +48,8 @@
       {#if plan.sevenDay}<UsageRing label="7d" name="Weekly" window={plan.sevenDay} windowMs={SEVEN_DAY_MS} {now} onclick={showUsage} />{/if}
     </div>
   {/if}
+  <button class="icon" class:on={ui.view === "plugins"} aria-pressed={ui.view === "plugins"}
+    aria-label="Plugins" title="Plugins" onclick={() => toggleView("plugins")}><Icon name="plugins" /></button>
   <button class="icon" class:on={ui.view === "messages"} aria-pressed={ui.view === "messages"}
     aria-label="Messages" title="Messages between squadmates" onclick={() => toggleView("messages")}><Icon name="messages" /></button>
   <button class="icon" class:on={ui.view === "shares"} aria-pressed={ui.view === "shares"}

@@ -9,10 +9,12 @@ export const ui: {
   s: UiState;
   connected: boolean;
   keyExpired: boolean;
-  view: "chat" | "messages" | "shares" | "usage";
+  view: "chat" | "messages" | "shares" | "usage" | "plugins";
   focus: string | null;
   viewer: string | null;
-} = $state({ s: emptyState(), connected: false, keyExpired: false, view: "chat", focus: null, viewer: null });
+  /** The squadmate picked in the Plugins view; `/plugin` sets it to the squadmate it was typed in. */
+  pluginMate: string | null;
+} = $state({ s: emptyState(), connected: false, keyExpired: false, view: "chat", focus: null, viewer: null, pluginMate: null });
 
 let conn: ReturnType<typeof connect> | null = null;
 
@@ -28,6 +30,10 @@ export function start(): void {
   conn = connect({
     onMsg: (m) => {
       ui.s = reduce(ui.s, m);
+      if (m.t === "ui.open") {
+        ui.view = m.view;
+        ui.pluginMate = m.agentId;
+      }
       if (m.t === "projects" && !ui.s.projectId && m.projects.length) {
         const last = remembered();
         selectProject(m.projects.find((p) => p.id === last)?.id ?? m.projects[0].id);
