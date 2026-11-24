@@ -11,14 +11,29 @@ npm install
 npm test                                  # all workspaces
 npm run check                             # TypeScript + Svelte type checks
 npm run dev -w @squad/server              # server on 127.0.0.1:7340, restarts on change
-npm run dev -w @squad/web                 # UI on http://localhost:5173 (open the server's ?key= URL once first)
+npm run dev -w @squad/web                 # UI on http://localhost:5173 (works directly, no setup-link step)
 ```
 
 Use a scratch data folder while developing so you don't touch your real projects:
 
 ```bash
-SQUAD_HOME=/tmp/squad-dev SQUAD_KEY=dev npm run dev -w @squad/server
+SQUAD_HOME=/tmp/squad-dev npm run dev -w @squad/server
 ```
+
+The `dev` script sets `SQUAD_DEV=1`: Squad doesn't open a browser, prints the setup link when a passkey is needed, and
+"until restart" sessions survive restarts.
+
+### Browser checks
+
+To check the UI in a real browser (for example with the Playwright MCP), start a test Squad on its own port and data folder:
+
+```bash
+SQUAD_HOME=$(mktemp -d) SQUAD_PORT=7341 npm start -- --no-open
+```
+
+Read the setup link from its output, run `scripts/virtual-passkey.js` (it adds a virtual authenticator; use it as the body of
+Playwright MCP's `browser_run_code_unsafe`), open the link, then click **Create passkey**. Never point checks at your real
+Squad or `~/.squad`.
 
 ## How the code is organised
 

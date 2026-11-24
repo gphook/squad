@@ -87,7 +87,13 @@
   work outside your area goes to its owner.
 
 ### Local security
-- Binds to localhost; random session key in the URL; WebSocket origin check.
+- Binds to localhost; every request is checked against the allowed Host and Origin.
+- Passkey sign-in (fingerprint, face, device PIN, phone or security key). The first run opens a single-use setup link
+  (valid 10 minutes) to create your first passkey; nothing reusable is ever put in a URL.
+- At sign-in choose "Remember this browser" (30 days since last use, survives restarts) or "Until Squad restarts".
+- Sign-in view (lock icon in the top bar): list, rename and delete passkeys (not the last one), and list and revoke
+  sessions. Deleting a passkey ends every session it created.
+- `--reset-sign-in` prints a fresh setup link so you can add a passkey after losing access.
 
 ## Later
 - Several agents in one repo (git worktrees), only if needed.
