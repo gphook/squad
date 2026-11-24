@@ -3,6 +3,7 @@
   import InstalledTab from "./plugins/InstalledTab.svelte";
   import DiscoverTab from "./plugins/DiscoverTab.svelte";
   import MarketplacesTab from "./plugins/MarketplacesTab.svelte";
+  import RestartBanner from "./plugins/RestartBanner.svelte";
 
   type Tab = "installed" | "discover" | "markets";
   let tab = $state<Tab>("installed");
@@ -29,6 +30,7 @@
     <h2>Plugins</h2>
     {#if project}<span class="hint">{project.name} · {ui.s.agents.length} squadmate{ui.s.agents.length === 1 ? "" : "s"}</span>{/if}
   </div>
+  <RestartBanner />
   <div class="tabs" role="tablist">
     {#each tabs as [id, label, count]}
       <button type="button" role="tab" aria-selected={tab === id} onclick={() => (tab = id)}>{label}<span class="count">{count}</span></button>

@@ -18,6 +18,8 @@ export interface UiState {
   pluginDetails: InstalledPlugin | null;
   /** The last plugin action that failed; cleared by the next fresh snapshot. */
   pluginError: { action: string; message: string } | null;
+  /** Running squadmates that need a restart to pick up plugin changes. */
+  pluginRestarts: { agentId: string; name: string }[];
   /** Each squadmate's `/` commands, for the prompt box's picker. */
   commands: Record<string, SlashCommandInfo[]>;
   approvals: Approval[];
@@ -35,7 +37,7 @@ export interface UiState {
 export function emptyState(): UiState {
   return {
     projects: [], projectId: null, agents: [], states: {}, events: {}, commands: {},
-    plugins: null, pluginResults: null, pluginDetails: null, pluginError: null,
+    plugins: null, pluginResults: null, pluginDetails: null, pluginError: null, pluginRestarts: [],
     approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, error: null,
   };
 }
@@ -112,6 +114,8 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, pluginDetails: m.details };
     case "plugins.error":
       return { ...s, pluginError: { action: m.action, message: m.message } };
+    case "plugins.restart":
+      return m.projectId === s.projectId ? { ...s, pluginRestarts: m.agents } : s;
     case "ui.open":
       return s; // view state: handled in state.svelte.ts
     case "agent.commands":
