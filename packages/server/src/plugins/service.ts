@@ -33,7 +33,13 @@ export function kitPlugin(kitPath: string): InstalledPlugin {
 export class PluginService {
   constructor(private source: PluginSource, private store: Store, private kit: InstalledPlugin) {}
 
+  /** Refuses a project deleted in the meantime (another page), before anything is installed or stored. */
+  private requireProject(projectId: string): void {
+    if (!this.store.getProject(projectId)) throw new Error("That project no longer exists.");
+  }
+
   async snapshot(projectId: string): Promise<PluginsSnapshot> {
+    this.requireProject(projectId);
     const [installed, marketplaces, all] = await Promise.all([
       this.source.installed(), this.source.marketplaces(), this.source.search("", null, 0),
     ]);
@@ -45,6 +51,7 @@ export class PluginService {
 
   /** `agentId` null: the project default. `enabled` null: back to following the terminal, or the project. */
   async switch(projectId: string, pluginId: string, agentId: string | null, enabled: boolean | null): Promise<void> {
+    this.requireProject(projectId);
     if (pluginId === SQUAD_KIT_ID) throw new Error(REQUIRED);
     if (!(await this.source.installed()).some((p) => p.id === pluginId)) throw new Error(`${pluginId} isn't installed.`);
     if (agentId !== null && this.store.getAgent(agentId)?.projectId !== projectId) {
@@ -55,6 +62,7 @@ export class PluginService {
 
   /** Installs, then switches it on for that squadmate, or for the entire squad when `agentId` is null. */
   async install(projectId: string, pluginId: string, agentId: string | null): Promise<void> {
+    this.requireProject(projectId);
     if (agentId !== null && this.store.getAgent(agentId)?.projectId !== projectId) {
       throw new Error("That isn't a squadmate in this project.");
     }

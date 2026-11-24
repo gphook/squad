@@ -13,7 +13,10 @@
   let detailsId = $state<string | null>(null);
   let confirming = $state(false);
   // A fresh snapshot or an error ends whatever was busy.
-  $effect(() => { void ui.s.plugins; void ui.s.pluginError; busy = null; });
+  // Read through $derived: `ui.s` is replaced on every server message.
+  const snapshot = $derived(ui.s.plugins);
+  const error = $derived(ui.s.pluginError);
+  $effect(() => { void snapshot; void error; busy = null; });
 
   const sourceNote: Record<SwitchSource, string> = { required: "required", terminal: "terminal", project: "project", own: "own setting" };
 

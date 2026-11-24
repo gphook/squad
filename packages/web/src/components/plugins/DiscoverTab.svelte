@@ -4,18 +4,22 @@
 
   const data = $derived(ui.s.plugins!);
   const mate = $derived(ui.s.agents.find((a) => a.id === ui.pluginMate) ?? ui.s.agents[0] ?? null);
-  const results = $derived(ui.s.pluginResults);
 
   let query = $state("");
   let market = $state<string | null>(null);
+  // Only results for what's in the box now: a slow answer to an earlier query mustn't replace a newer one.
+  const results = $derived(ui.s.pluginResults?.query === query && ui.s.pluginResults.marketplace === market ? ui.s.pluginResults : null);
   let menu = $state<string | null>(null);
   let installing = $state<string | null>(null);
-  $effect(() => { void ui.s.plugins; void ui.s.pluginError; installing = null; });
+  // Effects read server data through $derived: `ui.s` is replaced on every server message.
+  const snapshot = $derived(ui.s.plugins);
+  const error = $derived(ui.s.pluginError);
+  $effect(() => { void snapshot; void error; installing = null; });
 
   // Search as the user types, a moment after they stop; again after any change (an install moves a plugin out).
   $effect(() => {
     const q = query, m = market;
-    void ui.s.plugins;
+    void snapshot;
     const timer = setTimeout(() => send({ t: "plugins.search", query: q, marketplace: m }), 200);
     return () => clearTimeout(timer);
   });

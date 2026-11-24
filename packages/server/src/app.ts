@@ -89,7 +89,14 @@ export function buildApp(opts: {
   async function refreshPlugins(projectId: string | null): Promise<void> {
     if (!plugins) return;
     const ids = projectId ? [projectId] : [...new Set([...sockets.values()].map((s) => s.projectId).filter((p) => p !== null))];
-    await Promise.all(ids.map(async (id) => broadcast(id, await plugins.snapshot(id))));
+    await Promise.all(ids.map(async (id) => {
+      try {
+        broadcast(id, await plugins.snapshot(id));
+      } catch (e) {
+        // The change itself went through; only the fresh view of it failed.
+        broadcast(id, { t: "plugins.error", action: "plugins.get", message: errorMessage(e) });
+      }
+    }));
   }
 
   /** The Plugins view's messages. A failure goes back to the page that asked, as `plugins.error`. */
