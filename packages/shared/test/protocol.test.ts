@@ -61,3 +61,21 @@ describe("layout.save", () => {
     expect(m).toHaveProperty("error");
   });
 });
+
+describe("plugin messages", () => {
+  it("accepts a plugins.switch that returns a squadmate to following the project", () => {
+    const m = { t: "plugins.switch", projectId: "p", pluginId: "x@m", agentId: "a", enabled: null };
+    expect(parseClientMsg(JSON.stringify(m))).toEqual(m);
+  });
+  it("rejects a plugins.switch without a plugin", () => {
+    expect(parseClientMsg(JSON.stringify({ t: "plugins.switch", projectId: "p", agentId: null, enabled: true }))).toHaveProperty("error");
+  });
+  it("accepts the other plugin and marketplace messages", () => {
+    for (const m of [
+      { t: "plugins.get", projectId: "p" }, { t: "plugins.search", query: "", marketplace: null },
+      { t: "plugins.install", projectId: "p", pluginId: "x@m", agentId: null }, { t: "plugins.uninstall", pluginId: "x@m" },
+      { t: "plugins.update", pluginId: "x@m" }, { t: "plugins.details", pluginId: "x@m" },
+      { t: "marketplace.add", source: "a/b" }, { t: "marketplace.remove", name: "b" }, { t: "marketplace.update", name: "b" },
+    ]) expect(parseClientMsg(JSON.stringify(m))).toEqual(m);
+  });
+});

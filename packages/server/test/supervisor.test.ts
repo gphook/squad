@@ -494,11 +494,11 @@ describe("slash commands", () => {
   });
   it("an unavailable command shows the command and a notice, without launching", async () => {
     const ev = events();
-    await sup.send(a.id, "/plugin");
+    await sup.send(a.id, "/resume");
     expect(f.queries).toHaveLength(0);
-    expect(ev[0]).toEqual({ kind: "user_text", text: "/plugin" });
+    expect(ev[0]).toEqual({ kind: "user_text", text: "/resume" });
     expect(ev[1]).toMatchObject({ kind: "command_output", notice: true });
-    expect((ev[1] as { text: string }).text).toContain("/plugin");
+    expect((ev[1] as { text: string }).text).toContain("/resume");
   });
   it("sends other commands, and messages starting with a path, to the session unchanged", async () => {
     await started();
@@ -508,13 +508,13 @@ describe("slash commands", () => {
     expect(f.queries[0].inputs.map((m) => m.message.content)).toEqual(["/context", "/home/me/notes.txt is broken"]);
   });
   it("lists Squad's commands before launch, then merges the session's and leaves out unavailable ones", async () => {
-    expect(sup.commands(a.id).map((c) => c.name)).toEqual(["clear", "exit"]);
+    expect(sup.commands(a.id).map((c) => c.name)).toEqual(["clear", "exit", "plugin", "skills"]);
     const seen: string[][] = [];
     sup.on("commands", (_p: string, id: string, list: { name: string }[]) => { if (id === a.id) seen.push(list.map((c) => c.name)); });
     await started();
     const list = sup.commands(a.id);
-    expect(list.map((c) => c.name).sort()).toEqual(["clear", "context", "exit"]);
+    expect(list.map((c) => c.name).sort()).toEqual(["clear", "context", "exit", "plugin", "skills"]);
     expect(list.find((c) => c.name === "clear")!.description).toContain("Squad");
-    expect(seen.at(-1)!.sort()).toEqual(["clear", "context", "exit"]);
+    expect(seen.at(-1)!.sort()).toEqual(["clear", "context", "exit", "plugin", "skills"]);
   });
 });

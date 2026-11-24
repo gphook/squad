@@ -39,8 +39,12 @@ describe("routeCommand", () => {
     expect(r.kind === "notice" && r.text).toContain("squadmate's settings");
   });
   it("names the command in the notice", () => {
-    const r = routeCommand("plugin", []);
-    expect(r.kind === "notice" && r.text).toMatch(/^`\/plugin` isn't/);
+    const r = routeCommand("resume", []);
+    expect(r.kind === "notice" && r.text).toMatch(/^`\/resume` isn't/);
+  });
+  it("opens Squad's plugin manager for /plugin and /plugins", () => {
+    expect(routeCommand("plugin", [])).toEqual({ kind: "plugins" });
+    expect(routeCommand("plugins", [])).toEqual({ kind: "plugins" });
   });
   it("lists skills itself, since the SDK can't", () => {
     expect(routeCommand("skills", [])).toEqual({ kind: "skills" });
@@ -70,12 +74,12 @@ describe("routeCommand before the session has listed its commands", () => {
 });
 
 describe("command lists", () => {
-  it("Squad's own commands are clear and exit", () => {
-    expect(SQUAD_COMMANDS.map((c) => c.name)).toEqual(["clear", "exit"]);
+  it("Squad's own commands are clear, exit, plugin and skills", () => {
+    expect(SQUAD_COMMANDS.map((c) => c.name)).toEqual(["clear", "exit", "plugin", "skills"]);
     expect(SQUAD_COMMANDS[0].aliases).toEqual(["reset", "new"]);
     expect(SQUAD_COMMANDS[1].aliases).toEqual(["quit"]);
   });
   it("lists the commands Squad can't run", () => {
-    expect(Object.keys(UNAVAILABLE_COMMANDS).sort()).toEqual(["config", "model", "plugin", "resume"]);
+    expect(Object.keys(UNAVAILABLE_COMMANDS).sort()).toEqual(["config", "model", "resume"]);
   });
 });
