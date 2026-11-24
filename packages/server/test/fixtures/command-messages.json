@@ -1,0 +1,624 @@
+{
+  "commands": [
+    {
+      "name": "design",
+      "builtin": true
+    },
+    {
+      "name": "design-sync",
+      "builtin": true
+    },
+    {
+      "name": "dataviz",
+      "builtin": true
+    },
+    {
+      "name": "update-config",
+      "builtin": true
+    },
+    {
+      "name": "verify",
+      "builtin": true
+    },
+    {
+      "name": "debug",
+      "builtin": true
+    },
+    {
+      "name": "code-review",
+      "aliases": [
+        "review",
+        "ship:review"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "simplify",
+      "builtin": true
+    },
+    {
+      "name": "ship",
+      "builtin": true
+    },
+    {
+      "name": "steward",
+      "aliases": [
+        "ship:steward"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "batch",
+      "builtin": true
+    },
+    {
+      "name": "fewer-permission-prompts",
+      "builtin": true
+    },
+    {
+      "name": "doctor",
+      "aliases": [
+        "checkup"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "loop",
+      "aliases": [
+        "proactive"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "schedule",
+      "aliases": [
+        "routines"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "claude-api",
+      "builtin": true
+    },
+    {
+      "name": "run",
+      "builtin": true
+    },
+    {
+      "name": "run-skill-generator",
+      "builtin": true
+    },
+    {
+      "name": "plugin-authoring",
+      "builtin": true
+    },
+    {
+      "name": "advisor",
+      "builtin": true
+    },
+    {
+      "name": "agents",
+      "builtin": true
+    },
+    {
+      "name": "auto-mode-setup",
+      "builtin": true
+    },
+    {
+      "name": "autocompact",
+      "builtin": true
+    },
+    {
+      "name": "clear",
+      "aliases": [
+        "reset",
+        "new"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "color",
+      "builtin": true
+    },
+    {
+      "name": "compact",
+      "builtin": true
+    },
+    {
+      "name": "config",
+      "aliases": [
+        "settings"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "output-style",
+      "builtin": true
+    },
+    {
+      "name": "context",
+      "builtin": true
+    },
+    {
+      "name": "effort",
+      "builtin": true
+    },
+    {
+      "name": "fast",
+      "builtin": true
+    },
+    {
+      "name": "focus",
+      "builtin": true
+    },
+    {
+      "name": "heapdump",
+      "builtin": true
+    },
+    {
+      "name": "init",
+      "builtin": true
+    },
+    {
+      "name": "mcp",
+      "builtin": true
+    },
+    {
+      "name": "import",
+      "builtin": true
+    },
+    {
+      "name": "model",
+      "builtin": true
+    },
+    {
+      "name": "__remote-workflow",
+      "builtin": true
+    },
+    {
+      "name": "workflow-launch-exec",
+      "builtin": true
+    },
+    {
+      "name": "reload-plugins",
+      "builtin": true
+    },
+    {
+      "name": "reload-skills",
+      "builtin": true
+    },
+    {
+      "name": "rename",
+      "aliases": [
+        "name"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "ultrareview",
+      "builtin": true
+    },
+    {
+      "name": "security-review",
+      "builtin": true
+    },
+    {
+      "name": "usage-credits",
+      "builtin": true
+    },
+    {
+      "name": "extra-usage",
+      "builtin": true
+    },
+    {
+      "name": "usage",
+      "aliases": [
+        "cost",
+        "stats"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "insights",
+      "builtin": true
+    },
+    {
+      "name": "recap",
+      "builtin": true
+    },
+    {
+      "name": "skill-doctor",
+      "builtin": true
+    },
+    {
+      "name": "goal",
+      "builtin": true
+    },
+    {
+      "name": "design-consent",
+      "builtin": true
+    },
+    {
+      "name": "design-revoke",
+      "builtin": true
+    },
+    {
+      "name": "list-agents",
+      "aliases": [
+        "peers"
+      ],
+      "builtin": true
+    },
+    {
+      "name": "team-onboarding",
+      "builtin": true
+    }
+  ],
+  "runs": [
+    {
+      "command": "/context",
+      "ms": 710,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "## Context Usage\n\n**Model:** claude-opus-5-5  \n**Tokens:** 8.9k / 1m (1%)\n\n### Estimated usage by category\n\n| Category | Tokens | Percentage |\n|----------|--------|------------|\n| System prompt | 142 | 0.0% |\n| System tools | 6.3k | 0.6% |\n| System tools (deferred) | 15k | 1.5% |\n| Skills | 2.5k | 0.2% |\n| Messages | 10 | 0.0% |\n| Free space | 958.1k | 95.8% |\n| Autocompact buffer | 33k | 3.3% |\n\n"
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "user",
+          "isMeta": true,
+          "message": {
+            "content": "<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>"
+          }
+        },
+        {
+          "type": "user",
+          "message": {
+            "content": "<command-name>/context</command-name>\n            <command-message>context</command-message>\n            <command-args></command-args>"
+          }
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>## Context Usage\n\n**Model:** claude-opus-5-5  \n**Tokens:** 8.9k / 1m (1%)\n\n### Estimated usage by category\n\n| Category | Tokens | Percentage |\n|----------|--------|------------|\n| System prompt | 142 | 0.0% |\n| System tools | 6.3k | 0.6% |\n| System tools (deferred) | 15k | 1.5% |\n| Skills | 2.5k | 0.2% |\n| Messages | 10 | 0.0% |\n| Free space | 958.1k | 95.8% |\n| Autocompact b"
+        }
+      ]
+    },
+    {
+      "command": "/cost",
+      "ms": 527,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "You are currently using your subscription to power your Claude Code usage\n\nCurrent session: 9% used · resets Nov 24, 12:59pm (UTC)\nCurrent week (all models): 37% used · resets Nov 30, 2:59am (UTC)\n\nWhat's contributing to your usage?\nApproximate · sessions on this machine only · shares overlap\n\nLast 24h · 986 requests · 24 sessions\n  95%  Check which models your subagents use · share covers whole s"
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "user",
+          "isMeta": true,
+          "message": {
+            "content": "<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>"
+          }
+        },
+        {
+          "type": "user",
+          "message": {
+            "content": "<command-name>/usage</command-name>\n            <command-message>usage</command-message>\n            <command-args></command-args>"
+          }
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>You are currently using your subscription to power your Claude Code usage\n\nCurrent session: 9% used · resets Nov 24, 12:59pm (UTC)\nCurrent week (all models): 37% used · resets Nov 30, 2:59am (UTC)\n\nWhat's contributing to your usage?\nApproximate · sessions on this machine only · shares overlap\n\nLast 24h · 986 requests · 24 sessions\n  95%  Check which models your subagents use "
+        }
+      ]
+    },
+    {
+      "command": "/doctor",
+      "ms": 20001,
+      "gotResult": false,
+      "messages": [],
+      "transcript": []
+    },
+    {
+      "command": "/permissions",
+      "ms": 25,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "/permissions isn't available in this environment."
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "/permissions"
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>/permissions isn't available in this environment.</local-command-stdout>"
+        }
+      ]
+    },
+    {
+      "command": "/agents",
+      "ms": 26,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "The /agents wizard has been removed.\n\nAsk Claude to create or update subagents for you (e.g. \"create a code-reviewer subagent that ...\"),\nor edit the files directly:\n  • .claude/agents/       (this project)\n  • ~/.claude/agents/     (all projects)\n\nDocs: https://code.claude.com/docs/en/sub-agents"
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "user",
+          "isMeta": true,
+          "message": {
+            "content": "<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>"
+          }
+        },
+        {
+          "type": "user",
+          "message": {
+            "content": "<command-name>/agents</command-name>\n            <command-message>agents</command-message>\n            <command-args></command-args>"
+          }
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>The /agents wizard has been removed.\n\nAsk Claude to create or update subagents for you (e.g. \"create a code-reviewer subagent that ...\"),\nor edit the files directly:\n  • .claude/agents/       (this project)\n  • ~/.claude/agents/     (all projects)\n\nDocs: https://code.claude.com/docs/en/sub-agents</local-command-stdout>"
+        }
+      ]
+    },
+    {
+      "command": "/memory",
+      "ms": 23,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "/memory isn't available in this environment."
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "/memory"
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>/memory isn't available in this environment.</local-command-stdout>"
+        }
+      ]
+    },
+    {
+      "command": "/login",
+      "ms": 26,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "/login isn't available in this environment."
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "/login"
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>/login isn't available in this environment.</local-command-stdout>"
+        }
+      ]
+    },
+    {
+      "command": "/config",
+      "ms": 29,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "Usage: /config key=value [key=value ...]\n  agentPushNotifEnabled=true|false\n  autoCompact=true|false\n  autoConnectIde=true|false\n  autoScroll=true|false\n  checkpoints=true|false\n  copyFullResponse=true|false\n  copyOnSelect=true|false\n  defaultToAgentsView=true|false\n  editor=normal|vim\n  externalEditorContext=true|false\n  gitignore=true|false\n  inputNeededNotifEnabled=true|false\n  language=<value>"
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "user",
+          "isMeta": true,
+          "message": {
+            "content": "<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>"
+          }
+        },
+        {
+          "type": "user",
+          "message": {
+            "content": "<command-name>/config</command-name>\n            <command-message>config</command-message>\n            <command-args></command-args>"
+          }
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>Usage: /config key=value [key=value ...]\n  agentPushNotifEnabled=true|false\n  autoCompact=true|false\n  autoConnectIde=true|false\n  autoScroll=true|false\n  checkpoints=true|false\n  copyFullResponse=true|false\n  copyOnSelect=true|false\n  defaultToAgentsView=true|false\n  editor=normal|vim\n  externalEditorContext=true|false\n  gitignore=true|false\n  inputNeededNotifEnabled=true|fa"
+        }
+      ]
+    },
+    {
+      "command": "/model",
+      "ms": 25,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "assistant",
+          "message": {
+            "model": "<synthetic>",
+            "content": [
+              {
+                "type": "text",
+                "text": "Current model: `Opus 5.5 (default)`\nUsage: /model <name>. Available: sonnet, opus, haiku, fable, best, sonnet[1m], opus[1m], fable[1m], opusplan, default, or a full model ID."
+              }
+            ]
+          }
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "user",
+          "isMeta": true,
+          "message": {
+            "content": "<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>"
+          }
+        },
+        {
+          "type": "user",
+          "message": {
+            "content": "<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args></command-args>"
+          }
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>Current model: `Opus 5.5 (default)`\nUsage: /model <name>. Available: sonnet, opus, haiku, fable, best, sonnet[1m], opus[1m], fable[1m], opusplan, default, or a full model ID.</local-command-stdout>"
+        }
+      ]
+    },
+    {
+      "command": "/clear",
+      "ms": 280,
+      "gotResult": true,
+      "messages": [
+        {
+          "type": "conversation_reset"
+        },
+        {
+          "type": "system",
+          "subtype": "background_tasks_changed"
+        },
+        {
+          "type": "result",
+          "subtype": "success"
+        }
+      ],
+      "transcript": [
+        {
+          "type": "user",
+          "isMeta": true,
+          "message": {
+            "content": "<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request, and its output goes straight to the user. It's recorded here as context for later messages.</local-command-caveat>"
+          }
+        },
+        {
+          "type": "user",
+          "message": {
+            "content": "<command-name>/clear</command-name>\n            <command-message>clear</command-message>\n            <command-args></command-args>"
+          }
+        },
+        {
+          "type": "system",
+          "subtype": "local_command",
+          "content": "<local-command-stdout></local-command-stdout>"
+        }
+      ]
+    }
+  ]
+}
