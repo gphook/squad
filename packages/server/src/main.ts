@@ -8,6 +8,7 @@ import { PluginService, kitPlugin } from "./plugins/service.ts";
 import { appPaths, appVersion, squadHome } from "./paths.ts";
 import { helpText, nodeTooOld, parseCli } from "./cli.ts";
 import { listenOrExplain } from "./listen.ts";
+import { UpdateNotice, checkForUpdate, updateMessage } from "./updateCheck.ts";
 import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
@@ -53,7 +54,8 @@ void auth.refresh();
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
 const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(paths.kit));
 supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
-const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
+const update = new UpdateNotice();
+const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, update, webDist: existsSync(webDist) ? webDist : undefined });
 
 if (!(await listenOrExplain(() => app.listen({ port, host: "127.0.0.1" }), port, (s) => console.error(s)))) {
   await supervisor.stopAll();
@@ -64,6 +66,14 @@ const code = startupAction.mintCode ? signin.setup.mint() : null;
 const base = appBaseUrl(port, startup.dev);
 const opened = startupAction.open ? await openBrowser(startupUrl(base, code)) : false;
 console.log(startupMessage(base, code, opened));
+// Packaged builds only (a clone updates with git), never in dev, and opt-out: the one request Squad makes on its own.
+if (process.env.SQUAD_PACKAGED === "1" && !startup.dev && process.env.SQUAD_NO_UPDATE_CHECK !== "1") {
+  void checkForUpdate(version).then((latest) => {
+    if (!latest) return;
+    console.log(updateMessage(latest, version));
+    update.set({ latest, current: version });
+  });
+}
 void plan.refresh(); // fill the rings before the first page load asks
 
 const shutdown = async () => {

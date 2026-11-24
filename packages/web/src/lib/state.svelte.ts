@@ -17,13 +17,15 @@ export const ui: {
   setupExpired: boolean;
   /** Bumped when the server says the passkey or session lists changed; an open Sign-in view refetches. */
   signinVersion: number;
+  /** A newer Squad on npm, until dismissed for this page load. */
+  update: { latest: string; current: string } | null;
   view: "chat" | "messages" | "shares" | "usage" | "plugins" | "signin";
   focus: string | null;
   viewer: string | null;
   /** The squadmate picked in the Plugins view; `/plugin` sets it to the squadmate it was typed in. */
   pluginMate: string | null;
 } = $state({
-  s: emptyState(), connected: false, session: null, unreachable: false, setupExpired: false, signinVersion: 0,
+  s: emptyState(), connected: false, session: null, unreachable: false, setupExpired: false, signinVersion: 0, update: null,
   view: "chat", focus: null, viewer: null, pluginMate: null,
 });
 
@@ -131,6 +133,7 @@ function connectSocket(): void {
     onMsg: (m) => {
       ui.s = reduce(ui.s, m);
       if (m.t === "signin.changed") ui.signinVersion++;
+      if (m.t === "update") ui.update = { latest: m.latest, current: m.current };
       if (m.t === "ui.open") {
         ui.view = m.view;
         ui.pluginMate = m.agentId;

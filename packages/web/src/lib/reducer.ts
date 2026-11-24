@@ -118,6 +118,7 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return m.projectId === s.projectId ? { ...s, pluginRestarts: m.agents } : s;
     case "ui.open":
     case "signin.changed":
+    case "update":
       return s; // view state: handled in state.svelte.ts
     case "agent.commands":
       return { ...s, commands: { ...s.commands, [m.agentId]: m.commands } };
