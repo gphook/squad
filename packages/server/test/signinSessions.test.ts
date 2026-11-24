@@ -86,6 +86,36 @@ describe("Sessions", () => {
     expect(store.getSession(b.idHash)).not.toBeNull();
   });
 
+  it("startup deletes remember sessions idle for 30 days and emits revoked for them", () => {
+    const old = sessions.create("remember", null, "ua");
+    const t0 = t;
+    t = t0 + REMEMBER_MS - 1;
+    const fresh = sessions.create("remember", null, "ua");
+    const restart = sessions.create("restart", null, "ua");
+    t = t0 + REMEMBER_MS;
+    const seen: string[][] = [];
+    sessions.on("revoked", (h: string[]) => seen.push(h));
+    sessions.startup(true);
+    expect(store.getSession(old.idHash)).toBeNull();
+    expect(store.getSession(fresh.idHash)).not.toBeNull();
+    expect(store.getSession(restart.idHash)).not.toBeNull();
+    expect(seen).toEqual([[old.idHash]]);
+  });
+
+  it("expireIdle removes only idle remember sessions and stays quiet when there are none", () => {
+    const a = sessions.create("remember", null, "ua");
+    const b = sessions.create("restart", null, "ua");
+    const seen: string[][] = [];
+    sessions.on("revoked", (h: string[]) => seen.push(h));
+    sessions.expireIdle();
+    expect(seen).toEqual([]);
+    t += 2 * REMEMBER_MS;
+    sessions.expireIdle();
+    expect(store.getSession(a.idHash)).toBeNull();
+    expect(store.getSession(b.idHash)).not.toBeNull();
+    expect(seen).toEqual([[a.idHash]]);
+  });
+
   it("revoke emits revoked with the hash", () => {
     const { idHash } = sessions.create("remember", null, "ua");
     const seen: string[][] = [];

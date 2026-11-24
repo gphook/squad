@@ -56,8 +56,15 @@ export class Sessions extends EventEmitter {
     this.emit("revoked", idHashes);
   }
 
+  /** Deletes remember sessions idle for REMEMBER_MS, which check() would refuse, so they leave lists and sockets close. */
+  expireIdle(): void {
+    const gone = this.store.deleteSessionsIdleSince("remember", this.now() - REMEMBER_MS);
+    if (gone.length) this.emit("revoked", gone);
+  }
+
   startup(dev: boolean): void {
     if (!dev) this.store.deleteSessionsWhere("restart");
+    this.expireIdle();
   }
 }
 

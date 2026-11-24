@@ -389,6 +389,16 @@ export class Store {
     });
   }
 
+  /** Deletes the sessions of one kind last used at or before `at`, and returns their id hashes. */
+  deleteSessionsIdleSince(kind: SessionKind, at: number): string[] {
+    return this.transaction(() => {
+      const ids = (this.db.prepare("SELECT id_hash FROM sessions WHERE kind = ? AND last_used_at <= ?").all(kind, at) as Row[])
+        .map((r) => r.id_hash as string);
+      this.db.prepare("DELETE FROM sessions WHERE kind = ? AND last_used_at <= ?").run(kind, at);
+      return ids;
+    });
+  }
+
   signinMeta(key: string): string | null {
     const r = this.db.prepare("SELECT value FROM signin_meta WHERE key = ?").get(key) as Row | undefined;
     return r ? (r.value as string) : null;

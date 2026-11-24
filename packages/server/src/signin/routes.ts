@@ -148,12 +148,15 @@ export function registerSignInRoutes(app: FastifyInstance, s: SignIn): void {
     reply.header("set-cookie", cookie(cookieName("session", serverPort(app, req)), "", 0));
   };
 
-  app.get("/api/signin", async (req): Promise<SignInOverview> => ({
-    passkeys: s.store.listPasskeys().map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, lastUsedAt: p.lastUsedAt })),
-    sessions: s.store.listSessions().map((r) => ({
-      id: r.idHash, kind: r.kind, label: r.label, createdAt: r.createdAt, lastUsedAt: r.lastUsedAt, current: r.idHash === req.session?.idHash,
-    })),
-  }));
+  app.get("/api/signin", async (req): Promise<SignInOverview> => {
+    s.sessions.expireIdle();
+    return {
+      passkeys: s.store.listPasskeys().map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, lastUsedAt: p.lastUsedAt })),
+      sessions: s.store.listSessions().map((r) => ({
+        id: r.idHash, kind: r.kind, label: r.label, createdAt: r.createdAt, lastUsedAt: r.lastUsedAt, current: r.idHash === req.session?.idHash,
+      })),
+    };
+  });
 
   app.patch("/api/signin/passkeys/:id", async (req, reply) => {
     const { id } = req.params as { id: string };

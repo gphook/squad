@@ -10,6 +10,7 @@ import { createSignIn, type SignIn } from "../src/signin/index.ts";
 import type { WebAuthnLib } from "../src/signin/passkeys.ts";
 import { fakeFactory } from "./fakeQuery.ts";
 import { signedInCookie } from "./signinHelper.ts";
+import { REMEMBER_MS } from "../src/signin/sessions.ts";
 
 const CHROME_LINUX = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
 const clientData = (challenge: string) => Buffer.from(JSON.stringify({ challenge })).toString("base64url");
@@ -275,6 +276,18 @@ describe("management", () => {
     const cur = body.sessions.filter((s: { current: boolean }) => s.current);
     expect(cur.map((s: { id: string }) => s.id)).toEqual([s1.idHash]);
     expect(body.sessions.find((s: { id: string }) => s.id === s2.idHash).current).toBe(false);
+  });
+
+  it("GET /api/signin drops expired remember sessions and closes their sockets", async () => {
+    addPasskey("a", "First", 10);
+    const s1 = sessionFor("a"), stale = sessionFor("a");
+    store.touchSession(stale.idHash, Date.now() - REMEMBER_MS - 1);
+    const revoked: string[][] = [];
+    signin.sessions.on("revoked", (h: string[]) => revoked.push(h));
+    const r = await call("GET", "/api/signin", s1.cookies);
+    expect(r.json().sessions.map((x: { id: string }) => x.id)).toEqual([s1.idHash]);
+    expect(store.getSession(stale.idHash)).toBeNull();
+    expect(revoked).toEqual([[stale.idHash]]);
   });
 
   it("deleting the only passkey is 409", async () => {
