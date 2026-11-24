@@ -78,3 +78,55 @@ describe("Plugins view requests", () => {
     expect(ui.s.pluginError).not.toBeNull();
   });
 });
+
+describe("Restart banner", () => {
+  const ben = { ...agent, id: "b", name: "Ben" };
+  const ana = { ...agent, id: "a", name: "Ana" };
+  const setUp = () => {
+    feed({ t: "state", projectId: "p", agents: [ana, ben], states: [{ agentId: "a", status: "idle" }, { agentId: "b", status: "working" }], approvals: [], messages: [], shares: [] });
+    feed(snapshot);
+    render(PluginsView as never);
+    sent.length = 0;
+  };
+  const banner = () => document.querySelector('[aria-label="Restart to apply"]');
+  const button = (label: string) =>
+    [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === label || b.getAttribute("aria-label") === label)!;
+  const click = (label: string) => { button(label).click(); flushSync(); };
+  const restarts = () => sent.filter((m) => m.t === "agent.action" && m.action === "restart").map((m) => (m as { agentId: string }).agentId);
+
+  it("shows nothing when no running squadmate needs a restart", () => {
+    setUp();
+    feed({ t: "plugins.restart", projectId: "p", agents: [] });
+    expect(banner()).toBeNull();
+  });
+
+  it("names who needs a restart, marking the working ones", () => {
+    setUp();
+    feed({ t: "plugins.restart", projectId: "p", agents: [{ agentId: "a", name: "Ana" }, { agentId: "b", name: "Ben" }] });
+    expect(banner()?.textContent).toContain("Restart to apply plugin changes:");
+    expect(banner()?.textContent).toContain("Ben (working)");
+    expect(banner()?.textContent).not.toContain("Ana (working)");
+  });
+
+  it("restarts an idle squadmate at once, and asks first for a working one", () => {
+    setUp();
+    feed({ t: "plugins.restart", projectId: "p", agents: [{ agentId: "a", name: "Ana" }, { agentId: "b", name: "Ben" }] });
+    click("Restart Ana");
+    expect(restarts()).toEqual(["a"]);
+    click("Restart Ben");
+    expect(restarts()).toEqual(["a"]);
+    expect(banner()?.textContent).toContain("Ben is working. Restarting stops what it's doing.");
+    click("Restart anyway");
+    expect(restarts()).toEqual(["a", "b"]);
+  });
+
+  it("Restart all restarts idle ones at once and asks once for the working ones", () => {
+    setUp();
+    feed({ t: "plugins.restart", projectId: "p", agents: [{ agentId: "a", name: "Ana" }, { agentId: "b", name: "Ben" }] });
+    click("Restart all");
+    expect(restarts()).toEqual(["a"]);
+    expect(banner()?.textContent).toContain("Ben is working. Restarting stops what it's doing.");
+    click("Cancel");
+    expect(restarts()).toEqual(["a"]);
+  });
+});

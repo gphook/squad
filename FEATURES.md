@@ -58,14 +58,18 @@
 - Up to 10 tiles (slots 1–9, 0), stable numbering, opened via drag from the sidebar or menu.
 
 ### Plugins
-- A Plugins view (top bar, or `/plugin` in a squadmate's prompt box) with three tabs. **For now it runs on made-up
-  plugin data**: the next pass wires it to Claude Code's real plugins and applies the switches to squadmates.
+- A Plugins view (top bar, or `/plugin` in a squadmate's prompt box) with three tabs, showing Claude Code's real
+  plugins and marketplaces. Each squadmate launches with its switches applied, for its session only.
+- **Restart to apply**: when a running squadmate's plugins have changed since it launched, a banner names it with a
+  Restart button (and Restart all); restarting resumes the same conversation, and asks first if it's working.
 - **Installed**: each plugin is on or off for the project, and each squadmate (picked from a drop-down) follows the
   project or has its own setting. A project follows your terminal's on/off until you change it there. Squad's own
   `squad-kit` is listed as Required. Details shows what a plugin contains and its token cost, with Update, Uninstall
   (confirmed; it reaches your terminal too) and Follow terminal. The switches are saved in Squad, never in repos or
   your Claude settings.
 - **Discover**: search every marketplace's plugins; Install for the picked squadmate, or ▾ for the entire squad.
+  Installs from Squad don't switch anything on in your terminal. A plugin that installs by running a marketplace
+  command has to be installed from the terminal.
 - **Marketplaces**: Anthropic's, your own and any you add (GitHub repo, URL or path); Update and Remove. Shared with
   your terminal.
 

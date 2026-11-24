@@ -19,6 +19,14 @@ describe("reduce", () => {
     expect(s.plugins).toMatchObject({ available: 30 });
     expect(forProject(s, "q").plugins).toBeNull();
   });
+  it("keeps who needs a restart for the current project only", () => {
+    const agents = [{ agentId: "a", name: "Ana" }];
+    let s = reduce(subscribed(), { t: "plugins.restart", projectId: "other", agents });
+    expect(s.pluginRestarts).toEqual([]);
+    s = reduce(s, { t: "plugins.restart", projectId: "p", agents });
+    expect(s.pluginRestarts).toEqual(agents);
+    expect(forProject(s, "q").pluginRestarts).toEqual([]);
+  });
   it("keeps search results, details and the last plugin error", () => {
     let s = reduce(subscribed(), { t: "plugins.results", query: "co", marketplace: null, total: 1, items: [] });
     expect(s.pluginResults).toMatchObject({ query: "co", total: 1 });
