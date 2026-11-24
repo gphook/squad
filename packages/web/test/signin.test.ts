@@ -63,6 +63,12 @@ describe("SignInScreen", () => {
     expect(button(t, "Create passkey")).toBeTruthy();
   });
 
+  it("offers Create passkey for a setup grant even when passkeys already exist", () => {
+    const t = render({ signedIn: false, setupNeeded: false, setupGrant: true });
+    expect(t.querySelector("h1")?.textContent).toBe("Set up Squad");
+    expect(button(t, "Create passkey")).toBeTruthy();
+  });
+
   it("shows the expired message when setupNeeded without a grant", () => {
     const t = render({ signedIn: false, setupNeeded: true, setupGrant: false });
     expect(t.textContent).toContain("This setup link has expired or was already used. Restart Squad to get a new one.");

@@ -12,7 +12,7 @@
 
   const setupNeeded = $derived(ui.session?.setupNeeded ?? false);
   const mode = $derived(
-    setupNeeded && ui.session?.setupGrant ? "setup" : urlExpired || setupNeeded ? "expired" : "signin",
+    ui.session?.setupGrant ? "setup" : urlExpired || setupNeeded ? "expired" : "signin",
   );
 
   function messageFor(err: unknown): string {
