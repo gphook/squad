@@ -390,3 +390,30 @@ describe("sign-in tables", () => {
     expect(store.signinMeta("userHandle")).toBe("def");
   });
 });
+
+describe("connectors", () => {
+  it("adds, lists in order, renames and removes", () => {
+    const a = store.addConnector({ template: "github", name: "GitHub", host: "github.com" });
+    const b = store.addConnector({ template: "gitlab", name: "Lab", host: "git.acme.internal" });
+    expect(a.id).toEqual(expect.any(String));
+    expect(store.listConnectors()).toEqual([a, b]);
+    store.renameConnector(a.id, "Public GitHub");
+    expect(store.listConnectors()[0].name).toBe("Public GitHub");
+    store.removeConnector(a.id);
+    expect(store.listConnectors()).toEqual([b]);
+  });
+  it("refuses a second connector on the same host", () => {
+    store.addConnector({ template: "github", name: "A", host: "github.com" });
+    expect(() => store.addConnector({ template: "github", name: "B", host: "github.com" })).toThrow("A connector for github.com already exists.");
+  });
+  it("remembers that connectors were seeded, across reopening", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "squad-store-")), "squad.db");
+    const first = new Store(path);
+    expect(first.connectorsSeeded()).toBe(false);
+    first.addConnector({ template: "gitlab", name: "GitLab", host: "gitlab.com" });
+    first.markConnectorsSeeded();
+    const again = new Store(path);
+    expect(again.connectorsSeeded()).toBe(true);
+    expect(again.listConnectors().map((c) => c.host)).toEqual(["gitlab.com"]);
+  });
+});
