@@ -16,6 +16,10 @@ describe("parseCli", () => {
     expect(parseCli(["--port=70000"], {}, undefined).unknown).toEqual(["--port=70000"]);
     expect(parseCli(["--port"], {}, undefined).unknown).toEqual(["--port"]);
   });
+  it("reports an invalid SQUAD_PORT instead of quietly using another port", () => {
+    expect(parseCli([], { SQUAD_PORT: "7400x" }, undefined).unknown).toEqual(["SQUAD_PORT=7400x"]);
+    expect(parseCli(["--port", "7401"], { SQUAD_PORT: "nope" }, undefined).unknown).toEqual([]);
+  });
   it("recognises --version, -v, --help and -h", () => {
     expect(parseCli(["--version"], {}, undefined).version).toBe(true);
     expect(parseCli(["-v"], {}, undefined).version).toBe(true);

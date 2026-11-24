@@ -52,7 +52,7 @@ git --version
 ## 4. Running Squad
 
 ```bash
-npx @gphook/squad                 # run the latest version
+npx @gphook/squad@latest          # run the newest version (plain npx @gphook/squad may reuse a cached one)
 npm i -g @gphook/squad && squad   # or install it, then run `squad`
 ```
 
