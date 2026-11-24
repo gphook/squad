@@ -16,6 +16,7 @@ import { formatSkills } from "./skillsList.ts";
 import { createSquadTools } from "./squadTools.ts";
 import { turnRows } from "./turnUsage.ts";
 import type { Store } from "./store.ts";
+import { sameLaunch, type LaunchPlugins } from "./plugins/service.ts";
 
 const SUMMON_TIMEOUT_MS = 60_000;
 const PEER_MATCH_WINDOW_MS = 60_000;
@@ -25,7 +26,8 @@ const PEER_MATCH_WINDOW_MS = 60_000;
  * "status"(p, AgentState) "event"(p, agentId, AgentEvent) "approval"(p, Approval) "approvalResolved"(p, id)
  * "message"(p, LoggedMessage) "share"(p, SharedFile) "shareRemoved"(p, id)
  * "usage"(p) after a turn's usage is stored, "turnEnd"() after any turn, "rateLimit"(rate_limit_info),
- * "commands"(p, agentId, SlashCommandInfo[]) when a squadmate's command list changes.
+ * "commands"(p, agentId, SlashCommandInfo[]) when a squadmate's command list changes,
+ * "pluginsChanged"(p) when a squadmate starts or stops (who needs a restart may differ).
  */
 export interface AuthSource {
   current: AuthStatus | null;
@@ -39,6 +41,7 @@ export class Supervisor extends EventEmitter {
   private auth: AuthSource | null = null;
   private runners = new Map<string, AgentRunner>();
   private recentOutbound: { to: string; from: string; at: number }[] = [];
+  private launchSet: ((agentId: string) => Promise<LaunchPlugins>) | null = null;
 
   constructor(
     private store: Store,
@@ -46,6 +49,25 @@ export class Supervisor extends EventEmitter {
     private kitPluginPath: string,
   ) {
     super();
+  }
+
+  /** Works out each squadmate's plugins at launch (the Plugins view's switches). */
+  setPlugins(launchSet: (agentId: string) => Promise<LaunchPlugins>): void {
+    this.launchSet = launchSet;
+  }
+
+  /** Running squadmates in the project whose plugins changed since they launched. */
+  async pendingRestarts(projectId: string): Promise<{ agentId: string; name: string }[]> {
+    if (!this.launchSet) return [];
+    const out: { agentId: string; name: string }[] = [];
+    for (const agent of this.store.listAgents(projectId)) {
+      const launched = this.runners.get(agent.id)?.launchedPlugins;
+      if (!launched) continue;
+      try {
+        if (!sameLaunch(launched, await this.launchSet(agent.id))) out.push({ agentId: agent.id, name: agent.name });
+      } catch {} // can't tell: don't nag
+    }
+    return out;
   }
 
   /** Where the Claude account is read from; launches are refused while it says signed out. */
@@ -78,9 +100,15 @@ export class Supervisor extends EventEmitter {
       kitPluginPath: this.kitPluginPath,
       shareDir: shareDir(pid),
       signedOut: () => this.isSignedOut(),
+      launchPlugins: () => (this.launchSet ? this.launchSet(agentId) : Promise.resolve({ paths: [], off: [] })),
     });
+    let last: AgentState["status"] = "stopped";
     r.on("status", (s: AgentState) => {
       this.emit("status", pid, s);
+      // Started or gone: who needs a restart for plugin changes may differ.
+      const started = last === "starting" && s.status !== "starting" && s.status !== "error";
+      if (started || (s.status !== last && (s.status === "stopped" || s.status === "error"))) this.emit("pluginsChanged", pid);
+      last = s.status;
       // A failed start may mean the sign-in expired; check so the top bar says so.
       if (s.status === "error") void this.auth?.refresh();
     });
@@ -224,6 +252,9 @@ export class Supervisor extends EventEmitter {
       case "stop": return r.stop();
       case "interrupt": return r.interrupt();
       case "compact": return r.compact();
+      case "restart":
+        await r.stop();
+        return this.runner(agentId).launch(); // refreshed with the stored session id, so it resumes
       case "clear": {
         await r.stop();
         r.killAllShells();

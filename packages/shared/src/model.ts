@@ -2,7 +2,7 @@
 export const SLOT_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as const;
 export const PERMISSION_MODES = ["default", "acceptEdits", "bypassPermissions", "plan"] as const;
 export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
-export const AGENT_ACTIONS = ["launch", "stop", "interrupt", "compact", "clear"] as const;
+export const AGENT_ACTIONS = ["launch", "stop", "interrupt", "compact", "clear", "restart"] as const;
 export const APPROVAL_DECISIONS = ["allow", "deny", "always"] as const;
 
 export type SlotKey = (typeof SLOT_ORDER)[number];

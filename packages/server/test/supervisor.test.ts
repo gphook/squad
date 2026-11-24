@@ -527,3 +527,42 @@ describe("slash commands", () => {
     expect(seen.at(-1)!.sort()).toEqual(["clear", "context", "exit", "plugin", "skills"]);
   });
 });
+
+describe("plugins and restarts", () => {
+  it("lists running squadmates whose plugins changed since they launched", async () => {
+    let set = { paths: [] as string[], off: [] as string[] };
+    sup.setPlugins(async () => set);
+    await sup.action(a.id, "launch");
+    await sup.action(b.id, "launch");
+    expect(await sup.pendingRestarts(project.id)).toEqual([]);
+    set = { paths: ["/p/x"], off: [] };
+    expect(await sup.pendingRestarts(project.id)).toEqual([
+      { agentId: a.id, name: "starfade" }, { agentId: b.id, name: "sf-modeller" },
+    ]);
+    await sup.action(b.id, "stop");
+    expect(await sup.pendingRestarts(project.id)).toEqual([{ agentId: a.id, name: "starfade" }]);
+  });
+
+  it("restarts into the same conversation with the new plugins", async () => {
+    let set = { paths: [] as string[], off: [] as string[] };
+    sup.setPlugins(async () => set);
+    await sup.action(a.id, "launch");
+    f.queries[0].emit({ type: "system", subtype: "init", session_id: "s1" });
+    await tick();
+    set = { paths: ["/p/x"], off: [] };
+    await sup.action(a.id, "restart");
+    expect(f.queries[1].options.resume).toBe("s1");
+    expect(f.queries[1].options.plugins).toContainEqual({ type: "local", path: "/p/x" });
+    expect(await sup.pendingRestarts(project.id)).toEqual([]);
+  });
+
+  it("says when a squadmate starts or stops, so pages can update the banner", async () => {
+    const seen: string[] = [];
+    sup.on("pluginsChanged", (p: string) => seen.push(p));
+    await sup.action(a.id, "launch");
+    f.queries[0].emit({ type: "system", subtype: "init", session_id: "s1" });
+    await tick();
+    await sup.action(a.id, "stop");
+    expect(seen).toEqual([project.id, project.id]);
+  });
+});
