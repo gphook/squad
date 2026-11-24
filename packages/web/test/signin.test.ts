@@ -6,7 +6,7 @@ vi.mock("@simplewebauthn/browser", () => browser);
 
 import SignInScreen from "../src/components/SignInScreen.svelte";
 import App from "../src/App.svelte";
-import { ui, start } from "../src/lib/state.svelte.ts";
+import { ui, start, signedOutHere } from "../src/lib/state.svelte.ts";
 import { rememberedChoice, saveChoice } from "../src/lib/signin.ts";
 
 class FakeWS {
@@ -108,6 +108,31 @@ describe("SignInScreen", () => {
     await settle();
     expect(calls.find((c) => c.url === "/api/auth/register/verify")?.body).toEqual({ response: { id: "new" }, remember: false });
     expect(ui.session?.signedIn).toBe(true);
+  });
+
+  it("after setup, signing in clears the setup flags and signing out shows Sign in", async () => {
+    browser.startRegistration.mockResolvedValue({ id: "new" });
+    let status = { signedIn: false, setupNeeded: false, setupGrant: false };
+    mockFetch((url) => (url === "/api/auth/register/options" ? { json: { challenge: "r" } } : url === "/api/session" ? { json: status } : { json: { ok: true } }));
+    const t = render({ signedIn: false, setupNeeded: true, setupGrant: true });
+    click(button(t, "Create passkey"));
+    await settle();
+    expect(ui.session).toEqual({ signedIn: true, setupNeeded: false, setupGrant: false });
+    signedOutHere();
+    await settle();
+    expect(calls.some((c) => c.url === "/api/session")).toBe(true);
+    expect(ui.session).toEqual(status);
+    expect(t.querySelector("h1")?.textContent).toBe("Sign in to Squad");
+    expect(button(t, "Sign in with passkey")).toBeTruthy();
+  });
+
+  it("signing out falls back to Sign in when /api/session can't be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("down"); }));
+    const t = render({ signedIn: true, setupNeeded: true, setupGrant: true });
+    signedOutHere();
+    await settle();
+    expect(ui.session).toEqual({ signedIn: false, setupNeeded: false, setupGrant: false });
+    expect(t.querySelector("h1")?.textContent).toBe("Sign in to Squad");
   });
 
   it("shows the server's message when sign-in fails", async () => {
