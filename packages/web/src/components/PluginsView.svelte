@@ -1,5 +1,6 @@
 <script lang="ts">
   import { send, ui } from "../lib/state.svelte.ts";
+  import InstalledTab from "./plugins/InstalledTab.svelte";
 
   type Tab = "installed" | "discover" | "markets";
   let tab = $state<Tab>("installed");
@@ -32,6 +33,8 @@
   </div>
   {#if !data}
     <p class="hint">Loading plugins…</p>
+  {:else if tab === "installed"}
+    <InstalledTab />
   {:else}
     <p class="hint">{tab}</p>
   {/if}
