@@ -105,6 +105,20 @@ describe("the gate", () => {
       expect((await req({ url })).statusCode, url).toBe(401);
     }
   });
+  it("/files/ without a session is 401", async () => {
+    expect((await req({ url: "/files/" })).statusCode).toBe(401);
+    expect((await req({ url: "/files/a.png?project=x" })).statusCode).toBe(401);
+  });
+  it("HEAD / is served without a session", async () => {
+    expect((await req({ method: "HEAD", url: "/" })).statusCode).toBe(200);
+  });
+  it("HEAD /api/usage without a session is 401", async () => {
+    expect((await req({ method: "HEAD", url: "/api/usage?days=7" })).statusCode).toBe(401);
+  });
+  it("OPTIONS /api/usage without a session is 401", async () => {
+    const r = await req({ method: "OPTIONS", url: "/api/usage?days=7", headers: { origin: `http://localhost:${port}` } });
+    expect(r.statusCode).toBe(401);
+  });
   it("an unknown path without a session leaks nothing", async () => {
     expect((await req({ url: "/api/nope" })).statusCode).toBe(401);
   });

@@ -45,10 +45,10 @@ afterEach(async () => {
   plan.dispose();
 });
 
-function connect(origin = `http://127.0.0.1:${port}`): Promise<{ ws: WebSocket; msgs: ServerMsg[]; next: (t: string) => Promise<ServerMsg> }> {
+function connect(origin: string | null = `http://127.0.0.1:${port}`, path = "/ws"): Promise<{ ws: WebSocket; msgs: ServerMsg[]; next: (t: string) => Promise<ServerMsg> }> {
   return new Promise((resolve, reject) => {
     const cookie = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { origin, cookie } });
+    const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`, { headers: { ...(origin ? { origin } : {}), cookie } });
     open.push(ws);
     const msgs: ServerMsg[] = [];
     const waiters: [string, (m: ServerMsg) => void][] = [];
@@ -80,6 +80,13 @@ describe("auth", () => {
   it("refuses a WebSocket without a session", async () => {
     cookies = {};
     await expect(connect()).rejects.toThrow("HTTP 401");
+  });
+  it("refuses an upgrade to /ws/ without a session", async () => {
+    cookies = {};
+    await expect(connect(undefined, "/ws/")).rejects.toThrow("HTTP 401");
+  });
+  it("refuses a WebSocket with no Origin", async () => {
+    await expect(connect(null)).rejects.toThrow("HTTP 403");
   });
   it("rejects a WebSocket from a foreign origin", async () => {
     await expect(connect("https://evil.example")).rejects.toThrow("HTTP 403");
