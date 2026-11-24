@@ -1,0 +1,461 @@
+{
+ "installed": [
+  {
+   "id": "superpowers@claude-plugins-official",
+   "name": "superpowers",
+   "marketplace": "claude-plugins-official",
+   "version": "7.0.2",
+   "description": "Brainstorming, plans, test-driven development and review workflows.",
+   "enabled": true,
+   "tokens": "≈3.1k",
+   "inventory": {
+    "skills": 14,
+    "agents": 1,
+    "hooks": 1
+   }
+  },
+  {
+   "id": "godot-game-tools@graeme-godot-tools",
+   "name": "godot-game-tools",
+   "marketplace": "graeme-godot-tools",
+   "version": "1.4.0",
+   "description": "Headless Godot tests, captures, telemetry and a code map.",
+   "enabled": true,
+   "tokens": "≈2.2k",
+   "inventory": {
+    "skills": 13
+   }
+  },
+  {
+   "id": "starfade-devlog@graeme-godot-tools",
+   "name": "starfade-devlog",
+   "marketplace": "graeme-godot-tools",
+   "version": "0.3.1",
+   "description": "Journal notes for the public devlog.",
+   "enabled": true,
+   "tokens": "≈260",
+   "inventory": {
+    "skills": 1
+   }
+  },
+  {
+   "id": "playwright@claude-plugins-official",
+   "name": "playwright",
+   "marketplace": "claude-plugins-official",
+   "version": "0.0.41",
+   "description": "Drive a browser: navigate, click, type and take screenshots.",
+   "enabled": true,
+   "tokens": "≈4.8k",
+   "inventory": {
+    "mcpServers": 1
+   }
+  },
+  {
+   "id": "claude-md-management@claude-plugins-official",
+   "name": "claude-md-management",
+   "marketplace": "claude-plugins-official",
+   "version": "1.1.0",
+   "description": "Audit and update CLAUDE.md files.",
+   "enabled": true,
+   "tokens": "≈310",
+   "inventory": {
+    "skills": 2
+   }
+  },
+  {
+   "id": "skill-creator@claude-plugins-official",
+   "name": "skill-creator",
+   "marketplace": "claude-plugins-official",
+   "version": "2.0.3",
+   "description": "Create, test and improve skills.",
+   "enabled": true,
+   "tokens": "≈520",
+   "inventory": {
+    "skills": 1
+   }
+  },
+  {
+   "id": "discord@claude-plugins-official",
+   "name": "discord",
+   "marketplace": "claude-plugins-official",
+   "version": "0.2.0",
+   "description": "Chat with Claude from a Discord channel.",
+   "enabled": false,
+   "tokens": "≈1.4k",
+   "inventory": {
+    "skills": 2,
+    "mcpServers": 1
+   }
+  },
+  {
+   "id": "browser-use@claude-plugins-official",
+   "name": "browser-use",
+   "marketplace": "claude-plugins-official",
+   "version": "0.9.1",
+   "description": "Automate a browser through the browser-use MCP server.",
+   "enabled": false,
+   "tokens": "≈2.9k",
+   "inventory": {
+    "mcpServers": 1
+   }
+  }
+ ],
+ "available": [
+  {
+   "id": "frontend-design@claude-plugins-official",
+   "name": "frontend-design",
+   "marketplace": "claude-plugins-official",
+   "description": "Guidance for distinctive visual design when building new UI.",
+   "tokens": "≈900",
+   "inventory": {
+    "skills": 1
+   },
+   "installs": 41200
+  },
+  {
+   "id": "code-simplifier@claude-plugins-official",
+   "name": "code-simplifier",
+   "marketplace": "claude-plugins-official",
+   "description": "Simplifies recently changed code without changing what it does.",
+   "tokens": "≈350",
+   "inventory": {
+    "agents": 1
+   },
+   "installs": 28100
+  },
+  {
+   "id": "code-review@claude-plugins-official",
+   "name": "code-review",
+   "marketplace": "claude-plugins-official",
+   "description": "Reviews a diff or pull request for bugs and broken conventions.",
+   "tokens": "≈640",
+   "inventory": {
+    "commands": 1,
+    "agents": 2
+   },
+   "installs": 63400
+  },
+  {
+   "id": "commit-commands@claude-plugins-official",
+   "name": "commit-commands",
+   "marketplace": "claude-plugins-official",
+   "description": "Commit, push and open a pull request in one command.",
+   "tokens": "≈210",
+   "inventory": {
+    "commands": 3
+   },
+   "installs": 35800
+  },
+  {
+   "id": "security-guidance@claude-plugins-official",
+   "name": "security-guidance",
+   "marketplace": "claude-plugins-official",
+   "description": "Warns about risky patterns as files are edited.",
+   "tokens": "≈120",
+   "inventory": {
+    "hooks": 1
+   },
+   "installs": 19300
+  },
+  {
+   "id": "github@claude-plugins-official",
+   "name": "github",
+   "marketplace": "claude-plugins-official",
+   "description": "Issues, pull requests and reviews through the GitHub MCP server.",
+   "tokens": "≈6.0k",
+   "inventory": {
+    "mcpServers": 1
+   },
+   "installs": 77100
+  },
+  {
+   "id": "gitlab@claude-plugins-official",
+   "name": "gitlab",
+   "marketplace": "claude-plugins-official",
+   "description": "Merge requests and pipelines through the GitLab MCP server.",
+   "tokens": "≈4.1k",
+   "inventory": {
+    "mcpServers": 1
+   },
+   "installs": 6200
+  },
+  {
+   "id": "linear@claude-plugins-official",
+   "name": "linear",
+   "marketplace": "claude-plugins-official",
+   "description": "Read and update Linear issues and projects.",
+   "tokens": "≈2.3k",
+   "inventory": {
+    "mcpServers": 1
+   },
+   "installs": 11800
+  },
+  {
+   "id": "sentry@claude-plugins-official",
+   "name": "sentry",
+   "marketplace": "claude-plugins-official",
+   "description": "Look up errors, issues and releases in Sentry.",
+   "tokens": "≈2.7k",
+   "inventory": {
+    "mcpServers": 1,
+    "commands": 2
+   },
+   "installs": 8000
+  },
+  {
+   "id": "pdf@claude-plugins-official",
+   "name": "pdf",
+   "marketplace": "claude-plugins-official",
+   "description": "Read, fill in and create PDF files.",
+   "tokens": "≈400",
+   "inventory": {
+    "skills": 1
+   },
+   "installs": 52300
+  },
+  {
+   "id": "docx@claude-plugins-official",
+   "name": "docx",
+   "marketplace": "claude-plugins-official",
+   "description": "Create and edit Word documents.",
+   "tokens": "≈380",
+   "inventory": {
+    "skills": 1
+   },
+   "installs": 31000
+  },
+  {
+   "id": "xlsx@claude-plugins-official",
+   "name": "xlsx",
+   "marketplace": "claude-plugins-official",
+   "description": "Read and build spreadsheets with formulas.",
+   "tokens": "≈420",
+   "inventory": {
+    "skills": 1
+   },
+   "installs": 29700
+  },
+  {
+   "id": "pptx@claude-plugins-official",
+   "name": "pptx",
+   "marketplace": "claude-plugins-official",
+   "description": "Build and edit slide decks.",
+   "tokens": "≈410",
+   "inventory": {
+    "skills": 1
+   },
+   "installs": 22400
+  },
+  {
+   "id": "context7@claude-plugins-official",
+   "name": "context7",
+   "marketplace": "claude-plugins-official",
+   "description": "Up-to-date library documentation for coding.",
+   "tokens": "≈1.9k",
+   "inventory": {
+    "mcpServers": 1
+   },
+   "installs": 48900
+  },
+  {
+   "id": "hookify@claude-plugins-official",
+   "name": "hookify",
+   "marketplace": "claude-plugins-official",
+   "description": "Write hooks from plain descriptions of what to prevent.",
+   "tokens": "≈300",
+   "inventory": {
+    "commands": 2,
+    "skills": 1
+   },
+   "installs": 9100
+  },
+  {
+   "id": "feature-dev@claude-plugins-official",
+   "name": "feature-dev",
+   "marketplace": "claude-plugins-official",
+   "description": "Explore, design and build a feature with focused agents.",
+   "tokens": "≈1.1k",
+   "inventory": {
+    "commands": 1,
+    "agents": 3
+   },
+   "installs": 24500
+  },
+  {
+   "id": "pr-review-toolkit@claude-plugins-official",
+   "name": "pr-review-toolkit",
+   "marketplace": "claude-plugins-official",
+   "description": "Specialised reviewers for tests, types, comments and errors.",
+   "tokens": "≈1.3k",
+   "inventory": {
+    "agents": 6
+   },
+   "installs": 17300
+  },
+  {
+   "id": "typescript-lsp@claude-plugins-official",
+   "name": "typescript-lsp",
+   "marketplace": "claude-plugins-official",
+   "description": "TypeScript language server: diagnostics and go to definition.",
+   "tokens": "≈150",
+   "inventory": {
+    "mcpServers": 1
+   },
+   "installs": 14800
+  },
+  {
+   "id": "rust-analyzer-lsp@claude-plugins-official",
+   "name": "rust-analyzer-lsp",
+   "marketplace": "claude-plugins-official",
+   "description": "Rust language server: diagnostics and go to definition.",
+   "tokens": "≈150",
+   "inventory": {
+    "mcpServers": 1
+   },
+   "installs": 5200
+  },
+  {
+   "id": "explanatory-output-style@claude-plugins-official",
+   "name": "explanatory-output-style",
+   "marketplace": "claude-plugins-official",
+   "description": "Adds short explanations of choices to responses.",
+   "tokens": "≈180",
+   "inventory": {
+    "hooks": 1
+   },
+   "installs": 7400
+  },
+  {
+   "id": "learning-output-style@claude-plugins-official",
+   "name": "learning-output-style",
+   "marketplace": "claude-plugins-official",
+   "description": "Asks you to write key pieces yourself while you learn.",
+   "tokens": "≈200",
+   "inventory": {
+    "hooks": 1
+   },
+   "installs": 4300
+  },
+  {
+   "id": "agent-sdk-dev@claude-plugins-official",
+   "name": "agent-sdk-dev",
+   "marketplace": "claude-plugins-official",
+   "description": "Scaffold and check Claude Agent SDK apps.",
+   "tokens": "≈700",
+   "inventory": {
+    "commands": 1,
+    "agents": 2
+   },
+   "installs": 6900
+  },
+  {
+   "id": "ralph-loop@claude-plugins-official",
+   "name": "ralph-loop",
+   "marketplace": "claude-plugins-official",
+   "description": "Keep a task running in a loop until it's done.",
+   "tokens": "≈260",
+   "inventory": {
+    "commands": 2,
+    "hooks": 1
+   },
+   "installs": 12100
+  },
+  {
+   "id": "blender-tools@graeme-godot-tools",
+   "name": "blender-tools",
+   "marketplace": "graeme-godot-tools",
+   "description": "Build low-poly models as Blender Python scripts and export them.",
+   "tokens": "≈700",
+   "inventory": {
+    "skills": 2
+   }
+  },
+  {
+   "id": "godot-shader-kit@graeme-godot-tools",
+   "name": "godot-shader-kit",
+   "marketplace": "graeme-godot-tools",
+   "description": "Write, preview and compare Godot shaders.",
+   "tokens": "≈540",
+   "inventory": {
+    "skills": 3
+   }
+  },
+  {
+   "id": "level-designer@graeme-godot-tools",
+   "name": "level-designer",
+   "marketplace": "graeme-godot-tools",
+   "description": "Lay out game levels from a written brief.",
+   "tokens": "≈480",
+   "inventory": {
+    "skills": 1,
+    "agents": 1
+   }
+  },
+  {
+   "id": "shader-notes@local-plugins",
+   "name": "shader-notes",
+   "marketplace": "local-plugins",
+   "description": "House rules for writing Godot shaders.",
+   "tokens": "≈200",
+   "inventory": {
+    "skills": 1
+   }
+  },
+  {
+   "id": "release-checklist@local-plugins",
+   "name": "release-checklist",
+   "marketplace": "local-plugins",
+   "description": "The steps for a Starfade release build.",
+   "tokens": "≈160",
+   "inventory": {
+    "commands": 1
+   }
+  },
+  {
+   "id": "composer@claude-plugins-official",
+   "name": "composer",
+   "marketplace": "claude-plugins-official",
+   "description": "Compose and arrange music from a brief.",
+   "tokens": "≈800",
+   "inventory": {
+    "skills": 2
+   },
+   "installs": 2100
+  },
+  {
+   "id": "cost-control@claude-plugins-official",
+   "name": "cost-control",
+   "marketplace": "claude-plugins-official",
+   "description": "Shows and trims what a session costs as it runs.",
+   "tokens": "≈220",
+   "inventory": {
+    "commands": 2,
+    "hooks": 1
+   },
+   "installs": 3300
+  }
+ ],
+ "marketplaces": [
+  {
+   "name": "claude-plugins-official",
+   "source": "github",
+   "location": "anthropics/claude-plugins-official",
+   "official": true,
+   "updatedAt": "2026-11-24T08:00:00Z"
+  },
+  {
+   "name": "graeme-godot-tools",
+   "source": "github",
+   "location": "gphook/godot-game-tools",
+   "official": false,
+   "updatedAt": "2026-11-23T17:30:00Z"
+  },
+  {
+   "name": "local-plugins",
+   "source": "path",
+   "location": "~/dev/plugins",
+   "official": false,
+   "updatedAt": "2026-11-19T10:00:00Z"
+  }
+ ]
+}
