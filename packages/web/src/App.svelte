@@ -31,6 +31,8 @@
 
 {#if ui.session && !ui.session.signedIn}
   <SignInScreen />
+{:else if ui.unreachable}
+<main class="unreachable" role="status">Can't reach Squad. Retrying…</main>
 {:else if ui.session}
 <div class="app">
   <TopBar oneditproject={(p) => (editingProject = { p })} />
@@ -90,6 +92,7 @@
   :global(.modal .actions) { display: flex; gap: 8px; }
   .app { height: 100%; display: flex; flex-direction: column; }
   .body { flex: 1; display: flex; min-height: 0; }
+  .unreachable { height: 100%; display: grid; place-items: center; color: var(--muted); }
   .empty { flex: 1; display: grid; place-content: center; gap: 10px; text-align: center; }
   .error { background: color-mix(in srgb, var(--bad) 15%, var(--panel)); padding: 6px 12px; display: flex; justify-content: space-between; }
   .error button { border: 0; background: none; }
