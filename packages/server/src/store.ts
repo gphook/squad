@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import {
   FIVE_HOUR_MS, SEVEN_DAY_MS, defaultLayout, normaliseLayout,
   type Activity, type ActivityInput, type Agent, type EffortLevel, type Layout, type LoggedMessage, type PermissionMode, type Project, type SharedFile, type UsageReport,
-  type UsageTurnRow,
+  type PluginSwitch, type UsageTurnRow,
 } from "@squad/shared";
 
 export class StoreError extends Error {}
@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS usage_turns (
 );
 CREATE INDEX IF NOT EXISTS usage_turns_at ON usage_turns(at);
 -- The session's cumulative per-model totals at its last turn, to turn the SDK's running totals into per-turn rows.
+CREATE TABLE IF NOT EXISTS plugin_switches (
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL, -- '' for the project default
+  plugin_id TEXT NOT NULL,
+  enabled INTEGER NOT NULL,
+  PRIMARY KEY (project_id, agent_id, plugin_id)
+);
 CREATE TABLE IF NOT EXISTS usage_baselines (
   agent_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, totals TEXT NOT NULL
 );`;
@@ -261,8 +268,30 @@ export class Store {
         this.db.prepare("UPDATE activities SET owner_id = ?, reviewer_ids = ? WHERE id = ?")
           .run(a.ownerId === id ? null : a.ownerId, JSON.stringify(a.reviewerIds.filter((r) => r !== id)), a.id);
       }
+      this.db.prepare("DELETE FROM plugin_switches WHERE agent_id = ?").run(id);
       this.db.prepare("DELETE FROM agents WHERE id = ?").run(id);
     });
+  }
+
+  /** The project's stored plugin switches: its defaults (`agentId` null) and its squadmates' own settings. */
+  listPluginSwitches(projectId: string): PluginSwitch[] {
+    return (this.db.prepare("SELECT * FROM plugin_switches WHERE project_id = ? ORDER BY plugin_id, agent_id").all(projectId) as Row[])
+      .map((r) => ({ pluginId: r.plugin_id as string, agentId: (r.agent_id as string) || null, enabled: r.enabled === 1 }));
+  }
+
+  /** Stores a switch; `enabled` null forgets it, so the project follows the terminal or the squadmate the project. */
+  setPluginSwitch(projectId: string, pluginId: string, agentId: string | null, enabled: boolean | null): void {
+    if (enabled === null) {
+      this.db.prepare("DELETE FROM plugin_switches WHERE project_id = ? AND agent_id = ? AND plugin_id = ?").run(projectId, agentId ?? "", pluginId);
+    } else {
+      this.db.prepare("INSERT OR REPLACE INTO plugin_switches (project_id, agent_id, plugin_id, enabled) VALUES (?, ?, ?, ?)")
+        .run(projectId, agentId ?? "", pluginId, enabled ? 1 : 0);
+    }
+  }
+
+  /** Forgets every project's switches for a plugin (it was uninstalled). */
+  deletePluginSwitches(pluginId: string): void {
+    this.db.prepare("DELETE FROM plugin_switches WHERE plugin_id = ?").run(pluginId);
   }
 
   saveLayout(projectId: string, layout: Layout): void {
