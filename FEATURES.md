@@ -35,6 +35,9 @@
 - Prompt box and streamed replies per agent, like Claude Desktop.
 - Tool calls shown collapsed, expandable.
 - Tool approvals inline: Allow, Deny, Allow always for this session.
+- Questions inline: when a squadmate asks you to choose (`AskUserQuestion`), its tile shows each question with its
+  options (one choice or several, as the question allows) and an Other box for your own answer. Submit sends the
+  answers; Skip tells the squadmate to ask in chat instead.
 - Peer messages marked in the chat (⇠ from / ⇢ to).
 - Shell commands: `!cmd` asks the squadmate to run it with its Bash tool; `$ cmd` has Squad run it in your `$SHELL`
   (POSIX shells such as sh/bash/zsh/dash/ksh, fish, nushell or PowerShell; anything else falls back to `/bin/sh`) in the squadmate's folder, streamed live with a Kill button, and passed to the squadmate with your next message (or when

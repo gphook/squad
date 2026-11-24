@@ -7,7 +7,7 @@ import type {
 import {
   SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, appendShellOutput, bashContextBlock, errorMessage,
   parseShellInput,
-  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type Project, type SlashCommandInfo,
+  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type AskQuestion, type QuestionAnswers, type Project, type SlashCommandInfo,
 } from "@squad/shared";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
@@ -54,6 +54,24 @@ const SHELL_FLUSH_MS = 50;
 
 export const NOT_SIGNED_IN = "Not signed in to Claude: click the account in the top bar";
 const DENY_MESSAGE = "Denied by user in Squad";
+const SKIP_MESSAGE = "The user skipped these questions in Squad. Ask them in chat instead, as a normal message.";
+const ASK_TOOL = "AskUserQuestion";
+
+/** AskUserQuestion's questions, kept to the fields the page shows; undefined when the input isn't usable. */
+export function askQuestions(input: Record<string, unknown>): AskQuestion[] | undefined {
+  const raw = input.questions;
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const qs = raw.filter((q) => q && typeof q === "object" && typeof q.question === "string").map((q) => ({
+    question: q.question as string,
+    header: str(q.header),
+    multiSelect: q.multiSelect === true,
+    options: (Array.isArray(q.options) ? q.options : [])
+      .filter((o: any) => o && typeof o.label === "string")
+      .map((o: any) => ({ label: o.label as string, description: str(o.description) })),
+  }));
+  return qs.length ? qs : undefined;
+}
 /** Squad's own tools only touch Squad state and the share folder, so they never need approval. */
 export const SQUAD_TOOLS = SQUAD_TOOL_NAMES.map((t) => `${SQUAD_TOOL_PREFIX}${t}`);
 
@@ -301,6 +319,8 @@ export class AgentRunner extends EventEmitter {
         id: randomUUID(), agentId: this.agent.id, toolName, input,
         summary: summariseTool(toolName, input), canAlways: Boolean(suggestions?.length),
       };
+      const questions = toolName === ASK_TOOL ? askQuestions(input) : undefined;
+      if (questions) approval.questions = questions;
       this.pending.set(approval.id, { approval, input, suggestions, resolve });
       signal.addEventListener("abort", () => this.resolveApproval(approval.id, "deny"), { once: true });
       this.setStatus("awaiting");
@@ -308,19 +328,23 @@ export class AgentRunner extends EventEmitter {
     });
   }
 
-  private resolveApproval(id: string, decision: ApprovalDecision): boolean {
+  private resolveApproval(id: string, decision: ApprovalDecision, answers?: QuestionAnswers): boolean {
     const p = this.pending.get(id);
     if (!p) return false;
     this.pending.delete(id);
-    if (decision === "deny") p.resolve({ behavior: "deny", message: DENY_MESSAGE });
+    const asking = Boolean(p.approval.questions);
+    if (asking && decision !== "deny" && answers && Object.keys(answers).length) {
+      p.resolve({ behavior: "allow", updatedInput: { ...p.input, answers } });
+    } else if (decision === "deny" || asking) p.resolve({ behavior: "deny", message: asking ? SKIP_MESSAGE : DENY_MESSAGE });
     else if (decision === "always") p.resolve({ behavior: "allow", updatedInput: p.input, updatedPermissions: p.suggestions ?? [] });
     else p.resolve({ behavior: "allow", updatedInput: p.input });
     this.emit("approvalResolved", id);
     return true;
   }
 
-  answer(approvalId: string, decision: ApprovalDecision): void {
-    if (this.resolveApproval(approvalId, decision) && this.pending.size === 0 && this.state.status === "awaiting") {
+  /** `answers` answers an AskUserQuestion approval; without them, that approval is skipped. */
+  answer(approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers): void {
+    if (this.resolveApproval(approvalId, decision, answers) && this.pending.size === 0 && this.state.status === "awaiting") {
       this.setStatus("working");
     }
   }
