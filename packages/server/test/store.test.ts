@@ -336,3 +336,54 @@ describe("plugin switches", () => {
     expect(store.listPluginSwitches(q.id)).toEqual([{ pluginId: "y@m", agentId: null, enabled: false }]);
   });
 });
+
+describe("sign-in tables", () => {
+  const pk = { id: "c1", publicKey: new Uint8Array([1, 2]), counter: 0, transports: ["internal"], name: "Laptop", createdAt: 1 };
+  const sess = (idHash: string, kind: "remember" | "restart", passkeyId: string | null) =>
+    ({ idHash, kind, passkeyId, createdAt: 1, lastUsedAt: 2, userAgent: "ua", label: "Firefox" });
+
+  it("adds, reads and renames a passkey", () => {
+    store.addPasskey(pk);
+    expect(store.getPasskey("c1")).toEqual({ ...pk, lastUsedAt: null });
+    store.renamePasskey("c1", "Phone");
+    expect(store.getPasskey("c1")!.name).toBe("Phone");
+    store.passkeyUsed("c1", 5, 9);
+    expect(store.getPasskey("c1")).toMatchObject({ counter: 5, lastUsedAt: 9 });
+    expect(store.listPasskeys()).toHaveLength(1);
+    expect(store.getPasskey("nope")).toBeNull();
+  });
+
+  it("deleting a passkey deletes its sessions", () => {
+    store.addPasskey(pk);
+    store.addSession(sess("h1", "remember", "c1"));
+    store.addSession(sess("h2", "restart", null));
+    store.deletePasskey("c1");
+    expect(store.listSessions().map((s) => s.idHash)).toEqual(["h2"]);
+  });
+
+  it("deleteSessionsWhere returns and removes only the matching sessions", () => {
+    store.addSession(sess("h1", "remember", null));
+    store.addSession(sess("h2", "restart", null));
+    expect(store.deleteSessionsWhere("restart")).toEqual(["h2"]);
+    expect(store.listSessions().map((s) => s.idHash)).toEqual(["h1"]);
+    store.addSession(sess("h3", "restart", null));
+    expect(store.deleteSessionsWhere("all").sort()).toEqual(["h1", "h3"]);
+    expect(store.listSessions()).toEqual([]);
+  });
+
+  it("touches and deletes a session", () => {
+    store.addSession(sess("h1", "remember", null));
+    store.touchSession("h1", 50);
+    expect(store.getSession("h1")).toEqual({ ...sess("h1", "remember", null), lastUsedAt: 50 });
+    store.deleteSession("h1");
+    expect(store.getSession("h1")).toBeNull();
+  });
+
+  it("signin meta round-trips", () => {
+    expect(store.signinMeta("userHandle")).toBeNull();
+    store.setSigninMeta("userHandle", "abc");
+    expect(store.signinMeta("userHandle")).toBe("abc");
+    store.setSigninMeta("userHandle", "def");
+    expect(store.signinMeta("userHandle")).toBe("def");
+  });
+});
