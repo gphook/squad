@@ -44,6 +44,13 @@ export function buildApp(opts: {
 
   // ---- WebSocket ----
   const sockets = new Map<WebSocket, { projectId: string | null; sessionHash: string | null }>();
+  // A revoked session must not keep a live socket: the web client treats 4401 as signed out.
+  const closeRevoked = (idHashes: string[]): void => {
+    const gone = new Set(idHashes);
+    for (const [ws, s] of sockets) if (s.sessionHash && gone.has(s.sessionHash)) ws.close(4401, "Signed out");
+  };
+  signin.sessions.on("revoked", closeRevoked);
+  app.addHook("onClose", async () => { signin.sessions.off("revoked", closeRevoked); });
   const out = (ws: WebSocket, m: ServerMsg): void => {
     if (ws.readyState === 1) ws.send(JSON.stringify(m));
   };

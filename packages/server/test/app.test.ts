@@ -14,6 +14,9 @@ import { FakePluginSource } from "../src/plugins/fakeSource.ts";
 import { PluginService, kitPlugin } from "../src/plugins/service.ts";
 import { createSignIn, type SignIn } from "../src/signin/index.ts";
 import { signedInCookie } from "./signinHelper.ts";
+import { hashId } from "../src/signin/sessions.ts";
+
+const hashOf = (c: Record<string, string>): string => hashId(Object.values(c)[0]!);
 
 let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fakeFactory>, plan: PlanUsageTracker;
 let port: number, projectId: string, agentId: string, folder: string;
@@ -90,6 +93,33 @@ describe("auth", () => {
   });
   it("rejects a WebSocket from a foreign origin", async () => {
     await expect(connect("https://evil.example")).rejects.toThrow("HTTP 403");
+  });
+  const closed = (ws: WebSocket) => new Promise<{ code: number; reason: string }>((r) => ws.on("close", (code, reason) => r({ code, reason: String(reason) })));
+  const revokeVia = (callerCookies: Record<string, string>, method: "DELETE" | "POST", url: string) =>
+    app.inject({ method, url, cookies: callerCookies, headers: { ...host(), origin: `http://localhost:${port}` } });
+  it("revoking a session closes its open WebSocket with 4401", async () => {
+    const a = signedInCookie(signin, port), b = signedInCookie(signin, port);
+    const hashA = signin.store.listSessions().find((s) => hashOf(a) === s.idHash)!.idHash;
+    cookies = a;
+    const ca = await connect();
+    cookies = b;
+    const cb = await connect();
+    const gone = closed(ca.ws);
+    expect((await revokeVia(b, "DELETE", `/api/signin/sessions/${hashA}`)).statusCode).toBe(204);
+    expect(await gone).toEqual({ code: 4401, reason: "Signed out" });
+    expect(cb.ws.readyState).toBe(1);
+  });
+  it("sign out everywhere closes every socket and the caller's cookie is cleared", async () => {
+    const a = signedInCookie(signin, port), b = signedInCookie(signin, port);
+    cookies = a;
+    const ca = await connect();
+    cookies = b;
+    const cb = await connect();
+    const gones = [closed(ca.ws), closed(cb.ws)];
+    const r = await revokeVia(b, "POST", "/api/signin/sign-out-everywhere");
+    expect(r.statusCode).toBe(204);
+    expect(String(r.headers["set-cookie"])).toContain("Max-Age=0");
+    expect((await Promise.all(gones)).map((g) => g.code)).toEqual([4401, 4401]);
   });
 });
 
