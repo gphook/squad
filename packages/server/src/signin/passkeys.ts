@@ -8,6 +8,7 @@ export type WebAuthnLib = Pick<typeof import("@simplewebauthn/server"),
 const RP_ID = "localhost";
 const RP_NAME = "Squad";
 const CHALLENGE_MS = 5 * 60_000;
+const MAX_CHALLENGES = 1000;
 const USER_HANDLE_KEY = "userHandle";
 
 /** The challenge the browser signed, read from the response's clientDataJSON. */
@@ -37,6 +38,11 @@ export class Passkeys {
   }
 
   private remember(challenge: string): void {
+    while (this.challenges.size >= MAX_CHALLENGES) {
+      const oldest = this.challenges.keys().next().value;
+      if (oldest === undefined) break;
+      this.challenges.delete(oldest);
+    }
     this.challenges.set(challenge, this.now() + CHALLENGE_MS);
   }
 
@@ -59,17 +65,20 @@ export class Passkeys {
   }
 
   /** Consumes the response's challenge (pass or fail); null when it is unknown or expired. */
-  private take(response: unknown): ((c: string) => boolean) | null {
+  private take(response: unknown): string | null {
     this.sweep();
     const challenge = challengeOf(response);
-    if (challenge === null || !this.challenges.has(challenge)) return null;
+    return challenge !== null && this.challenges.has(challenge) ? challenge : null;
+  }
+
+  private matcher(challenge: string): (c: string) => boolean {
     return (c) => c === challenge && this.challenges.delete(c);
   }
 
   async verifyRegistration(response: unknown, expectedOrigin: string, name: string): Promise<string | null> {
-    const expectedChallenge = this.take(response);
-    if (!expectedChallenge) return null;
-    const challenge = challengeOf(response)!;
+    const challenge = this.take(response);
+    if (challenge === null) return null;
+    const expectedChallenge = this.matcher(challenge);
     try {
       const res = await this.lib.verifyRegistrationResponse({
         response: response as never, expectedChallenge, expectedOrigin, expectedRPID: RP_ID,
@@ -94,9 +103,9 @@ export class Passkeys {
   }
 
   async verifyLogin(response: unknown, expectedOrigin: string): Promise<string | null> {
-    const expectedChallenge = this.take(response);
-    if (!expectedChallenge) return null;
-    const challenge = challengeOf(response)!;
+    const challenge = this.take(response);
+    if (challenge === null) return null;
+    const expectedChallenge = this.matcher(challenge);
     try {
       const id = (response as { id?: unknown }).id;
       const passkey = typeof id === "string" ? this.store.getPasskey(id) : null;
