@@ -1,4 +1,6 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { createReadStream } from "node:fs";
+import { access, readdir } from "node:fs/promises";
+import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
@@ -11,31 +13,41 @@ type Line = { type?: string; subtype?: string; uuid?: string; parentUuid?: strin
 export async function loadHistory(sessionId: string, cwd: string): Promise<AgentEvent[]> {
   try {
     const msgs = await getSessionMessages(sessionId, { dir: cwd, includeSystemMessages: true });
-    return historyEvents(withCommandOutput(msgs as Line[], commandOutputLines(sessionId)));
+    return historyEvents(withCommandOutput(msgs as Line[], await commandOutputLines(sessionId, cwd)));
   } catch {
     return [];
   }
 }
 
-/** The session file's `/` command output lines; getSessionMessages doesn't return their text. */
-function commandOutputLines(sessionId: string): Line[] {
+/** Where Claude Code keeps a session's file: the folder's own project directory, else any other (a moved folder). */
+async function sessionFile(sessionId: string, cwd: string): Promise<string | null> {
+  const root = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"), "projects");
+  const name = `${sessionId}.jsonl`;
+  const own = join(root, cwd.replace(/[^a-zA-Z0-9]/g, "-"), name);
+  if (await exists(own)) return own;
+  for (const dir of await readdir(root).catch(() => [])) {
+    if (await exists(join(root, dir, name))) return join(root, dir, name);
+  }
+  return null;
+}
+
+const exists = (f: string) => access(f).then(() => true, () => false);
+
+/** The session file's `/` command output lines; getSessionMessages doesn't return their text. Read as a stream. */
+export async function commandOutputLines(sessionId: string, cwd: string): Promise<Line[]> {
+  const out: Line[] = [];
   try {
-    const root = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"), "projects");
-    for (const dir of readdirSync(root)) {
-      const file = join(root, dir, `${sessionId}.jsonl`);
-      if (!existsSync(file)) continue;
-      return readFileSync(file, "utf8").split("\n").flatMap((l) => {
-        if (!l.includes('"local_command"')) return [];
-        try {
-          const line = JSON.parse(l) as Line;
-          return line.type === "system" && line.subtype === "local_command" ? [line] : [];
-        } catch {
-          return [];
-        }
-      });
+    const file = await sessionFile(sessionId, cwd);
+    if (!file) return out;
+    for await (const l of createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity })) {
+      if (!l.includes('"local_command"')) continue;
+      try {
+        const line = JSON.parse(l) as Line;
+        if (line.type === "system" && line.subtype === "local_command") out.push(line);
+      } catch {}
     }
   } catch {}
-  return [];
+  return out;
 }
 
 /**
