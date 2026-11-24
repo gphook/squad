@@ -36,10 +36,10 @@ supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
 const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
 
 await app.listen({ port, host: "127.0.0.1" });
-const startupPlanned = startupPlan(startup, store.listPasskeys().length);
-const code = startupPlanned.mintCode ? signin.setup.mint() : null;
+const startupAction = startupPlan(startup, store.listPasskeys().length);
+const code = startupAction.mintCode ? signin.setup.mint() : null;
 const url = `http://localhost:${port}/` + (code ? `setup?code=${code}` : "");
-const opened = startupPlanned.open ? await openBrowser(url) : false;
+const opened = startupAction.open ? await openBrowser(url) : false;
 console.log(startupMessage(port, code, opened));
 void plan.refresh(); // fill the rings before the first page load asks
 

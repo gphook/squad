@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { openBrowser, parseStartupArgs, startupMessage, startupPlan } from "../src/signin/startup.ts";
 
 const base = { noOpen: false, resetSignIn: false, dev: false };
@@ -17,6 +17,8 @@ describe("startupPlan", () => {
     expect(startupPlan(base, 0).mintCode).toBe(true);
     expect(startupPlan(base, 2).mintCode).toBe(false);
     expect(startupPlan({ ...base, resetSignIn: true }, 2).mintCode).toBe(true);
+    expect(startupPlan({ ...base, resetSignIn: true, dev: true }, 2)).toEqual({ mintCode: true, open: false });
+    expect(startupPlan({ ...base, resetSignIn: true, noOpen: true }, 2)).toEqual({ mintCode: true, open: false });
   });
   it("opens unless --no-open or dev", () => {
     expect(startupPlan(base, 0).open).toBe(true);
@@ -39,16 +41,58 @@ describe("startupMessage", () => {
 });
 
 describe("openBrowser", () => {
-  const fake = (event: "error" | "spawn") => (() => {
-    const e = new EventEmitter() as EventEmitter & { unref(): void };
-    e.unref = () => {};
-    queueMicrotask(() => e.emit(event, new Error("ENOENT")));
-    return e;
-  }) as never;
-  it("resolves false when the spawn errors", async () => {
-    expect(await openBrowser("http://x/", fake("error"))).toBe(false);
+  type Fake = EventEmitter & { unref(): void; unrefCalled: boolean };
+  const make = (emit?: [string, ...unknown[]]) => {
+    const calls: unknown[][] = [];
+    const child = new EventEmitter() as Fake;
+    child.unrefCalled = false;
+    child.unref = () => { child.unrefCalled = true; };
+    const spawnFn = ((...args: unknown[]) => {
+      calls.push(args);
+      if (emit) queueMicrotask(() => child.emit(...emit));
+      return child;
+    }) as never;
+    return { spawnFn, calls, child };
+  };
+
+  it("spawns the opener detached with the url", async () => {
+    const f = make(["exit", 0]);
+    await openBrowser("http://x/", f.spawnFn, "linux");
+    expect(f.calls[0]).toEqual(["xdg-open", ["http://x/"], { detached: true, stdio: "ignore" }]);
+    const m = make(["exit", 0]);
+    await openBrowser("http://x/", m.spawnFn, "darwin");
+    expect(m.calls[0]![0]).toBe("open");
   });
-  it("resolves true when the process spawns", async () => {
-    expect(await openBrowser("http://x/", fake("spawn"))).toBe(process.platform === "linux" || process.platform === "darwin");
+  it("resolves true on exit 0", async () => {
+    expect(await openBrowser("http://x/", make(["exit", 0]).spawnFn, "linux")).toBe(true);
+  });
+  it("resolves false on a non-zero exit", async () => {
+    expect(await openBrowser("http://x/", make(["exit", 3]).spawnFn, "linux")).toBe(false);
+  });
+  it("resolves false when the spawn errors", async () => {
+    expect(await openBrowser("http://x/", make(["error", new Error("ENOENT")]).spawnFn, "linux")).toBe(false);
+  });
+  it("resolves false when spawn throws synchronously", async () => {
+    const spawnFn = (() => { throw new Error("boom"); }) as never;
+    expect(await openBrowser("http://x/", spawnFn, "linux")).toBe(false);
+  });
+  it("resolves false without spawning on an unsupported platform", async () => {
+    const f = make();
+    expect(await openBrowser("http://x/", f.spawnFn, "win32")).toBe(false);
+    expect(f.calls).toHaveLength(0);
+  });
+  it("counts a still-running opener as opened after 5 s and unrefs it", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = make();
+      const p = openBrowser("http://x/", f.spawnFn, "linux");
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(f.child.unrefCalled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await p).toBe(true);
+      expect(f.child.unrefCalled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
