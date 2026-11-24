@@ -6,10 +6,13 @@ export default defineConfig({
   plugins: [svelte()],
   server: {
     port: 5173,
+    // changeOrigin stays false so the server sees the browser's Host (localhost:5173): the sign-in gate matches Origin
+    // against Host, and WebAuthn's expected origin is http://<Host>.
     proxy: {
-      "/ws": { target, ws: true },
-      "/files": target,
-      "/api": target,
+      "/ws": { target, ws: true, changeOrigin: false },
+      "/files": { target, changeOrigin: false },
+      "/api": { target, changeOrigin: false },
+      "/setup": { target, changeOrigin: false },
     },
   },
   // Component tests mount Svelte in jsdom, which needs Svelte's browser build rather than its server one.

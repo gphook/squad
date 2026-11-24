@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { openBrowser, parseStartupArgs, startupMessage, startupPlan } from "../src/signin/startup.ts";
+import { appBaseUrl, openBrowser, parseStartupArgs, startupMessage, startupPlan, startupUrl } from "../src/signin/startup.ts";
 
 const base = { noOpen: false, resetSignIn: false, dev: false };
 
@@ -27,16 +27,33 @@ describe("startupPlan", () => {
   });
 });
 
+describe("appBaseUrl and startupUrl", () => {
+  it("uses the server port, or Vite's port in dev", () => {
+    expect(appBaseUrl(7340, false)).toBe("http://localhost:7340");
+    expect(appBaseUrl(7341, true)).toBe("http://localhost:5173");
+  });
+  it("adds the setup path only with a code", () => {
+    expect(startupUrl("http://localhost:7340", null)).toBe("http://localhost:7340/");
+    expect(startupUrl("http://localhost:5173", "abc")).toBe("http://localhost:5173/setup?code=abc");
+  });
+});
+
 describe("startupMessage", () => {
+  const base = "http://localhost:7340";
   it("never includes the code when the browser opened", () => {
-    expect(startupMessage(7340, "SECRET", true)).not.toContain("SECRET");
-    expect(startupMessage(7340, "SECRET", true)).toBe("Squad: opened http://localhost:7340/ in your browser to set up sign-in.");
+    expect(startupMessage(base, "SECRET", true)).not.toContain("SECRET");
+    expect(startupMessage(base, "SECRET", true)).toBe("Squad: opened http://localhost:7340/ in your browser to set up sign-in.");
   });
   it("prints the link when not opened", () => {
-    expect(startupMessage(7340, "abc", false)).toBe("Squad: set up sign-in at http://localhost:7340/setup?code=abc  (single use, expires in 10 minutes)");
+    expect(startupMessage(base, "abc", false)).toBe("Squad: set up sign-in at http://localhost:7340/setup?code=abc  (single use, expires in 10 minutes)");
   });
   it("prints the plain URL with no code", () => {
-    expect(startupMessage(7340, null, false)).toBe("Squad: http://localhost:7340/");
+    expect(startupMessage(base, null, false)).toBe("Squad: http://localhost:7340/");
+  });
+  it("in dev, prints links on the Vite port", () => {
+    const dev = appBaseUrl(7341, true);
+    expect(startupMessage(dev, "abc", false)).toBe("Squad: set up sign-in at http://localhost:5173/setup?code=abc  (single use, expires in 10 minutes)");
+    expect(startupMessage(dev, null, false)).toBe("Squad: http://localhost:5173/");
   });
 });
 

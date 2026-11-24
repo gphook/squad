@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { DEV_PORT } from "./gate.ts";
 
 export interface StartupOptions { noOpen: boolean; resetSignIn: boolean; dev: boolean }
 
@@ -14,10 +15,19 @@ export function startupPlan(o: StartupOptions, passkeyCount: number): { mintCode
   return { mintCode: passkeyCount === 0 || o.resetSignIn, open: !o.noOpen && !o.dev };
 }
 
-export function startupMessage(port: number, code: string | null, opened: boolean): string {
-  if (code === null) return `Squad: http://localhost:${port}/`;
-  if (opened) return `Squad: opened http://localhost:${port}/ in your browser to set up sign-in.`;
-  return `Squad: set up sign-in at http://localhost:${port}/setup?code=${code}  (single use, expires in 10 minutes)`;
+/** Where the browser reaches the UI: the server itself, or Vite in dev (which proxies to the server). */
+export function appBaseUrl(port: number, dev: boolean): string {
+  return `http://localhost:${dev ? DEV_PORT : port}`;
+}
+
+export function startupUrl(base: string, code: string | null): string {
+  return code === null ? `${base}/` : `${base}/setup?code=${code}`;
+}
+
+export function startupMessage(base: string, code: string | null, opened: boolean): string {
+  if (code === null) return `Squad: ${base}/`;
+  if (opened) return `Squad: opened ${base}/ in your browser to set up sign-in.`;
+  return `Squad: set up sign-in at ${startupUrl(base, code)}  (single use, expires in 10 minutes)`;
 }
 
 const OPEN_TIMEOUT_MS = 5000;

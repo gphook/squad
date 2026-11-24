@@ -12,7 +12,7 @@ import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
 import { Store } from "./store.ts";
 import { createSignIn } from "./signin/index.ts";
-import { openBrowser, parseStartupArgs, startupMessage, startupPlan } from "./signin/startup.ts";
+import { appBaseUrl, openBrowser, parseStartupArgs, startupMessage, startupPlan, startupUrl } from "./signin/startup.ts";
 import { Supervisor } from "./supervisor.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -38,9 +38,9 @@ const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, w
 await app.listen({ port, host: "127.0.0.1" });
 const startupAction = startupPlan(startup, store.listPasskeys().length);
 const code = startupAction.mintCode ? signin.setup.mint() : null;
-const url = `http://localhost:${port}/` + (code ? `setup?code=${code}` : "");
-const opened = startupAction.open ? await openBrowser(url) : false;
-console.log(startupMessage(port, code, opened));
+const base = appBaseUrl(port, startup.dev);
+const opened = startupAction.open ? await openBrowser(startupUrl(base, code)) : false;
+console.log(startupMessage(base, code, opened));
 void plan.refresh(); // fill the rings before the first page load asks
 
 const shutdown = async () => {
