@@ -135,7 +135,19 @@ export interface Approval {
   input: unknown;
   summary: string;
   canAlways: boolean;
+  /** Set for AskUserQuestion: the page shows the questions and answers them instead of Allow / Deny. */
+  questions?: AskQuestion[];
 }
+
+export interface AskQuestion {
+  question: string;
+  header: string;
+  multiSelect: boolean;
+  options: { label: string; description: string }[];
+}
+
+/** AskUserQuestion answers: question text → chosen label (several joined with ", "), or the user's own text. */
+export type QuestionAnswers = Record<string, string>;
 
 export interface LoggedMessage {
   id: string;

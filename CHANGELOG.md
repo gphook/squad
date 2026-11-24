@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Squadmates' questions can be answered.** `AskUserQuestion` used to show as a plain Allow/Deny approval and
+  reached the squadmate unanswered. The tile now shows the questions with their options and an Other box; Submit
+  sends your answers, Skip tells the squadmate to ask in chat instead.
+
 ## 0.2.0 — 2026-11-24
 
 ### Added

@@ -107,6 +107,59 @@ describe("AgentRunner", () => {
     expect(runner.pendingApprovals()).toEqual([]);
   });
 
+  describe("AskUserQuestion", () => {
+    const questions = [
+      { question: "Which colour?", header: "Colour", multiSelect: false, options: [{ label: "Red", description: "warm" }, { label: "Blue", description: "cool" }] },
+    ];
+    const ask = (ctl = new AbortController()) =>
+      q().options.canUseTool("AskUserQuestion", { questions }, { signal: ctl.signal, suggestions: [], toolUseID: "t2" });
+
+    it("sends the questions and resolves with the user's answers", async () => {
+      await runner.launch();
+      await init();
+      const approvals: any[] = [];
+      runner.on("approval", (a) => approvals.push(a));
+      const decision = ask();
+      await tick();
+      expect(approvals[0]).toMatchObject({ toolName: "AskUserQuestion", questions });
+      runner.answer(approvals[0].id, "allow", { "Which colour?": "Blue" });
+      expect(await decision).toEqual({ behavior: "allow", updatedInput: { questions, answers: { "Which colour?": "Blue" } } });
+      expect(runner.state.status).toBe("working");
+    });
+
+    it("tells the squadmate to ask in chat when the user skips, or allows with no answers", async () => {
+      await runner.launch();
+      await init();
+      const first = ask();
+      await tick();
+      runner.answer(runner.pendingApprovals()[0].id, "deny");
+      expect(await first).toMatchObject({ behavior: "deny", message: expect.stringContaining("Ask them in chat") });
+      const second = ask();
+      await tick();
+      runner.answer(runner.pendingApprovals()[0].id, "allow");
+      expect(await second).toMatchObject({ behavior: "deny", message: expect.stringContaining("Ask them in chat") });
+    });
+
+    it("drops the questions when the tool call is aborted", async () => {
+      await runner.launch();
+      await init();
+      const ctl = new AbortController();
+      const decision = ask(ctl);
+      await tick();
+      ctl.abort();
+      expect(await decision).toMatchObject({ behavior: "deny" });
+      expect(runner.pendingApprovals()).toEqual([]);
+    });
+
+    it("keeps unusable input as a plain approval", async () => {
+      await runner.launch();
+      await init();
+      void q().options.canUseTool("AskUserQuestion", { questions: "nope" }, { signal: new AbortController().signal, toolUseID: "t3" });
+      await tick();
+      expect(runner.pendingApprovals()[0].questions).toBeUndefined();
+    });
+  });
+
   it("denies pending approvals when stopped", async () => {
     await runner.launch();
     await init();
