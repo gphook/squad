@@ -60,6 +60,11 @@
   <div class="divider">conversation cleared — the next message starts a fresh session</div>
 {:else if ev.kind === "compacted"}
   <div class="divider">conversation compacted</div>
+{:else if ev.kind === "command_output" && ev.notice}
+  <div class="divider">{ev.text}</div>
+{:else if ev.kind === "command_output"}
+  <!-- Command output mixes markdown (tables) with plain text laid out by line, so line breaks are kept. -->
+  <div class="msg md cmdout">{@html renderMarkdown(ev.text, ctx, { breaks: true })}</div>
 {:else if ev.kind === "turn_end" && !ev.ok}
   <div class="divider err">turn ended: {ev.error}</div>
 {/if}
@@ -67,6 +72,7 @@
 <style>
   .msg { margin: 8px 0; }
   .streaming { white-space: pre-wrap; }
+  .cmdout { border-left: 3px solid var(--line); padding-left: 10px; }
   .user .text { white-space: pre-wrap; background: var(--hover); padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 100%; }
   .md :global(pre) { background: var(--code); padding: 8px; border-radius: 6px; overflow: auto; }
   .md :global(code) { background: var(--code); padding: 0 3px; border-radius: 3px; }
