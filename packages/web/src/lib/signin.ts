@@ -1,5 +1,5 @@
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
-import type { SessionStatus } from "@squad/shared";
+import type { SessionStatus, SignInOverview } from "@squad/shared";
 
 const REMEMBER_KEY = "squad.signin.remember";
 
@@ -23,15 +23,38 @@ export async function signIn(remember: boolean): Promise<void> {
   await post("/api/auth/login/verify", { response, remember });
 }
 
-export async function createPasskey(remember: boolean): Promise<void> {
+async function register(remember: boolean): Promise<void> {
   const optionsJSON = (await post("/api/auth/register/options")) as Parameters<typeof startRegistration>[0]["optionsJSON"];
   const response = await startRegistration({ optionsJSON });
   await post("/api/auth/register/verify", { response, remember });
 }
 
+export const createPasskey = register;
+
+/** Registers another passkey while signed in; the server ignores `remember` then. */
+export const addPasskey = (): Promise<void> => register(false);
+
 export async function signOut(): Promise<void> {
   await post("/api/auth/logout");
 }
+
+async function manage(method: "PATCH" | "DELETE" | "POST", url: string, body?: unknown): Promise<void> {
+  const r = await fetch(url, { method, headers: body ? { "content-type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+  if (r.ok) return;
+  const data = await r.json().catch(() => ({}));
+  throw new Error((data as { error?: string }).error ?? `Request failed (${r.status})`);
+}
+
+export async function overview(): Promise<SignInOverview> {
+  const r = await fetch("/api/signin");
+  if (!r.ok) throw Object.assign(new Error(`Request failed (${r.status})`), { status: r.status });
+  return r.json();
+}
+
+export const renamePasskey = (id: string, name: string) => manage("PATCH", `/api/signin/passkeys/${encodeURIComponent(id)}`, { name });
+export const deletePasskey = (id: string) => manage("DELETE", `/api/signin/passkeys/${encodeURIComponent(id)}`);
+export const revokeSession = (id: string) => manage("DELETE", `/api/signin/sessions/${encodeURIComponent(id)}`);
+export const signOutEverywhere = () => manage("POST", "/api/signin/sign-out-everywhere");
 
 export function rememberedChoice(): boolean {
   try {

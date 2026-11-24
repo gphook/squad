@@ -13,7 +13,7 @@ export const ui: {
   session: SessionStatus | null;
   /** True while /api/session can't be reached and start() is retrying. */
   unreachable: boolean;
-  view: "chat" | "messages" | "shares" | "usage" | "plugins";
+  view: "chat" | "messages" | "shares" | "usage" | "plugins" | "signin";
   focus: string | null;
   viewer: string | null;
   /** The squadmate picked in the Plugins view; `/plugin` sets it to the squadmate it was typed in. */
@@ -53,6 +53,13 @@ export function signedIn(): void {
   connectSocket();
 }
 
+/** This browser's session is gone (revoked, expired or signed out): show the sign-in screen. */
+export function signedOutHere(): void {
+  conn = null;
+  ui.connected = false;
+  ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: false };
+}
+
 function connectSocket(): void {
   if (conn) return;
   conn = connect({
@@ -72,11 +79,7 @@ function connectSocket(): void {
       if (ui.s.projectId) send({ t: "subscribe", projectId: ui.s.projectId });
     },
     onDown: () => (ui.connected = false),
-    onUnauthorized: () => {
-      conn = null;
-      ui.connected = false;
-      ui.session = { setupNeeded: false, setupGrant: false, ...ui.session, signedIn: false };
-    },
+    onUnauthorized: signedOutHere,
   });
 }
 

@@ -11,6 +11,7 @@
   import PluginsView from "./components/PluginsView.svelte";
   import ProjectEditor from "./components/ProjectEditor.svelte";
   import AgentEditor from "./components/AgentEditor.svelte";
+  import SignInView from "./components/SignInView.svelte";
   import SignInScreen from "./components/SignInScreen.svelte";
 
   let editingProject = $state<{ p: Project | null } | null>(null);
@@ -51,6 +52,7 @@
       {:else if ui.view === "shares"}<SharedFilesPanel />
       {:else if ui.view === "usage"}<UsageView onjump={show} />
       {:else if ui.view === "plugins"}<PluginsView />
+      {:else if ui.view === "signin"}<SignInView />
       {:else}<Workspace />{/if}
     </div>
   {/if}
