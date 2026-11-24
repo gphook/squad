@@ -68,7 +68,8 @@ These are deliberate design choices. Changes that break them need a design discu
 installs that tarball into a temp folder and checks it starts, serves the UI, guards the API and finds the Claude
 Code binary. CI runs both on every PR.
 
-To cut a release, bump `version` in the root `package.json`, commit, then tag and push:
+To cut a release, bump `version` in the root `package.json`, add the release's notes to
+[CHANGELOG.md](CHANGELOG.md), commit, then tag and push:
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
