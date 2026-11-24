@@ -68,8 +68,8 @@ export class ConnectorService extends EventEmitter {
     await this.refresh();
   }
 
-  /** Rechecks every connector against its CLI and broadcasts the list. */
-  async refresh(): Promise<ConnectorView[]> {
+  /** Rechecks every connector against its CLI; broadcasts the list unless `quiet`. */
+  async refresh(quiet = false): Promise<ConnectorView[]> {
     const status = new Map<ConnectorTemplateId, { available: boolean; accounts: Map<string, string> }>();
     for (const t of Object.values(this.deps.templates)) {
       const available = await t.available().catch(() => false);
@@ -82,7 +82,7 @@ export class ConnectorService extends EventEmitter {
       const user = s.accounts.get(c.host);
       return user ? { ...c, state: "signed-in", user } : { ...c, state: "signed-out" };
     });
-    this.emit("connectors", this.views);
+    if (!quiet) this.emit("connectors", this.views);
     return this.views;
   }
 
