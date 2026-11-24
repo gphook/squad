@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AvailablePlugin, InstalledPlugin, Marketplace } from "@squad/shared";
 import type { PluginSource } from "./source.ts";
+import type { PluginInstall } from "./cliSource.ts";
 
 type Fixture = { installed: InstalledPlugin[]; available: AvailablePlugin[]; marketplaces: Omit<Marketplace, "pluginCount">[] };
 
@@ -28,6 +29,15 @@ export class FakePluginSource implements PluginSource {
 
   private wait(): Promise<void> {
     return this.delayMs ? new Promise((r) => setTimeout(r, this.delayMs)) : Promise.resolve();
+  }
+
+  readonly squadFolder = "/fake/squad";
+
+  async installs(): Promise<PluginInstall[]> {
+    await this.wait();
+    return this.installedList.map((p) => ({
+      id: p.id, scope: "user", enabled: p.enabled, installPath: `/fake/${p.name}`, version: p.version,
+    }));
   }
 
   async installed(): Promise<InstalledPlugin[]> {

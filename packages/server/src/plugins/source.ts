@@ -1,10 +1,15 @@
 import type { AvailablePlugin, InstalledPlugin, Marketplace } from "@squad/shared";
+import type { PluginInstall } from "./cliSource.ts";
 
 /**
  * Where plugins and marketplaces come from. `FakePluginSource` serves made-up data; the real one (a later pass)
  * runs the `claude plugin` CLI. Ids are `name@marketplace`. Every method rejects with a message fit to show the user.
  */
 export interface PluginSource {
+  /** The folder Squad installs plugins from (local scope), so they don't switch on in the terminal. */
+  readonly squadFolder: string;
+  /** Every install row: a plugin can be installed at several scopes. */
+  installs(): Promise<PluginInstall[]>;
   installed(): Promise<InstalledPlugin[]>;
   marketplaces(): Promise<Marketplace[]>;
   /** Plugins not yet installed whose name or description contains `query`; `total` counts all matches. */
