@@ -281,3 +281,58 @@ describe("Store effort", () => {
     ]);
   });
 });
+
+describe("plugin switches", () => {
+  const setup = () => {
+    const p = store.saveProject({ name: "P", rules: "", permissionMode: "default" });
+    const a = store.saveAgent({ projectId: p.id, name: "a", role: "", folder: "/tmp", model: null });
+    return { p, a };
+  };
+  it("stores the project default and a squadmate's own setting", () => {
+    const { p, a } = setup();
+    store.setPluginSwitch(p.id, "x@m", null, false);
+    store.setPluginSwitch(p.id, "x@m", a.id, true);
+    expect(store.listPluginSwitches(p.id)).toEqual(expect.arrayContaining([
+      { pluginId: "x@m", agentId: null, enabled: false }, { pluginId: "x@m", agentId: a.id, enabled: true },
+    ]));
+    store.setPluginSwitch(p.id, "x@m", null, true);
+    expect(store.listPluginSwitches(p.id)).toContainEqual({ pluginId: "x@m", agentId: null, enabled: true });
+    expect(store.listPluginSwitches(p.id)).toHaveLength(2);
+  });
+  it("forgets a setting set back to following", () => {
+    const { p, a } = setup();
+    store.setPluginSwitch(p.id, "x@m", a.id, true);
+    store.setPluginSwitch(p.id, "x@m", a.id, null);
+    expect(store.listPluginSwitches(p.id)).toEqual([]);
+  });
+  it("drops a squadmate's settings when it's deleted, and a project's when it's deleted", () => {
+    const { p, a } = setup();
+    store.setPluginSwitch(p.id, "x@m", a.id, true);
+    store.setPluginSwitch(p.id, "x@m", null, true);
+    store.deleteAgent(a.id);
+    expect(store.listPluginSwitches(p.id)).toEqual([{ pluginId: "x@m", agentId: null, enabled: true }]);
+    store.deleteProject(p.id);
+    expect(store.listPluginSwitches(p.id)).toEqual([]);
+  });
+  it("adds the table to a database made by an older Squad", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "squad-switches-")), "squad.db");
+    const p = new Store(path).saveProject({ name: "Old", rules: "", permissionMode: "default" });
+    const { DatabaseSync } = await import("node:sqlite");
+    const db = new DatabaseSync(path);
+    db.exec("DROP TABLE plugin_switches");
+    db.close();
+    const reopened = new Store(path);
+    reopened.setPluginSwitch(p.id, "x@m", null, true);
+    expect(reopened.listPluginSwitches(p.id)).toHaveLength(1);
+  });
+  it("drops every project's settings for an uninstalled plugin", () => {
+    const { p, a } = setup();
+    const q = store.saveProject({ name: "Q", rules: "", permissionMode: "default" });
+    store.setPluginSwitch(p.id, "x@m", a.id, true);
+    store.setPluginSwitch(q.id, "x@m", null, false);
+    store.setPluginSwitch(q.id, "y@m", null, false);
+    store.deletePluginSwitches("x@m");
+    expect(store.listPluginSwitches(p.id)).toEqual([]);
+    expect(store.listPluginSwitches(q.id)).toEqual([{ pluginId: "y@m", agentId: null, enabled: false }]);
+  });
+});
