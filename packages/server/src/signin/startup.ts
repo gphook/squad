@@ -20,14 +20,19 @@ export function startupMessage(port: number, code: string | null, opened: boolea
   return `Squad: set up sign-in at http://localhost:${port}/setup?code=${code}  (single use, expires in 10 minutes)`;
 }
 
-export function openBrowser(url: string, spawnFn: typeof spawn = spawn): Promise<boolean> {
-  const cmd = process.platform === "linux" ? "xdg-open" : process.platform === "darwin" ? "open" : null;
+const OPEN_TIMEOUT_MS = 5000;
+
+/** True when the opener exits 0, or is still running after 5 s (a long-lived opener counts as opened). */
+export function openBrowser(url: string, spawnFn: typeof spawn = spawn, platform: NodeJS.Platform = process.platform): Promise<boolean> {
+  const cmd = platform === "linux" ? "xdg-open" : platform === "darwin" ? "open" : null;
   if (!cmd) return Promise.resolve(false);
   return new Promise((resolve) => {
     try {
       const child = spawnFn(cmd, [url], { detached: true, stdio: "ignore" });
-      child.once("error", () => resolve(false));
-      child.once("spawn", () => { child.unref(); resolve(true); });
+      const timer = setTimeout(() => { child.unref(); resolve(true); }, OPEN_TIMEOUT_MS);
+      const done = (ok: boolean) => { clearTimeout(timer); resolve(ok); };
+      child.once("error", () => done(false));
+      child.once("exit", (exitCode) => done(exitCode === 0));
     } catch {
       resolve(false);
     }
