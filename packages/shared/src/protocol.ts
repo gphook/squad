@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PlanUsage } from "./usage.ts";
 import type { SlashCommandInfo } from "./commands.ts";
+import type { AvailablePlugin, InstalledPlugin, Marketplace, PluginSwitch } from "./plugins.ts";
 import type {
   Agent, AuthStatus, ModelOption, AgentEvent, AgentState, Approval, Layout, LoggedMessage, Project, SharedFile,
 } from "./model.ts";
@@ -66,6 +67,18 @@ const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("approval.answer"), approvalId: id, decision: z.enum(APPROVAL_DECISIONS) }),
   z.object({ t: z.literal("layout.save"), projectId: id, layout }),
   z.object({ t: z.literal("share.delete"), shareId: id }),
+  z.object({ t: z.literal("plugins.get"), projectId: id }),
+  z.object({ t: z.literal("plugins.search"), query: z.string(), marketplace: z.string().nullable() }),
+  /** `agentId` null: the project default. `enabled` null: back to following (the terminal, or the project). */
+  z.object({ t: z.literal("plugins.switch"), projectId: id, pluginId: id, agentId: id.nullable(), enabled: z.boolean().nullable() }),
+  /** `agentId` null: switch it on for the entire squad. */
+  z.object({ t: z.literal("plugins.install"), projectId: id, pluginId: id, agentId: id.nullable() }),
+  z.object({ t: z.literal("plugins.uninstall"), pluginId: id }),
+  z.object({ t: z.literal("plugins.update"), pluginId: id }),
+  z.object({ t: z.literal("plugins.details"), pluginId: id }),
+  z.object({ t: z.literal("marketplace.add"), source: z.string() }),
+  z.object({ t: z.literal("marketplace.remove"), name: id }),
+  z.object({ t: z.literal("marketplace.update"), name: id }),
 ]);
 
 export type ClientMsg = z.infer<typeof clientMsg>;
@@ -89,7 +102,13 @@ export type ServerMsg =
   | { t: "usage.plan"; plan: PlanUsage }
   | { t: "models"; models: ModelOption[] | null }
   | { t: "auth"; status: AuthStatus }
-  | { t: "error"; message: string };
+  | { t: "error"; message: string }
+  | { t: "plugins"; projectId: string; installed: InstalledPlugin[]; marketplaces: Marketplace[]; switches: PluginSwitch[]; available: number }
+  | { t: "plugins.results"; query: string; marketplace: string | null; total: number; items: AvailablePlugin[] }
+  | { t: "plugins.details"; details: InstalledPlugin }
+  | { t: "plugins.error"; action: string; message: string }
+  /** Sent to the page that typed `/plugin`: open the Plugins view with that squadmate picked. */
+  | { t: "ui.open"; view: "plugins"; agentId: string | null };
 
 export function parseClientMsg(raw: string): ClientMsg | { error: string } {
   let data: unknown;

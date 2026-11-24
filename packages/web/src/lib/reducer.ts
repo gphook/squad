@@ -93,6 +93,8 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, states: { ...s.states, [m.state.agentId]: m.state } };
     case "agent.event":
       return { ...s, events: { ...s.events, [m.agentId]: addEvent(s.events[m.agentId], m.event) } };
+    case "plugins": case "plugins.results": case "plugins.details": case "plugins.error": case "ui.open":
+      return s; // stored by the Plugins view's state (slash commands plan, pass A, Task 5)
     case "agent.commands":
       return { ...s, commands: { ...s.commands, [m.agentId]: m.commands } };
     case "agent.history": {

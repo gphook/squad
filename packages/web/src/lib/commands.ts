@@ -1,4 +1,4 @@
-import { isUnavailableCommand, type SlashCommandInfo } from "@squad/shared";
+import { routeCommand, type SlashCommandInfo } from "@squad/shared";
 
 /** What follows the `/` while a command name is being typed: a one-line draft starting with `/` and no space yet. */
 export function pickerQuery(draft: string): string | null {
@@ -23,10 +23,10 @@ export function completion(c: SlashCommandInfo): string {
 
 /**
  * True when the query names a whole command, so Enter runs what was typed (as in the terminal) instead of completing
- * it. Includes the commands Squad answers with a notice: they aren't listed, but `/plugin` mustn't become
- * `/plugin-authoring`.
+ * it. Includes the commands Squad handles itself (`/plugin`, `/skills`, notices): the session doesn't list them, but
+ * `/plugin` mustn't become `/plugin-authoring`.
  */
 export function isWholeCommand(query: string, list: SlashCommandInfo[]): boolean {
   const q = query.toLowerCase();
-  return isUnavailableCommand(q) || list.some((c) => c.name === q || c.aliases?.includes(q));
+  return routeCommand(q, []).kind !== "sdk" || list.some((c) => c.name === q || c.aliases?.includes(q));
 }

@@ -113,7 +113,7 @@ describe("websocket", () => {
   it("sends each squadmate's commands on subscribe", async () => {
     const c = await connect();
     send(c.ws, { t: "subscribe", projectId });
-    expect(await c.next("agent.commands")).toMatchObject({ agentId, commands: [{ name: "clear" }, { name: "exit" }] });
+    expect(await c.next("agent.commands")).toMatchObject({ agentId, commands: [{ name: "clear" }, { name: "exit" }, { name: "plugin" }, { name: "skills" }] });
   });
 
   it("broadcasts status when a message is sent to an agent", async () => {

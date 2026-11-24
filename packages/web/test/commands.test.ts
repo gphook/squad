@@ -47,8 +47,10 @@ describe("isWholeCommand", () => {
     expect(isWholeCommand("clear", list)).toBe(true);
     expect(isWholeCommand("RESET", list)).toBe(true);
   });
-  it("is true for a command Squad answers with a notice, though the picker doesn't list it", () => {
+  it("is true for a command Squad handles itself, though the session doesn't list it", () => {
     expect(isWholeCommand("plugin", list)).toBe(true);
+    expect(isWholeCommand("skills", list)).toBe(true);
+    expect(isWholeCommand("resume", list)).toBe(true);
   });
   it("is false for built-in object keys", () => {
     expect(isWholeCommand("constructor", list)).toBe(false);
