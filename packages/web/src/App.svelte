@@ -11,6 +11,7 @@
   import PluginsView from "./components/PluginsView.svelte";
   import ProjectEditor from "./components/ProjectEditor.svelte";
   import AgentEditor from "./components/AgentEditor.svelte";
+  import SignInScreen from "./components/SignInScreen.svelte";
 
   let editingProject = $state<{ p: Project | null } | null>(null);
   let editingAgent = $state<{ a: Agent | null } | null>(null);
@@ -28,6 +29,9 @@
   };
 </script>
 
+{#if ui.session && !ui.session.signedIn}
+  <SignInScreen />
+{:else if ui.session}
 <div class="app">
   <TopBar oneditproject={(p) => (editingProject = { p })} />
   {#if ui.s.error}
@@ -52,6 +56,7 @@
 
 {#if editingProject}<ProjectEditor project={editingProject.p} onclose={() => (editingProject = null)} />{/if}
 {#if editingAgent}<AgentEditor agent={editingAgent.a} onclose={() => (editingAgent = null)} />{/if}
+{/if}
 
 <style>
   /* Each token is light-dark(light, dark). color-scheme picks which: the system setting by default,

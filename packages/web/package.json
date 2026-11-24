@@ -10,6 +10,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
     "@squad/shared": "*",
     "dompurify": "^3.3.0",
     "marked": "^16.4.1"

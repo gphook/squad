@@ -55,9 +55,7 @@
   <button class="icon" class:on={ui.view === "shares"} aria-pressed={ui.view === "shares"}
     aria-label="Shared files" title="Shared files" onclick={() => toggleView("shares")}><Icon name="files" /></button>
   <button class="icon" aria-label={themeLabel} title={themeLabel} onclick={cycleTheme}><Icon name={theme} /></button>
-  {#if ui.keyExpired}
-    <span class="offline" role="alert">Squad restarted with a new key. Open the URL printed in the terminal.</span>
-  {:else if !ui.connected}<span class="offline" role="status">Reconnecting…</span>{/if}
+  {#if !ui.connected}<span class="offline" role="status">Reconnecting…</span>{/if}
 </header>
 
 <style>

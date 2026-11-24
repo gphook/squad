@@ -9,6 +9,8 @@ vi.mock("../src/lib/ws.ts", () => ({
   connect: (h: { onMsg: (m: ServerMsg) => void }) => { deliver = h.onMsg; return { send: (m: ClientMsg) => sent.push(m) }; },
 }));
 
+vi.mock("../src/lib/signin.ts", () => ({ fetchSession: async () => ({ signedIn: true, setupNeeded: false, setupGrant: false }) }));
+
 const { start, ui } = await import("../src/lib/state.svelte.ts");
 const { default: PluginsView } = await import("../src/components/PluginsView.svelte");
 const { default: DiscoverTab } = await import("../src/components/plugins/DiscoverTab.svelte");
@@ -22,10 +24,10 @@ const unrelated = () => {
 };
 
 let cleanup: (() => void)[] = [];
-beforeEach(() => {
-  vi.useFakeTimers();
+beforeEach(async () => {
   sent.length = 0;
-  start();
+  await start();
+  vi.useFakeTimers();
   feed({ t: "projects", projects: [project] });
   feed({ t: "state", projectId: "p", agents: [agent], states: [], approvals: [], messages: [], shares: [] });
   sent.length = 0;
