@@ -53,18 +53,27 @@ From the repo root:
 ```bash
 npm install             # installs all workspaces (server, web, shared)
 npm run build           # builds the web UI into packages/web/dist
-npm start               # Squad on 127.0.0.1:7340; open the URL it prints (it contains the session key)
+npm start               # Squad on 127.0.0.1:7340; first run opens your browser to create a passkey
 npm test                # all tests
 ```
 
 For UI development, run the server and Vite side by side:
 
 ```bash
-npm run dev -w @squad/server            # server, restarts on change
-npm run dev -w @squad/web               # Vite on http://localhost:5173 (open the server's ?key= URL once first, then 5173)
+npm run dev -w @squad/server            # server, restarts on change (sets SQUAD_DEV=1)
+npm run dev -w @squad/web               # Vite on http://localhost:5173, works directly with no key step
 ```
 
 Squad stores its data in `~/.squad/`.
+
+### Signing in
+
+Squad uses passkeys. On first run it opens your browser at a single-use setup link (valid 10 minutes) where you click
+**Create passkey**. If the browser can't be opened, or with `npm start -- --no-open` (or `SQUAD_NO_OPEN=1`), Squad prints the
+link instead. In dev (`SQUAD_DEV=1`) it prints the link rather than opening a browser.
+
+If you lose every passkey, run `npm start -- --reset-sign-in`: it prints a new setup link so you can add a passkey.
+Manage passkeys and sessions from the lock icon in the top bar.
 
 ## Package dependencies (installed by `npm install`)
 
@@ -81,4 +90,4 @@ Squad stores its data in `~/.squad/`.
 ## Configuration
 
 - `~/.squad/config.json`: `{ "port": 7340 }` to change the port.
-- Environment: `SQUAD_HOME` (data folder, default `~/.squad`), `SQUAD_PORT`, `SQUAD_KEY` (fixed session key instead of a random one).
+- Environment: `SQUAD_HOME` (data folder, default `~/.squad`), `SQUAD_PORT`, `SQUAD_NO_OPEN=1` (don't open a browser), `SQUAD_DEV=1` (dev mode; set by the server `dev` script).

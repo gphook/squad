@@ -30,7 +30,7 @@ cd squad
 npm install && npm run build && npm start
 ```
 
-Open the `http://localhost:7340/?key=…` URL it prints. Create a project, add an agent for each repo, and send the first message.
+Squad opens your browser to set up sign-in with a passkey (if it can't, it prints a single-use setup link). Create a project, add an agent for each repo, and send the first message.
 
 > Agents run Claude Code with your permissions and on your Claude account. Each agent's tool use is billed like any other Claude Code session.
 
@@ -63,7 +63,7 @@ browser (Svelte) ──WebSocket──► Squad server (Node, Fastify)
 
 ## Security
 
-Squadmates use your Claude Code sign-in (the account shows in the top bar). Squad is a single-user tool that listens only on `127.0.0.1`, behind a random session key. Anyone holding that key can run shell commands as you with `$ cmd`, so treat the URL like a password. See [SECURITY.md](SECURITY.md) for the model, and to report a vulnerability privately.
+Squadmates use your Claude Code sign-in (the account shows in the top bar). Squad is a single-user tool that listens only on `127.0.0.1`, behind passkey sign-in. Anyone signed in can run shell commands as you with `$ cmd`, so protect your passkeys. See [SECURITY.md](SECURITY.md) for the model, and to report a vulnerability privately.
 
 ## Contributing
 
