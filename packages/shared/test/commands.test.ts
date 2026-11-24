@@ -53,9 +53,23 @@ describe("routeCommand", () => {
   });
 });
 
+describe("routeCommand before the session has listed its commands", () => {
+  it("knows Claude Code's aliases for the commands Squad intercepts", () => {
+    expect(routeCommand("reset", [])).toEqual({ kind: "clear" });
+    expect(routeCommand("new", [])).toEqual({ kind: "clear" });
+    const r = routeCommand("settings", []);
+    expect(r.kind === "notice" && r.text).toMatch(/^\/config /);
+  });
+  it("doesn't mistake built-in object keys for commands", () => {
+    expect(routeCommand("constructor", [])).toEqual({ kind: "sdk" });
+    expect(routeCommand("tostring", [])).toEqual({ kind: "sdk" });
+  });
+});
+
 describe("command lists", () => {
   it("Squad's own commands are clear and exit", () => {
     expect(SQUAD_COMMANDS.map((c) => c.name)).toEqual(["clear", "exit"]);
+    expect(SQUAD_COMMANDS[0].aliases).toEqual(["reset", "new"]);
     expect(SQUAD_COMMANDS[1].aliases).toEqual(["quit"]);
   });
   it("lists the commands Squad can't run", () => {

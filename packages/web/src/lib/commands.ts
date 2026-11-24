@@ -1,4 +1,4 @@
-import { UNAVAILABLE_COMMANDS, type SlashCommandInfo } from "@squad/shared";
+import { isUnavailableCommand, type SlashCommandInfo } from "@squad/shared";
 
 /** What follows the `/` while a command name is being typed: a one-line draft starting with `/` and no space yet. */
 export function pickerQuery(draft: string): string | null {
@@ -28,5 +28,5 @@ export function completion(c: SlashCommandInfo): string {
  */
 export function isWholeCommand(query: string, list: SlashCommandInfo[]): boolean {
   const q = query.toLowerCase();
-  return q in UNAVAILABLE_COMMANDS || list.some((c) => c.name === q || c.aliases?.includes(q));
+  return isUnavailableCommand(q) || list.some((c) => c.name === q || c.aliases?.includes(q));
 }

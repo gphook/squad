@@ -423,6 +423,22 @@ describe("slash commands", () => {
     expect(f.queries[0].inputs).toHaveLength(0);
     expect(store.getAgent(a.id)!.sessionId).toBeNull();
   });
+  it("/reset before the squadmate has ever launched does what Clear does, without launching", async () => {
+    store.setSessionId(a.id, "old");
+    const ev = events();
+    await sup.send(a.id, "/reset");
+    expect(f.queries).toHaveLength(0);
+    expect(store.getAgent(a.id)!.sessionId).toBeNull();
+    expect(ev).toContainEqual({ kind: "cleared" });
+  });
+  it("/clear while awaiting approval denies the pending approval", async () => {
+    await started();
+    const decision = f.queries[0].options.canUseTool("Bash", { command: "ls" }, { signal: new AbortController().signal });
+    await tick();
+    await sup.send(a.id, "/clear");
+    expect(await decision).toMatchObject({ behavior: "deny" });
+    expect(store.getAgent(a.id)!.sessionId).toBeNull();
+  });
   it("/exit on a stopped squadmate doesn't launch it", async () => {
     await sup.send(a.id, "/exit");
     expect(f.queries).toHaveLength(0);

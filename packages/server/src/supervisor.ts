@@ -3,7 +3,7 @@ import { copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, join } from "node:path";
 import {
-  errorMessage, firstLine, isExternalUrl, parseSlashCommand, routeCommand, shareFileName, SQUAD_COMMANDS, UNAVAILABLE_COMMANDS,
+  errorMessage, firstLine, isExternalUrl, parseSlashCommand, routeCommand, shareFileName, SQUAD_COMMANDS, isUnavailableCommand,
   type SlashCommandInfo,
   type AgentAction, type AgentEvent, type AgentState, type AuthStatus, type Approval, type ApprovalDecision, type LoggedMessage, type SharedFile,
 } from "@squad/shared";
@@ -168,7 +168,7 @@ export class Supervisor extends EventEmitter {
   /** What the picker offers: Squad's own commands, then the session's, without the ones Squad won't run. */
   commands(agentId: string): SlashCommandInfo[] {
     const own = new Set(SQUAD_COMMANDS.flatMap((c) => [c.name, ...(c.aliases ?? [])]));
-    const session = (this.runners.get(agentId)?.commands ?? []).filter((c) => !own.has(c.name) && !(c.name in UNAVAILABLE_COMMANDS));
+    const session = (this.runners.get(agentId)?.commands ?? []).filter((c) => !own.has(c.name) && !isUnavailableCommand(c.name));
     return [...SQUAD_COMMANDS, ...session];
   }
 
