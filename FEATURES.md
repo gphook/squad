@@ -93,7 +93,8 @@
 - At sign-in choose "Remember this browser" (30 days since last use, survives restarts) or "Until Squad restarts".
 - Sign-in view (lock icon in the top bar): list, rename and delete passkeys (not the last one), and list and revoke
   sessions. Deleting a passkey ends every session it created.
-- `--reset-sign-in` prints a fresh setup link so you can add a passkey after losing access.
+- `--reset-sign-in` opens a fresh setup link (or prints it, with `--no-open` or in dev) so you can add a passkey after
+  losing access.
 
 ## Later
 - Several agents in one repo (git worktrees), only if needed.

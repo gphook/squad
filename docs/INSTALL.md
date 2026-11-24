@@ -61,7 +61,7 @@ For UI development, run the server and Vite side by side:
 
 ```bash
 npm run dev -w @squad/server            # server, restarts on change (sets SQUAD_DEV=1)
-npm run dev -w @squad/web               # Vite on http://localhost:5173, works directly with no key step
+npm run dev -w @squad/web               # Vite on http://localhost:5173; open the printed setup link the first time
 ```
 
 Squad stores its data in `~/.squad/`.
@@ -70,9 +70,11 @@ Squad stores its data in `~/.squad/`.
 
 Squad uses passkeys. On first run it opens your browser at a single-use setup link (valid 10 minutes) where you click
 **Create passkey**. If the browser can't be opened, or with `npm start -- --no-open` (or `SQUAD_NO_OPEN=1`), Squad prints the
-link instead. In dev (`SQUAD_DEV=1`) it prints the link rather than opening a browser.
+link instead. In dev (`SQUAD_DEV=1`) it prints the link rather than opening a browser, and the link is on
+Vite's `http://localhost:5173`.
 
-If you lose every passkey, run `npm start -- --reset-sign-in`: it prints a new setup link so you can add a passkey.
+If you lose every passkey, run `npm start -- --reset-sign-in`: it opens a new setup link in your browser (or prints
+it, as above) so you can add a passkey.
 Manage passkeys and sessions from the lock icon in the top bar.
 
 ## Package dependencies (installed by `npm install`)

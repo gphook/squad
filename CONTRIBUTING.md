@@ -11,7 +11,7 @@ npm install
 npm test                                  # all workspaces
 npm run check                             # TypeScript + Svelte type checks
 npm run dev -w @squad/server              # server on 127.0.0.1:7340, restarts on change
-npm run dev -w @squad/web                 # UI on http://localhost:5173 (works directly, no setup-link step)
+npm run dev -w @squad/web                 # UI on http://localhost:5173 (proxies to the server)
 ```
 
 Use a scratch data folder while developing so you don't touch your real projects:
@@ -21,7 +21,9 @@ SQUAD_HOME=/tmp/squad-dev npm run dev -w @squad/server
 ```
 
 The `dev` script sets `SQUAD_DEV=1`: Squad doesn't open a browser, prints the setup link when a passkey is needed, and
-"until restart" sessions survive restarts.
+"until restart" sessions survive restarts. The printed link is on Vite's `http://localhost:5173`, so start Vite before
+opening it. Vite must be on 5173 (the only extra Host Squad allows in dev); if you run the server on another port, give
+Vite the same `SQUAD_PORT` so its proxy targets it.
 
 ### Browser checks
 

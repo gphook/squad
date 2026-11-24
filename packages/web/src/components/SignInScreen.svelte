@@ -11,8 +11,9 @@
   if (urlExpired) history.replaceState(null, "", location.pathname + location.hash);
 
   const setupNeeded = $derived(ui.session?.setupNeeded ?? false);
+  // With no passkeys and no grant there is nothing to sign in with: say why, and how to get a setup link.
   const mode = $derived(
-    ui.session?.setupGrant ? "setup" : urlExpired || setupNeeded ? "expired" : "signin",
+    ui.session?.setupGrant ? "setup" : !setupNeeded ? "signin" : urlExpired ? "expired" : "unset",
   );
 
   function messageFor(err: unknown): string {
@@ -42,9 +43,17 @@
       <h1>Squad</h1>
       <p role="alert">This setup link has expired or was already used. Restart Squad to get a new one.</p>
     </div>
+  {:else if mode === "unset"}
+    <div class="card">
+      <h1>Squad</h1>
+      <p>Squad needs setting up. Restart Squad to get a fresh setup link.</p>
+    </div>
   {:else}
     <form class="card" onsubmit={submit}>
       <h1>{mode === "setup" ? "Set up Squad" : "Sign in to Squad"}</h1>
+      {#if mode === "signin" && urlExpired}
+        <p class="hint">That setup link has expired or was already used.</p>
+      {/if}
       {#if mode === "setup"}
         <p>Squad uses a passkey, your fingerprint, face, device PIN or a security key, so only you can open it.</p>
       {/if}
