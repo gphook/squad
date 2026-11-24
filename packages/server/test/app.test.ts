@@ -12,11 +12,13 @@ import { PlanUsageTracker } from "../src/planUsage.ts";
 import { fakeFactory, tick } from "./fakeQuery.ts";
 import { FakePluginSource } from "../src/plugins/fakeSource.ts";
 import { PluginService, kitPlugin } from "../src/plugins/service.ts";
+import { createSignIn, type SignIn } from "../src/signin/index.ts";
+import { signedInCookie } from "./signinHelper.ts";
 
-const KEY = "k".repeat(64);
 let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fakeFactory>, plan: PlanUsageTracker;
 let port: number, projectId: string, agentId: string, folder: string;
 let plugins: PluginService;
+let signin: SignIn, cookies: Record<string, string>;
 const open: WebSocket[] = [];
 
 beforeEach(async () => {
@@ -31,9 +33,11 @@ beforeEach(async () => {
   agentId = store.saveAgent({ projectId, name: "starfade", role: "r", folder, model: null }).id;
   plan = new PlanUsageTracker({ queryFactory: f.factory, source: () => null, probeCwd: process.env.SQUAD_HOME });
   plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
-  app = buildApp({ store, supervisor: sup, key: KEY, plan, plugins });
+  signin = createSignIn(store, { dev: false });
+  app = buildApp({ store, supervisor: sup, signin, plan, plugins });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
+  cookies = signedInCookie(signin, port);
 });
 afterEach(async () => {
   open.splice(0).forEach((w) => w.close());
@@ -43,7 +47,8 @@ afterEach(async () => {
 
 function connect(origin = `http://127.0.0.1:${port}`): Promise<{ ws: WebSocket; msgs: ServerMsg[]; next: (t: string) => Promise<ServerMsg> }> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?key=${KEY}`, { headers: { origin } });
+    const cookie = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { origin, cookie } });
     open.push(ws);
     const msgs: ServerMsg[] = [];
     const waiters: [string, (m: ServerMsg) => void][] = [];
@@ -64,16 +69,17 @@ function connect(origin = `http://127.0.0.1:${port}`): Promise<{ ws: WebSocket; 
   });
 }
 const send = (ws: WebSocket, m: object) => ws.send(JSON.stringify(m));
+const host = () => ({ host: `localhost:${port}` });
 const files = (path: string, extra = "") =>
-  app.inject({ url: `/files?project=${projectId}&agent=${agentId}&path=${encodeURIComponent(path)}${extra}`, cookies: { squad_key: KEY } });
+  app.inject({ url: `/files?project=${projectId}&agent=${agentId}&path=${encodeURIComponent(path)}${extra}`, cookies, headers: host() });
 
 describe("auth", () => {
-  it("rejects requests without the key", async () => {
-    expect((await app.inject({ url: "/files?project=x&path=y" })).statusCode).toBe(401);
+  it("rejects requests without a session", async () => {
+    expect((await app.inject({ url: "/files?project=x&path=y", headers: host() })).statusCode).toBe(401);
   });
-  it("sets the key cookie when the key is in the URL", async () => {
-    const r = await app.inject({ url: `/api/ping?key=${KEY}` });
-    expect(r.headers["set-cookie"]).toContain(`squad_key=${KEY}`);
+  it("refuses a WebSocket without a session", async () => {
+    cookies = {};
+    await expect(connect()).rejects.toThrow("HTTP 401");
   });
   it("rejects a WebSocket from a foreign origin", async () => {
     await expect(connect("https://evil.example")).rejects.toThrow("HTTP 403");
@@ -98,7 +104,7 @@ describe("/files", () => {
     expect(csp).toContain("default-src 'none'");
   });
   it("returns 404 for an unknown project id instead of creating folders", async () => {
-    const r = await app.inject({ url: "/files?project=..%2F..%2F..%2F..%2Fusr&path=share", cookies: { squad_key: KEY } });
+    const r = await app.inject({ url: "/files?project=..%2F..%2F..%2F..%2Fusr&path=share", cookies, headers: host() });
     expect(r.statusCode).toBe(404);
   });
   it("sends an attachment header for download=1", async () => {
@@ -315,7 +321,7 @@ describe("websocket", () => {
 
 describe("usage", () => {
   const rateLimit = { unifiedWindows: { five_hour: { utilization: 0.5, resetsAt: 1800000000 } } };
-  const usage = (qs: string, cookies: Record<string, string> = { squad_key: KEY }) => app.inject({ url: `/api/usage?${qs}`, cookies });
+  const usage = (qs: string, c: Record<string, string> = cookies) => app.inject({ url: `/api/usage?${qs}`, cookies: c, headers: host() });
 
   it("GET /api/usage returns the report for a project", async () => {
     store.addUsageTurn({ projectId, agentId, at: Date.now() - 1000, rows: [{ model: "opus", input: 1, output: 2, cacheRead: 3, cacheWrite: 4, cost: 0.5 }] });
@@ -329,7 +335,7 @@ describe("usage", () => {
     expect((await usage(`projectId=${projectId}&days=5`)).statusCode).toBe(400);
   });
 
-  it("requires the session key", async () => {
+  it("requires a session", async () => {
     expect((await usage("days=7", {})).statusCode).toBe(401);
   });
 

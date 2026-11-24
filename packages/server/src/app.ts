@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import websocket from "@fastify/websocket";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
@@ -18,6 +18,7 @@ import type { PlanUsageTracker } from "./planUsage.ts";
 import type { ModelCatalog } from "./models.ts";
 import type { AuthTracker } from "./auth.ts";
 import { resolveInside } from "./safePath.ts";
+import { registerSignInRoutes, type SignIn } from "./signin/index.ts";
 import type { Store } from "./store.ts";
 
 const run = promisify(execFile);
@@ -29,31 +30,20 @@ const MIME: Record<string, string> = {
   ".txt": "text/plain; charset=utf-8", ".json": "application/json", ".html": "text/plain; charset=utf-8",
 };
 
-function cookieKey(req: FastifyRequest): string | undefined {
-  const header = req.headers.cookie ?? "";
-  return /(?:^|;\s*)squad_key=([^;]+)/.exec(header)?.[1];
-}
-
 export function buildApp(opts: {
-  store: Store; supervisor: Supervisor; key: string; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker;
+  store: Store; supervisor: Supervisor; signin: SignIn; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker;
   plugins?: PluginService;
 }): FastifyInstance {
-  const { store, supervisor: sup, key, plan, models, auth, plugins } = opts;
+  const { store, supervisor: sup, signin, plan, models, auth, plugins } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
 
-  app.addHook("onRequest", async (req, reply) => {
-    const q = (req.query as Record<string, string | undefined>).key;
-    if (q === key) {
-      reply.header("set-cookie", `squad_key=${key}; HttpOnly; SameSite=Strict; Path=/`);
-      return;
-    }
-    if (cookieKey(req) !== key) return reply.code(401).send({ error: "Missing or wrong session key" });
-  });
+  // Host, Origin and session checks on every request (the WebSocket upgrade included), plus /setup and /api/auth/*.
+  registerSignInRoutes(app, signin);
 
   // ---- WebSocket ----
-  const sockets = new Map<WebSocket, { projectId: string | null }>();
+  const sockets = new Map<WebSocket, { projectId: string | null; sessionHash: string | null }>();
   const out = (ws: WebSocket, m: ServerMsg): void => {
     if (ws.readyState === 1) ws.send(JSON.stringify(m));
   };
@@ -212,15 +202,8 @@ export function buildApp(opts: {
   }
 
   app.register(async (scoped) => {
-    scoped.get("/ws", {
-      websocket: true,
-      preValidation: async (req, reply) => {
-        const origin = req.headers.origin;
-        const host = req.headers.host;
-        if (origin && (!host || new URL(origin).host !== host)) return reply.code(403).send({ error: "Bad origin" });
-      },
-    }, (ws) => {
-      sockets.set(ws, { projectId: null });
+    scoped.get("/ws", { websocket: true }, (ws, req) => {
+      sockets.set(ws, { projectId: null, sessionHash: req.session?.idHash ?? null });
       out(ws, { t: "projects", projects: store.listProjects() });
       if (plan?.current) out(ws, { t: "usage.plan", plan: plan.current });
       if (auth?.current) out(ws, { t: "auth", status: auth.current });

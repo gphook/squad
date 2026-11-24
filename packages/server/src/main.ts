@@ -1,5 +1,4 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +11,7 @@ import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
 import { Store } from "./store.ts";
+import { createSignIn } from "./signin/index.ts";
 import { Supervisor } from "./supervisor.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -22,7 +22,8 @@ const port = Number(process.env.SQUAD_PORT ?? config.port ?? 7340);
 const store = new Store(join(squadHome(), "squad.db"));
 const supervisor = new Supervisor(store, query, join(repoRoot, "kit"));
 const webDist = join(repoRoot, "packages/web/dist");
-const key = process.env.SQUAD_KEY ?? randomBytes(32).toString("hex");
+const signin = createSignIn(store, { dev: process.env.SQUAD_DEV === "1" });
+signin.sessions.startup(signin.dev);
 const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });
 const auth = new AuthTracker();
 supervisor.setAuth(auth);
@@ -30,10 +31,10 @@ void auth.refresh();
 const models = new ModelCatalog({ queryFactory: query, source: () => supervisor.usageSource(), cwd: squadHome() });
 const plugins = new PluginService(new CliPluginSource(runClaude, join(squadHome(), "plugins")), store, kitPlugin(join(repoRoot, "kit")));
 supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
-const app = buildApp({ store, supervisor, key, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
+const app = buildApp({ store, supervisor, signin, plan, models, auth, plugins, webDist: existsSync(webDist) ? webDist : undefined });
 
 await app.listen({ port, host: "127.0.0.1" });
-console.log(`Squad: http://localhost:${port}/?key=${key}`);
+console.log(`Squad: http://localhost:${port}/`);
 void plan.refresh(); // fill the rings before the first page load asks
 
 const shutdown = async () => {
