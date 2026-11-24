@@ -40,7 +40,7 @@ describe("routeCommand", () => {
   });
   it("names the command in the notice", () => {
     const r = routeCommand("plugin", []);
-    expect(r.kind === "notice" && r.text).toMatch(/^\/plugin isn't/);
+    expect(r.kind === "notice" && r.text).toMatch(/^`\/plugin` isn't/);
   });
   it("sends anything else to the SDK", () => {
     expect(routeCommand("context", [])).toEqual({ kind: "sdk" });
@@ -49,7 +49,7 @@ describe("routeCommand", () => {
   it("resolves the SDK's aliases first", () => {
     expect(routeCommand("new", [cmd("clear", ["reset", "new"])])).toEqual({ kind: "clear" });
     const r = routeCommand("settings", [cmd("config", ["settings"])]);
-    expect(r.kind === "notice" && r.text).toMatch(/^\/config /);
+    expect(r.kind === "notice" && r.text).toMatch(/^`\/config` /);
   });
 });
 
@@ -58,7 +58,7 @@ describe("routeCommand before the session has listed its commands", () => {
     expect(routeCommand("reset", [])).toEqual({ kind: "clear" });
     expect(routeCommand("new", [])).toEqual({ kind: "clear" });
     const r = routeCommand("settings", []);
-    expect(r.kind === "notice" && r.text).toMatch(/^\/config /);
+    expect(r.kind === "notice" && r.text).toMatch(/^`\/config` /);
   });
   it("doesn't mistake built-in object keys for commands", () => {
     expect(routeCommand("constructor", [])).toEqual({ kind: "sdk" });
