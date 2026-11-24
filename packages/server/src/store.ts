@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS plugin_switches (
 );
 CREATE TABLE IF NOT EXISTS usage_baselines (
   agent_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, totals TEXT NOT NULL
-);CREATE TABLE IF NOT EXISTS passkeys (
+);
+CREATE TABLE IF NOT EXISTS passkeys (
   id TEXT PRIMARY KEY, public_key BLOB NOT NULL, counter INTEGER NOT NULL, transports TEXT NOT NULL,
   name TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER
 );

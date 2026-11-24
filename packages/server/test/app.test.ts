@@ -99,7 +99,7 @@ describe("auth", () => {
     app.inject({ method, url, cookies: callerCookies, headers: { ...host(), origin: `http://localhost:${port}` } });
   it("revoking a session closes its open WebSocket with 4401", async () => {
     const a = signedInCookie(signin, port), b = signedInCookie(signin, port);
-    const hashA = signin.store.listSessions().find((s) => hashOf(a) === s.idHash)!.idHash;
+    const hashA = hashOf(a);
     cookies = a;
     const ca = await connect();
     cookies = b;
@@ -108,6 +108,12 @@ describe("auth", () => {
     expect((await revokeVia(b, "DELETE", `/api/signin/sessions/${hashA}`)).statusCode).toBe(204);
     expect(await gone).toEqual({ code: 4401, reason: "Signed out" });
     expect(cb.ws.readyState).toBe(1);
+  });
+  it("tells open pages when the sign-in lists change", async () => {
+    cookies = signedInCookie(signin, port);
+    const c = await connect();
+    signedInCookie(signin, port); // another browser signs in
+    expect(await c.next("signin.changed")).toEqual({ t: "signin.changed" });
   });
   it("sign out everywhere closes every socket and the caller's cookie is cleared", async () => {
     const a = signedInCookie(signin, port), b = signedInCookie(signin, port);

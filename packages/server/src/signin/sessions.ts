@@ -10,7 +10,10 @@ export function hashId(id: string): string {
   return createHash("sha256").update(id).digest("hex");
 }
 
-/** Sign-in sessions. Only sha256(id) is stored. Emits "revoked"(idHashes) whenever rows are removed. */
+/**
+ * Sign-in sessions. Only sha256(id) is stored.
+ * Emits "revoked"(idHashes) whenever rows are removed, and "created"(idHash) when one is added.
+ */
 export class Sessions extends EventEmitter {
   private readonly now: () => number;
   constructor(private readonly store: Store, opts: { now?: () => number } = {}) {
@@ -23,6 +26,7 @@ export class Sessions extends EventEmitter {
     const idHash = hashId(id);
     const at = this.now();
     this.store.addSession({ idHash, kind, passkeyId, createdAt: at, lastUsedAt: at, userAgent, label: sessionLabel(userAgent) });
+    this.emit("created", idHash);
     return { id, idHash };
   }
 

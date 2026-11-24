@@ -121,8 +121,9 @@ export function registerSignInRoutes(app: FastifyInstance, s: SignIn): void {
       s.setup.consumeGrant(grant);
       reply.header("set-cookie", cookie(cookieName("setup", port), "", 0));
     }
-    // Adding a passkey from Settings keeps the current session.
-    if (!req.session) startSession(req, reply, body.remember, passkeyId);
+    // Adding a passkey from the Sign-in view keeps the current session.
+    if (req.session) s.changes.emit("changed");
+    else startSession(req, reply, body.remember, passkeyId);
     return { ok: true };
   });
 
@@ -133,8 +134,8 @@ export function registerSignInRoutes(app: FastifyInstance, s: SignIn): void {
     if (!body) return reply.code(400).send({ error: "Bad request" });
     const passkeyId = await s.passkeys.verifyLogin(body.response, expectedOrigin(req));
     if (!passkeyId) return reply.code(401).send({ error: "Passkey not recognised" });
-    if (req.session) s.sessions.revoke(req.session.idHash);
-    startSession(req, reply, body.remember, passkeyId);
+    // Already signed in (say another tab signed in first): keep that session, so the other tab isn't signed out.
+    if (!req.session) startSession(req, reply, body.remember, passkeyId);
     return { ok: true };
   });
 
@@ -165,6 +166,7 @@ export function registerSignInRoutes(app: FastifyInstance, s: SignIn): void {
     if (trimmed.length < 1 || trimmed.length > 60) return reply.code(400).send({ error: "Name must be 1 to 60 characters" });
     if (!s.store.getPasskey(id)) return reply.code(404).send({ error: "Passkey not found" });
     s.store.renamePasskey(id, trimmed);
+    s.changes.emit("changed");
     return reply.code(204).send();
   });
 
@@ -175,12 +177,14 @@ export function registerSignInRoutes(app: FastifyInstance, s: SignIn): void {
     const hashes = s.store.listSessions().filter((r) => r.passkeyId === id).map((r) => r.idHash);
     s.store.deletePasskey(id); // its sessions go with it (foreign key cascade)
     s.sessions.onPasskeyDeleted(hashes);
+    if (!hashes.length) s.changes.emit("changed");
     if (req.session && hashes.includes(req.session.idHash)) clearSessionCookie(req, reply);
     return reply.code(204).send();
   });
 
   app.delete("/api/signin/sessions/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    if (!s.store.getSession(id)) return reply.code(404).send({ error: "Session not found" });
     s.sessions.revoke(id);
     if (id === req.session?.idHash) clearSessionCookie(req, reply);
     return reply.code(204).send();

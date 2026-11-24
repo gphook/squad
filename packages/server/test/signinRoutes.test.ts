@@ -249,6 +249,18 @@ describe("login and logout", () => {
     expect(r.json()).toEqual({ error: "Passkey not recognised" });
     expect(cookieLine(r, sessionCookie())).toBeUndefined();
   });
+  it("signing in while already signed in keeps that session, so another tab isn't signed out", async () => {
+    await register(await grant(), false);
+    const first = signedInCookie(signin, port);
+    const o = await post("/api/auth/login/options");
+    const r = await post("/api/auth/login/verify", { response: resp(o.json().challenge), remember: true }, first);
+    expect(r.statusCode).toBe(200);
+    expect(cookieLine(r, sessionCookie())).toBeUndefined();
+    expect((await req({ url: "/api/usage?days=7", cookies: first })).statusCode).toBe(200);
+  });
+  it("login endpoints only take POST", async () => {
+    expect((await req({ method: "DELETE", url: "/api/auth/login/options", headers: { origin: `http://localhost:${port}` } })).statusCode).toBe(401);
+  });
   it("login/verify rejects a missing remember with 400", async () => {
     expect((await post("/api/auth/login/verify", { response: resp("c1") })).statusCode).toBe(400);
   });
@@ -309,6 +321,36 @@ describe("management", () => {
     expect((await call("GET", "/api/signin", sa.cookies)).statusCode).toBe(401);
     expect((await call("GET", "/api/signin", sb.cookies)).statusCode).toBe(200);
     expect(revoked).toEqual([[sa.idHash]]);
+  });
+
+  it("deleting the passkey behind your own session clears your cookie", async () => {
+    addPasskey("a", "A", 10);
+    addPasskey("b", "B", 20);
+    const sa = sessionFor("a");
+    const r = await call("DELETE", "/api/signin/passkeys/a", sa.cookies);
+    expect(r.statusCode).toBe(204);
+    expect(cookieLine(r, sessionCookie())).toContain("Max-Age=0");
+  });
+
+  it("revoking an unknown session is 404", async () => {
+    const s = sessionFor(null);
+    expect((await call("DELETE", "/api/signin/sessions/nope", s.cookies)).statusCode).toBe(404);
+  });
+
+  it("announces changes: sign-in, rename, passkey added or deleted, revoke", async () => {
+    let changes = 0;
+    signin.changes.on("changed", () => changes++);
+    addPasskey("a", "A", 10);
+    addPasskey("b", "B", 20);
+    const s = sessionFor("a");
+    expect(changes).toBe(1); // the new session
+    await call("PATCH", "/api/signin/passkeys/a", s.cookies, { name: "Laptop" });
+    expect(changes).toBe(2);
+    await call("DELETE", "/api/signin/passkeys/b", s.cookies); // no sessions of its own
+    expect(changes).toBe(3);
+    const other = sessionFor(null);
+    await call("DELETE", `/api/signin/sessions/${other.idHash}`, s.cookies);
+    expect(changes).toBe(5); // created + revoked
   });
 
   it("renaming validates length", async () => {

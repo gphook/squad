@@ -110,7 +110,9 @@ export type ServerMsg =
   /** Running squadmates whose plugins changed since they launched; empty hides the Restart banner. */
   | { t: "plugins.restart"; projectId: string; agents: { agentId: string; name: string }[] }
   /** Sent to the page that typed `/plugin`: open the Plugins view with that squadmate picked. */
-  | { t: "ui.open"; view: "plugins"; agentId: string | null };
+  | { t: "ui.open"; view: "plugins"; agentId: string | null }
+  /** The passkey or session lists changed: an open Sign-in view refetches them. */
+  | { t: "signin.changed" };
 
 export function parseClientMsg(raw: string): ClientMsg | { error: string } {
   let data: unknown;
