@@ -1,0 +1,16 @@
+{
+  "name": "Squad",
+  "short_name": "Squad",
+  "description": "Run a squad of Claude Code agents from your browser",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbfbfa",
+  "theme_color": "#3a6df0",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
