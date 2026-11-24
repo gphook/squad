@@ -42,6 +42,9 @@ describe("routeCommand", () => {
     const r = routeCommand("plugin", []);
     expect(r.kind === "notice" && r.text).toMatch(/^`\/plugin` isn't/);
   });
+  it("lists skills itself, since the SDK can't", () => {
+    expect(routeCommand("skills", [])).toEqual({ kind: "skills" });
+  });
   it("sends anything else to the SDK", () => {
     expect(routeCommand("context", [])).toEqual({ kind: "sdk" });
     expect(routeCommand("usage", [])).toEqual({ kind: "sdk" });
@@ -73,6 +76,6 @@ describe("command lists", () => {
     expect(SQUAD_COMMANDS[1].aliases).toEqual(["quit"]);
   });
   it("lists the commands Squad can't run", () => {
-    expect(Object.keys(UNAVAILABLE_COMMANDS).sort()).toEqual(["config", "model", "plugin", "resume", "skills"]);
+    expect(Object.keys(UNAVAILABLE_COMMANDS).sort()).toEqual(["config", "model", "plugin", "resume"]);
   });
 });
