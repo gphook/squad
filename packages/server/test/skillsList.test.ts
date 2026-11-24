@@ -43,6 +43,17 @@ describe("formatSkills", () => {
     expect(md.split("\n").filter((l) => l.startsWith("**"))).toEqual(["**z**", "**claude.ai**", "**Other**"]);
     expect(md).toContain("`docx` — Use this for Word files.\n");
   });
+  it("never leaves a code span open, so one description can't garble the lines after it", () => {
+    const md = formatSkills([skill("d", "Run `npm " + "x".repeat(200) + "` first."), skill("e", "Stray ` tick."), skill("f", "Fine.")]);
+    for (const l of md.split("\n")) expect((l.match(/(?<!\\)`/g) ?? []).length % 2).toBe(0);
+    expect(md).toContain("`f` — Fine.");
+  });
+  it("keeps code spans that are whole", () => {
+    expect(formatSkills([skill("g", "Run `npm test` first.")])).toContain("`g` — Run `npm test` first.");
+  });
+  it("keeps <placeholders> as text rather than letting them read as HTML", () => {
+    expect(formatSkills([skill("h", "Use when <PR number> is given.")])).toContain("`h` — Use when \\<PR number> is given.");
+  });
   it("says so when there are no skills", () => {
     expect(formatSkills([])).toBe("No skills.");
   });

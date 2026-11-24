@@ -467,6 +467,14 @@ describe("slash commands", () => {
     await sent;
     expect(ev.at(-1)).toMatchObject({ kind: "command_output", text: expect.stringContaining("**Built-in**") });
   });
+  it("/skills followed by Stop while the squadmate starts shows nothing more", async () => {
+    const ev = events();
+    const sent = sup.send(a.id, "/skills");
+    await tick();
+    await sup.action(a.id, "stop");
+    await sent;
+    expect(ev.filter((e) => e.kind === "command_output")).toEqual([]);
+  });
   it("/skills says so when the session can't list them", async () => {
     await started();
     f.skills.response = () => Promise.reject(new Error("boom"));
