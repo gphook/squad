@@ -17,8 +17,8 @@ function safeDecode(s: string): string {
 }
 
 /** Agent markdown → safe HTML: sanitised, local images served via /files, external images click-to-load. */
-export function renderMarkdown(md: string, ctx: FileCtx): string {
-  const raw = marked.parse(md, { async: false, gfm: true, breaks: false }) as string;
+export function renderMarkdown(md: string, ctx: FileCtx, opts: { breaks?: boolean } = {}): string {
+  const raw = marked.parse(md, { async: false, gfm: true, breaks: opts.breaks ?? false }) as string;
   const clean = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
   const doc = new DOMParser().parseFromString(`<div>${clean}</div>`, "text/html");
   const root = doc.body.firstElementChild!;

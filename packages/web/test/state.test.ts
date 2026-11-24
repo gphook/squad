@@ -11,6 +11,12 @@ const subscribed = () =>
   });
 
 describe("reduce", () => {
+  it("keeps each squadmate's commands, and forgets them for another project", () => {
+    const c = { name: "context", description: "Show context usage", argumentHint: "" };
+    const s = reduce(subscribed(), { t: "agent.commands", agentId: "a", commands: [c] });
+    expect(s.commands.a).toEqual([c]);
+    expect(forProject(s, "q").commands).toEqual({});
+  });
   it("replaces project data on state", () => {
     const s = subscribed();
     expect(s.agents).toEqual([agent]);

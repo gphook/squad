@@ -1,7 +1,7 @@
 import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
-  type AuthStatus, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, appendShellOutput,
+  type AuthStatus, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
 } from "@squad/shared";
 import { pruneLayout } from "./layout.ts";
 
@@ -11,6 +11,8 @@ export interface UiState {
   agents: Agent[];
   states: Record<string, AgentState>;
   events: Record<string, AgentEvent[]>;
+  /** Each squadmate's `/` commands, for the prompt box's picker. */
+  commands: Record<string, SlashCommandInfo[]>;
   approvals: Approval[];
   messages: LoggedMessage[];
   shares: SharedFile[];
@@ -25,7 +27,7 @@ export interface UiState {
 
 export function emptyState(): UiState {
   return {
-    projects: [], projectId: null, agents: [], states: {}, events: {},
+    projects: [], projectId: null, agents: [], states: {}, events: {}, commands: {},
     approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, error: null,
   };
 }
@@ -92,7 +94,7 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
     case "agent.event":
       return { ...s, events: { ...s.events, [m.agentId]: addEvent(s.events[m.agentId], m.event) } };
     case "agent.commands":
-      return s; // stored in Task 5 of the slash commands plan
+      return { ...s, commands: { ...s.commands, [m.agentId]: m.commands } };
     case "agent.history": {
       // `$ cmd` blocks that arrived live while history loaded are kept unless history has them too.
       const incoming = m.events.filter((e) => e.kind !== "text_delta");
