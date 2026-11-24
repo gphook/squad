@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SQUAD_TOOL_PREFIX, isExternalUrl, type AgentEvent } from "@squad/shared";
-  import { fileUrl, renderMarkdown } from "../lib/markdown.ts";
+  import { fileUrl, renderInlineMarkdown, renderMarkdown } from "../lib/markdown.ts";
   import { ui } from "../lib/state.svelte.ts";
   import ShellBlock from "./ShellBlock.svelte";
 
@@ -61,7 +61,7 @@
 {:else if ev.kind === "compacted"}
   <div class="divider">conversation compacted</div>
 {:else if ev.kind === "command_output" && ev.notice}
-  <div class="divider">{ev.text}</div>
+  <div class="divider">{@html renderInlineMarkdown(ev.text)}</div>
 {:else if ev.kind === "command_output"}
   <!-- Command output mixes markdown (tables) with plain text laid out by line, so line breaks are kept. -->
   <div class="msg md cmdout">{@html renderMarkdown(ev.text, ctx, { breaks: true })}</div>
@@ -75,7 +75,7 @@
   .cmdout { border-left: 3px solid var(--line); padding-left: 10px; }
   .user .text { white-space: pre-wrap; background: var(--hover); padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 100%; }
   .md :global(pre) { background: var(--code); padding: 8px; border-radius: 6px; overflow: auto; }
-  .md :global(code) { background: var(--code); padding: 0 3px; border-radius: 3px; }
+  .md :global(code), .divider :global(code) { background: var(--code); padding: 0 3px; border-radius: 3px; }
   .md :global(p) { margin: 6px 0; }
   .md :global(a.ext-img) { color: var(--muted); }
   :global(img.thumb) { max-width: min(320px, 100%); max-height: 220px; border-radius: 6px; border: 1px solid var(--line); cursor: zoom-in; display: block; }

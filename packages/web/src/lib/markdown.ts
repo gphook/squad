@@ -44,3 +44,15 @@ export function renderMarkdown(md: string, ctx: FileCtx, opts: { breaks?: boolea
   }
   return root.innerHTML;
 }
+
+/** One line of cut-down markdown (code, bold, italic, strikethrough, links) → safe HTML, for Squad's notices. */
+export function renderInlineMarkdown(md: string): string {
+  const raw = marked.parseInline(md, { async: false, gfm: true }) as string;
+  const clean = DOMPurify.sanitize(raw, { ALLOWED_TAGS: ["code", "strong", "em", "del", "a"], ALLOWED_ATTR: ["href"] });
+  const root = new DOMParser().parseFromString(`<div>${clean}</div>`, "text/html").body.firstElementChild!;
+  for (const a of [...root.querySelectorAll("a[href]")]) {
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer");
+  }
+  return root.innerHTML;
+}

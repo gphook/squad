@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMarkdown, fileUrl } from "../src/lib/markdown.ts";
+import { renderMarkdown, renderInlineMarkdown, fileUrl } from "../src/lib/markdown.ts";
 
 const ctx = { projectId: "p1", agentId: "a1" };
 
@@ -31,5 +31,20 @@ describe("renderMarkdown", () => {
 describe("fileUrl", () => {
   it("builds a /files URL without agent for shared files", () => {
     expect(fileUrl({ projectId: "p1" }, "/s/x.md")).toBe("/files?project=p1&path=%2Fs%2Fx.md");
+  });
+});
+
+describe("renderInlineMarkdown", () => {
+  it("renders code, bold and italic on one line, without a paragraph", () => {
+    expect(renderInlineMarkdown("`/plugin` isn't **here** _yet_")).toBe("<code>/plugin</code> isn't <strong>here</strong> <em>yet</em>");
+  });
+  it("leaves block markdown as text", () => {
+    expect(renderInlineMarkdown("# not a heading")).toBe("# not a heading");
+  });
+  it("opens links in a new tab and strips anything unsafe", () => {
+    const html = renderInlineMarkdown('[docs](https://e.com) <img src=x onerror="alert(1)"><script>alert(1)</script>');
+    expect(html).toContain('<a href="https://e.com" target="_blank" rel="noopener noreferrer">docs</a>');
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<script");
   });
 });
