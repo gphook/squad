@@ -1,0 +1,9 @@
+github.com
+  ✓ Logged in to github.com account gphook (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+
+github.acme.com
+  ✓ Logged in to github.acme.com account g-hook (keyring)
+  - Active account: true

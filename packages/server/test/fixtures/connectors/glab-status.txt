@@ -1,0 +1,6 @@
+gitlab.com
+  ✓ Logged in to gitlab.com as gphook (/home/u/.config/glab-cli/config.yml)
+  ✓ Git operations for gitlab.com configured to use https protocol.
+git.acme.internal
+  x git.acme.internal: API call failed: GET https://git.acme.internal/api/v4/user: 401 {message: 401 Unauthorized}
+  ! No token found (checked config file, keyring, and environment variables).
