@@ -332,6 +332,22 @@ describe("websocket", () => {
     expect(await decision).toEqual({ behavior: "allow", updatedInput: { questions, answers: { "Q?": "A, mine" } } });
   });
 
+  it("passes an MCP elicitation's form content from the page to the server", async () => {
+    await sup.action(agentId, "launch");
+    f.queries[0].emit({ type: "system", subtype: "init", session_id: "s" });
+    await tick();
+    const result = f.queries[0].options.onElicitation(
+      { serverName: "s", message: "Name?", requestedSchema: { type: "object", properties: { name: { type: "string" } } } },
+      { signal: new AbortController().signal, requestId: "r" },
+    );
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    const state = (await c.next("state")) as Extract<ServerMsg, { t: "state" }>;
+    expect(state.approvals[0].elicitation).toMatchObject({ mode: "form", fields: [{ name: "name", type: "string" }] });
+    send(c.ws, { t: "approval.answer", approvalId: state.approvals[0].id, decision: "allow", content: { name: "Ada" } });
+    expect(await result).toEqual({ action: "accept", content: { name: "Ada" } });
+  });
+
   it("sends running $ cmd blocks on subscribe, even for a squadmate with no session", async () => {
     await sup.send(agentId, "$ sleep 30");
     const c = await connect();

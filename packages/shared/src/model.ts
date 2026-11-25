@@ -137,7 +137,38 @@ export interface Approval {
   canAlways: boolean;
   /** Set for AskUserQuestion: the page shows the questions and answers them instead of Allow / Deny. */
   questions?: AskQuestion[];
+  /** Set for an MCP server's request for input: the page shows a form (or a link) instead of Allow / Deny. */
+  elicitation?: Elicitation;
 }
+
+/** An MCP server asking the user for input: fields to fill in ("form"), or a page to visit ("url"). */
+export interface Elicitation {
+  serverName: string;
+  message: string;
+  mode: "form" | "url";
+  /** For "url": an http(s) link to open; anything else is dropped. */
+  url?: string;
+  title?: string;
+  fields: ElicitField[];
+}
+
+export interface ElicitField {
+  name: string;
+  label: string;
+  description: string;
+  type: "string" | "number" | "integer" | "boolean" | "choice" | "multi";
+  required: boolean;
+  /** For "choice" / "multi". */
+  options?: { value: string; label: string }[];
+  default?: ElicitValue;
+  /** "email" | "uri" | "date" | "date-time", for "string". */
+  format?: string;
+  min?: number;
+  max?: number;
+}
+
+export type ElicitValue = string | number | boolean | string[];
+export type ElicitContent = Record<string, ElicitValue>;
 
 export interface AskQuestion {
   question: string;

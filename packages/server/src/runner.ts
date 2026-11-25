@@ -2,13 +2,14 @@ import { EventEmitter } from "node:events";
 import { statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import type {
-  McpServerConfig, Options, PermissionResult, PermissionUpdate, Query, SDKUserMessage,
+  ElicitationRequest, ElicitationResult, McpServerConfig, Options, PermissionResult, PermissionUpdate, Query, SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import {
   SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, appendShellOutput, bashContextBlock, errorMessage,
   parseShellInput,
-  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type AskQuestion, type QuestionAnswers, type Project, type SlashCommandInfo,
+  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type AskQuestion, type QuestionAnswers, type ElicitContent, type Project, type SlashCommandInfo,
 } from "@squad/shared";
+import { cleanContent, toElicitation } from "./elicitation.ts";
 import { AsyncQueue } from "./inputQueue.ts";
 import { buildLaunchPrompt } from "./launchPrompt.ts";
 import { normalise, summariseTool, type SdkMsg } from "./normalise.ts";
@@ -43,9 +44,8 @@ export interface RunnerDeps {
 
 interface Pending {
   approval: Approval;
-  input: Record<string, unknown>;
-  suggestions?: PermissionUpdate[];
-  resolve: (r: PermissionResult) => void;
+  /** Answers the SDK. `aborted` is true when the request was withdrawn or the session stopped. */
+  settle: (decision: ApprovalDecision, extra: { answers?: QuestionAnswers; content?: ElicitContent; aborted?: boolean }) => void;
 }
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
@@ -233,6 +233,7 @@ export class AgentRunner extends EventEmitter {
       plugins: [{ type: "local", path: this.deps.kitPluginPath }, ...plugins.paths.map((path) => ({ type: "local" as const, path }))],
       includePartialMessages: true,
       canUseTool: (toolName, input, opts) => this.askUser(toolName, input, opts.suggestions, opts.signal),
+      onElicitation: (request, opts) => this.askElicitation(request, opts.signal),
     };
     if (plugins.off.length) options.settings = { enabledPlugins: Object.fromEntries(plugins.off.map((id) => [id, false])) };
     this.launchedPlugins = plugins;
@@ -321,36 +322,61 @@ export class AgentRunner extends EventEmitter {
       };
       const questions = toolName === ASK_TOOL ? askQuestions(input) : undefined;
       if (questions) approval.questions = questions;
-      this.pending.set(approval.id, { approval, input, suggestions, resolve });
-      signal.addEventListener("abort", () => this.resolveApproval(approval.id, "deny"), { once: true });
-      this.setStatus("awaiting");
-      this.emit("approval", approval);
+      this.addPending(approval, signal, (decision, { answers }) => {
+        if (questions && decision !== "deny" && answers && Object.keys(answers).length) {
+          resolve({ behavior: "allow", updatedInput: { ...input, answers } });
+        } else if (decision === "deny" || questions) resolve({ behavior: "deny", message: questions ? SKIP_MESSAGE : DENY_MESSAGE });
+        else if (decision === "always") resolve({ behavior: "allow", updatedInput: input, updatedPermissions: suggestions ?? [] });
+        else resolve({ behavior: "allow", updatedInput: input });
+      });
     });
   }
 
-  private resolveApproval(id: string, decision: ApprovalDecision, answers?: QuestionAnswers): boolean {
+  /** An MCP server asking the user for input. Allow accepts (with the form's content), Deny declines, a stop cancels. */
+  private askElicitation(request: ElicitationRequest, signal: AbortSignal): Promise<ElicitationResult> {
+    return new Promise((resolve) => {
+      const elicitation = toElicitation(request);
+      const approval: Approval = {
+        id: randomUUID(), agentId: this.agent.id, toolName: `MCP ${elicitation.serverName}`, input: request,
+        summary: elicitation.message, canAlways: false, elicitation,
+      };
+      this.addPending(approval, signal, (decision, { content, aborted }) => {
+        if (aborted) return resolve({ action: "cancel" });
+        const clean = elicitation.mode === "form" ? cleanContent(elicitation.fields, content) : {};
+        if (decision === "deny" || !clean) return resolve({ action: "decline" });
+        resolve(elicitation.mode === "form" ? { action: "accept", content: clean } : { action: "accept" });
+      });
+    });
+  }
+
+  private addPending(approval: Approval, signal: AbortSignal, settle: Pending["settle"]): void {
+    this.pending.set(approval.id, { approval, settle });
+    signal.addEventListener("abort", () => this.resolveApproval(approval.id, "deny", { aborted: true }), { once: true });
+    this.setStatus("awaiting");
+    this.emit("approval", approval);
+  }
+
+  private resolveApproval(id: string, decision: ApprovalDecision, extra: Parameters<Pending["settle"]>[1] = {}): boolean {
     const p = this.pending.get(id);
     if (!p) return false;
     this.pending.delete(id);
-    const asking = Boolean(p.approval.questions);
-    if (asking && decision !== "deny" && answers && Object.keys(answers).length) {
-      p.resolve({ behavior: "allow", updatedInput: { ...p.input, answers } });
-    } else if (decision === "deny" || asking) p.resolve({ behavior: "deny", message: asking ? SKIP_MESSAGE : DENY_MESSAGE });
-    else if (decision === "always") p.resolve({ behavior: "allow", updatedInput: p.input, updatedPermissions: p.suggestions ?? [] });
-    else p.resolve({ behavior: "allow", updatedInput: p.input });
+    p.settle(decision, extra);
     this.emit("approvalResolved", id);
     return true;
   }
 
-  /** `answers` answers an AskUserQuestion approval; without them, that approval is skipped. */
-  answer(approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers): void {
-    if (this.resolveApproval(approvalId, decision, answers) && this.pending.size === 0 && this.state.status === "awaiting") {
+  /**
+   * `answers` answers an AskUserQuestion approval (without them, it is skipped); `content` fills in an elicitation's
+   * form (a required field left empty declines it).
+   */
+  answer(approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers, content?: ElicitContent): void {
+    if (this.resolveApproval(approvalId, decision, { answers, content }) && this.pending.size === 0 && this.state.status === "awaiting") {
       this.setStatus("working");
     }
   }
 
   private denyAll(): void {
-    for (const id of [...this.pending.keys()]) this.resolveApproval(id, "deny");
+    for (const id of [...this.pending.keys()]) this.resolveApproval(id, "deny", { aborted: true });
   }
 
   /** A message from the user. `$ cmd` runs here; `!cmd` asks the squadmate to run it. */

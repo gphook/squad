@@ -3,6 +3,7 @@
   import { agentAction, agentById, approvalsFor, ui } from "../lib/state.svelte.ts";
   import ApprovalCard from "./ApprovalCard.svelte";
   import QuestionCard from "./QuestionCard.svelte";
+  import ElicitationCard from "./ElicitationCard.svelte";
   import Icon from "./Icon.svelte";
   import { modelSummary } from "../lib/models.ts";
   import MessageItem from "./MessageItem.svelte";
@@ -93,7 +94,7 @@
         <MessageItem {ev} result={ev.kind === "tool_use" ? results.get(ev.id) : undefined} projectId={agent.projectId} {agentId}
           agentName={agent.name} waiting={ev.kind === "shell" && waiting.has(ev.id)} />
       {/each}
-      {#each approvals as a (a.id)}{#if a.questions}<QuestionCard approval={a} questions={a.questions} />{:else}<ApprovalCard approval={a} />{/if}{/each}
+      {#each approvals as a (a.id)}{#if a.questions}<QuestionCard approval={a} questions={a.questions} />{:else if a.elicitation}<ElicitationCard approval={a} elicitation={a.elicitation} />{:else}<ApprovalCard approval={a} />{/if}{/each}
       {#if !events.length && !approvals.length}<p class="hint">No messages yet. Type below to start {agent.name}.</p>{/if}
     </div>
     <PromptBox {agentId} name={agent.name} {focused} />
