@@ -52,9 +52,6 @@ type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
 /** How often a running `$ cmd`'s output is sent to the page. */
 const SHELL_FLUSH_MS = 50;
 
-/** Dialog kinds declared to the SDK only so they're logged and cancelled; none has a UI yet. */
-const LOGGED_DIALOG_KINDS = ["refusal_fallback_prompt"] as const;
-
 export const NOT_SIGNED_IN = "Not signed in to Claude: click the account in the top bar";
 const DENY_MESSAGE = "Denied by user in Squad";
 const SKIP_MESSAGE = "The user skipped these questions in Squad. Ask them in chat instead, as a normal message.";
@@ -239,12 +236,11 @@ export class AgentRunner extends EventEmitter {
       includePartialMessages: true,
       canUseTool: (toolName, input, opts) => this.askUser(toolName, input, opts.suggestions, opts.signal),
       onElicitation: (request, opts) => this.askElicitation(request, opts.signal),
-      // Squad renders no dialogs yet: declare the one documented kind so we see it happen, then cancel so Claude Code
-      // applies its default. Kinds the CLI isn't told about are never sent (#36).
-      supportedDialogKinds: [...LOGGED_DIALOG_KINDS],
+      // Squad renders no dialogs yet, so it declares no supportedDialogKinds and the CLI sends none. If one arrives
+      // anyway, log it and stay silent (null): answering a kind we didn't declare would settle it as dismissed (#36).
       onUserDialog: async (request) => {
-        console.warn(`Squad: ${this.agent.name} got a "${request.dialogKind}" dialog (payload keys: ${Object.keys(request.payload ?? {}).join(", ") || "none"}); cancelled, so Claude Code applies its default.`);
-        return { behavior: "cancelled" };
+        console.warn(`Squad: ${this.agent.name} got an undeclared "${request.dialogKind}" dialog (payload keys: ${Object.keys(request.payload ?? {}).join(", ") || "none"}); left unanswered.`);
+        return null;
       },
     };
     if (plugins.off.length) options.settings = { enabledPlugins: Object.fromEntries(plugins.off.map((id) => [id, false])) };
