@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -173,6 +173,16 @@ describe("AgentRunner", () => {
       await tick();
       expect(runner.pendingApprovals()[0].questions).toBeUndefined();
     });
+  });
+
+  it("cancels user dialogs and logs their kind", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await runner.launch();
+    expect(q().options.supportedDialogKinds).toEqual(["refusal_fallback_prompt"]);
+    const result = await q().options.onUserDialog({ dialogKind: "refusal_fallback_prompt", payload: { model: "x" } }, { signal: new AbortController().signal });
+    expect(result).toEqual({ behavior: "cancelled" });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("refusal_fallback_prompt"));
+    warn.mockRestore();
   });
 
   describe("MCP elicitation", () => {
