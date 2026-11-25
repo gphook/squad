@@ -237,7 +237,7 @@ export class AgentRunner extends EventEmitter {
       canUseTool: (toolName, input, opts) => this.askUser(toolName, input, opts.suggestions, opts.signal),
       onElicitation: (request, opts) => this.askElicitation(request, opts.signal),
       // Squad renders no dialogs yet, so it declares no supportedDialogKinds and the CLI sends none. If one arrives
-      // anyway, log it and stay silent (null): answering a kind we didn't declare would settle it as dismissed (#36).
+      // anyway, log it and stay silent (null): answering a kind we didn't declare would settle it as dismissed (#36). Known kinds: docs/user-dialog-kinds.md.
       onUserDialog: async (request) => {
         console.warn(`Squad: ${this.agent.name} got an undeclared "${request.dialogKind}" dialog (payload keys: ${Object.keys(request.payload ?? {}).join(", ") || "none"}); left unanswered.`);
         return null;
