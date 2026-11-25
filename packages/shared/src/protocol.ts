@@ -65,8 +65,8 @@ const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("agent.shellKill"), agentId: id, id }),
   z.object({ t: z.literal("models.get") }),
   z.object({ t: z.literal("auth.check") }),
-  /** Sign in to Claude (or switch account) by running `claude auth login`; `auth.code` passes the code claude.ai shows. */
-  z.object({ t: z.literal("auth.login"), method: z.enum(["claudeai", "console", "sso"]) }),
+  /** Sign in (or switch account) with the Anthropic Console by running `claude auth login --console`; `auth.code` passes the code the sign-in page shows. claude.ai sign-in isn't offered (#43). */
+  z.object({ t: z.literal("auth.login"), method: z.literal("console") }),
   z.object({ t: z.literal("auth.code"), code: z.string().min(1).max(4096) }),
   z.object({ t: z.literal("auth.cancel") }),
   z.object({ t: z.literal("auth.logout") }),

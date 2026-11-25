@@ -79,13 +79,13 @@
   {#if open}
     <div class="panel" role="dialog" aria-label="Claude account">
       {#if login.phase === "starting"}
-        <p>Starting the Claude sign-in…</p>
+        <p>Starting the Anthropic Console sign-in…</p>
         <div class="row"><button onclick={cancel}>Cancel</button></div>
       {:else if login.phase === "waiting" || login.phase === "verifying"}
-        <p>Sign in on claude.ai, in a new tab:</p>
-        <a class="primary" href={login.url} target="_blank" rel="noopener noreferrer">Open the Claude sign-in ↗</a>
+        <p>Sign in to the Anthropic Console, in a new tab:</p>
+        <a class="primary" href={login.url} target="_blank" rel="noopener noreferrer">Open the Console sign-in ↗</a>
         <form onsubmit={submit}>
-          <label for="claude-code">If claude.ai shows a code, paste it here:</label>
+          <label for="claude-code">If the sign-in page shows a code, paste it here:</label>
           <div class="row">
             <input id="claude-code" bind:value={code} autocomplete="off" spellcheck="false" disabled={login.phase === "verifying"} />
             <button type="submit" disabled={login.phase === "verifying" || !code.trim()}>{login.phase === "verifying" ? "Checking…" : "Sign in"}</button>
@@ -95,23 +95,23 @@
         <div class="row"><button onclick={cancel}>Cancel</button></div>
       {:else if login.phase === "failed"}
         <p class="error" role="alert">{login.message}</p>
-        <div class="row"><button class="primary" onclick={() => start("claudeai")}>Try again</button><button onclick={cancel}>Dismiss</button></div>
+        <div class="row"><button class="primary" onclick={() => start("console")}>Try again</button><button onclick={cancel}>Dismiss</button></div>
       {:else if signedIn}
         <p>{status?.email ?? chipLabel(status)}{#if status?.organization}<br /><span class="hint">{status.organization}</span>{/if}</p>
         {#if confirmSignOut}
           <p>Sign out of Claude? Squadmates won't start until you sign in again.</p>
           <div class="row"><button class="danger" onclick={signOut}>Sign out</button><button onclick={() => (confirmSignOut = false)}>Keep</button></div>
         {:else}
-          <div class="row"><button onclick={() => start("claudeai")}>Switch account</button><button onclick={() => (confirmSignOut = true)}>Sign out</button></div>
+          <div class="row"><button onclick={() => start("console")}>Switch account</button><button onclick={() => (confirmSignOut = true)}>Sign out</button></div>
         {/if}
         <p class="hint">Also changes the account Claude Code uses in your terminal.</p>
       {:else}
         <p>{status?.state === "signedOut" ? "Squadmates can't start until you sign in to Claude." : "Squad couldn't read the Claude sign-in."}</p>
-        <button class="primary" onclick={() => start("claudeai")}>Sign in to Claude</button>
-        <p class="hint">Or with <button class="link" onclick={() => start("console")}>Anthropic Console</button> (API billing)
-          or <button class="link" onclick={() => start("sso")}>SSO</button>.</p>
+        <button class="primary" onclick={() => start("console")}>Sign in with Anthropic Console</button>
+        <p class="hint">Uses an API key, billed to your Console account.</p>
         <details>
-          <summary class="hint">Use a terminal instead</summary>
+          <summary class="hint">Using a Claude subscription?</summary>
+          <p class="hint">Sign in to Claude Code yourself, in a terminal:</p>
           <div class="cmd"><code>{COMMAND}</code><button onclick={copy}>{copied ? "Copied" : "Copy"}</button></div>
           <p class="hint">Checking every few seconds… this updates once you're signed in.</p>
         </details>

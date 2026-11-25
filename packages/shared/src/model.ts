@@ -73,8 +73,8 @@ export interface AuthStatus {
   expiresAt?: number;
 }
 
-/** How `claude auth login` signs in: a Claude subscription, the Anthropic Console (API billing) or SSO. */
-export type LoginMethod = "claudeai" | "console" | "sso";
+/** Squad only offers Console (API key) sign-in; Anthropic's terms don't allow SDK apps to offer claude.ai sign-in (#43). */
+export type LoginMethod = "console";
 
 /** A sign-in to Claude that Squad runs for the user (one at a time, shared by every page). */
 export type LoginState =

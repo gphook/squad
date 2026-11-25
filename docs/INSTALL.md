@@ -39,8 +39,10 @@ curl -fsSL https://claude.ai/install.sh | bash
 claude                  # run once interactively and sign in
 ```
 
-The SDK uses the same sign-in as the `claude` CLI. You can also sign in later from inside Squad: click the account
-chip in the top bar.
+The SDK uses the same sign-in as the `claude` CLI. You can also sign in later from inside Squad with an Anthropic
+Console account (API billing): click the account chip in the top bar. Squad doesn't offer claude.ai (subscription)
+sign-in itself, because Anthropic's terms don't allow apps built on the Agent SDK to; sign in to Claude Code in a
+terminal instead (`claude auth login`).
 
 ## 3. git
 

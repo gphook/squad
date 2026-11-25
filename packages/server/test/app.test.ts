@@ -408,10 +408,20 @@ describe("websocket", () => {
     expect(await c.next("auth")).toMatchObject({ status: { state: "unknown" } });
   });
 
+  it("refuses a claude.ai or SSO sign-in: only Console is offered (#43)", async () => {
+    const c = await connect();
+    for (const method of ["claudeai", "sso"]) {
+      send(c.ws, { t: "auth.login", method });
+      await c.next("error");
+    }
+    expect(loginInput).toEqual([]);
+    expect(c.msgs.some((m) => m.t === "auth.login" && m.login.phase !== "idle")).toBe(false);
+  });
+
   it("runs a Claude sign-in for every page: the link out, a pasted code in", async () => {
     const a = await connect();
     const b = await connect();
-    send(a.ws, { t: "auth.login", method: "claudeai" });
+    send(a.ws, { t: "auth.login", method: "console" });
     const waiting = (m: ServerMsg) => m.t === "auth.login" && m.login.phase === "waiting";
     const nextWaiting = async (c: Awaited<ReturnType<typeof connect>>) => {
       while (!c.msgs.some(waiting)) await tick();
