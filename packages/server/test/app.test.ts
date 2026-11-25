@@ -322,14 +322,15 @@ describe("websocket", () => {
     await sup.action(agentId, "launch");
     f.queries[0].emit({ type: "system", subtype: "init", session_id: "s" });
     await tick();
-    const questions = [{ question: "Q?", header: "H", multiSelect: true, options: [{ label: "A", description: "" }] }];
+    const questions = [{ question: "Q?", header: "H", multiSelect: true, options: [{ label: "A", description: "", preview: "```\nA\n```" }] }];
     const decision = f.queries[0].options.canUseTool("AskUserQuestion", { questions }, { signal: new AbortController().signal });
     const c = await connect();
     send(c.ws, { t: "subscribe", projectId });
     const state = (await c.next("state")) as Extract<ServerMsg, { t: "state" }>;
     expect(state.approvals[0].questions).toEqual(questions);
-    send(c.ws, { t: "approval.answer", approvalId: state.approvals[0].id, decision: "allow", answers: { "Q?": "A, mine" } });
-    expect(await decision).toEqual({ behavior: "allow", updatedInput: { questions, answers: { "Q?": "A, mine" } } });
+    const annotations = { "Q?": { notes: "keep it small", preview: "```\nA\n```" } };
+    send(c.ws, { t: "approval.answer", approvalId: state.approvals[0].id, decision: "allow", answers: { "Q?": "A, mine" }, annotations });
+    expect(await decision).toEqual({ behavior: "allow", updatedInput: { questions, answers: { "Q?": "A, mine" }, annotations } });
   });
 
   it("passes an MCP elicitation's form content from the page to the server", async () => {

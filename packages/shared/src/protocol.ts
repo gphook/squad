@@ -70,10 +70,14 @@ const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("auth.code"), code: z.string().min(1).max(4096) }),
   z.object({ t: z.literal("auth.cancel") }),
   z.object({ t: z.literal("auth.logout") }),
-  /** `answers` only for an AskUserQuestion approval, `content` only for an elicitation; both with decision "allow". */
+  /** `answers` / `annotations` only for an AskUserQuestion approval, `content` only for an elicitation; both with decision "allow". */
   z.object({
     t: z.literal("approval.answer"), approvalId: id, decision: z.enum(APPROVAL_DECISIONS),
     answers: z.record(z.string().max(4096), z.string().max(16384)).optional(),
+    annotations: z.record(
+      z.string().max(4096),
+      z.object({ notes: z.string().max(16384).optional(), preview: z.string().max(65536).optional() }),
+    ).optional(),
     content: z.record(
       z.string().max(256),
       z.union([z.string().max(16384), z.number(), z.boolean(), z.array(z.string().max(4096)).max(256)]),

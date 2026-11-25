@@ -127,6 +127,21 @@ describe("AgentRunner", () => {
       expect(runner.state.status).toBe("working");
     });
 
+    it("keeps option previews and returns the user's notes as annotations", async () => {
+      await runner.launch();
+      await init();
+      const withPreview = [{ ...questions[0], options: [{ label: "Red", description: "", preview: "#f00" }, { label: "Blue", description: "" }] }];
+      const decision = q().options.canUseTool("AskUserQuestion", { questions: withPreview }, { signal: new AbortController().signal, suggestions: [], toolUseID: "t3" });
+      await tick();
+      const a = runner.pendingApprovals()[0];
+      expect(a.questions?.[0].options).toEqual([{ label: "Red", description: "", preview: "#f00" }, { label: "Blue", description: "" }]);
+      const annotations = { "Which colour?": { notes: "brighter", preview: "#f00" } };
+      runner.answer(a.id, "allow", { "Which colour?": "Red" }, undefined, annotations);
+      expect(await decision).toEqual({
+        behavior: "allow", updatedInput: { questions: withPreview, answers: { "Which colour?": "Red" }, annotations },
+      });
+    });
+
     it("tells the squadmate to ask in chat when the user skips, or allows with no answers", async () => {
       await runner.launch();
       await init();

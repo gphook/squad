@@ -174,11 +174,14 @@ export interface AskQuestion {
   question: string;
   header: string;
   multiSelect: boolean;
-  options: { label: string; description: string }[];
+  /** `preview`: a mockup or code snippet (markdown), shown beside the options in a monospace box. */
+  options: { label: string; description: string; preview?: string }[];
 }
 
 /** AskUserQuestion answers: question text → chosen label (several joined with ", "), or the user's own text. */
 export type QuestionAnswers = Record<string, string>;
+/** AskUserQuestion annotations: question text → the user's notes and the chosen option's preview. */
+export type QuestionAnnotations = Record<string, { notes?: string; preview?: string }>;
 
 export interface LoggedMessage {
   id: string;

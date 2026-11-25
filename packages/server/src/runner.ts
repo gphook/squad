@@ -7,7 +7,7 @@ import type {
 import {
   SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, appendShellOutput, bashContextBlock, errorMessage,
   parseShellInput,
-  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type AskQuestion, type QuestionAnswers, type ElicitContent, type Project, type SlashCommandInfo,
+  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type AskQuestion, type QuestionAnswers, type QuestionAnnotations, type ElicitContent, type Project, type SlashCommandInfo,
 } from "@squad/shared";
 import { cleanContent, toElicitation } from "./elicitation.ts";
 import { AsyncQueue } from "./inputQueue.ts";
@@ -45,7 +45,7 @@ export interface RunnerDeps {
 interface Pending {
   approval: Approval;
   /** Answers the SDK. `aborted` is true when the request was withdrawn or the session stopped. */
-  settle: (decision: ApprovalDecision, extra: { answers?: QuestionAnswers; content?: ElicitContent; aborted?: boolean }) => void;
+  settle: (decision: ApprovalDecision, extra: { answers?: QuestionAnswers; annotations?: QuestionAnnotations; content?: ElicitContent; aborted?: boolean }) => void;
 }
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
@@ -68,7 +68,9 @@ export function askQuestions(input: Record<string, unknown>): AskQuestion[] | un
     multiSelect: q.multiSelect === true,
     options: (Array.isArray(q.options) ? q.options : [])
       .filter((o: any) => o && typeof o.label === "string")
-      .map((o: any) => ({ label: o.label as string, description: str(o.description) })),
+      .map((o: any) => ({
+        label: o.label as string, description: str(o.description), ...(typeof o.preview === "string" && o.preview ? { preview: o.preview } : {}),
+      })),
   }));
   return qs.length ? qs : undefined;
 }
@@ -322,9 +324,10 @@ export class AgentRunner extends EventEmitter {
       };
       const questions = toolName === ASK_TOOL ? askQuestions(input) : undefined;
       if (questions) approval.questions = questions;
-      this.addPending(approval, signal, (decision, { answers }) => {
+      this.addPending(approval, signal, (decision, { answers, annotations }) => {
         if (questions && decision !== "deny" && answers && Object.keys(answers).length) {
-          resolve({ behavior: "allow", updatedInput: { ...input, answers } });
+          const notes = annotations && Object.keys(annotations).length ? { annotations } : {};
+          resolve({ behavior: "allow", updatedInput: { ...input, answers, ...notes } });
         } else if (decision === "deny" || questions) resolve({ behavior: "deny", message: questions ? SKIP_MESSAGE : DENY_MESSAGE });
         else if (decision === "always") resolve({ behavior: "allow", updatedInput: input, updatedPermissions: suggestions ?? [] });
         else resolve({ behavior: "allow", updatedInput: input });
@@ -366,11 +369,13 @@ export class AgentRunner extends EventEmitter {
   }
 
   /**
-   * `answers` answers an AskUserQuestion approval (without them, it is skipped); `content` fills in an elicitation's
-   * form (a required field left empty declines it).
+   * `answers` answers an AskUserQuestion approval (without them, it is skipped), with optional `annotations`;
+   * `content` fills in an elicitation's form (a required field left empty declines it).
    */
-  answer(approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers, content?: ElicitContent): void {
-    if (this.resolveApproval(approvalId, decision, { answers, content }) && this.pending.size === 0 && this.state.status === "awaiting") {
+  answer(
+    approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers, content?: ElicitContent, annotations?: QuestionAnnotations,
+  ): void {
+    if (this.resolveApproval(approvalId, decision, { answers, annotations, content }) && this.pending.size === 0 && this.state.status === "awaiting") {
       this.setStatus("working");
     }
   }
