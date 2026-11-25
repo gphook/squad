@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- **Answer MCP servers' requests for input.** When an MCP server or connector asks the user for something, the tile
+  shows its message with a form to fill in or a link to open (e.g. to sign in), instead of the request going unanswered.
+
 ### Fixed
 - **Squadmates' questions can be answered.** `AskUserQuestion` used to show as a plain Allow/Deny approval and
   reached the squadmate unanswered. The tile now shows the questions with their options and an Other box; Submit

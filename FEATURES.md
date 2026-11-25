@@ -38,6 +38,9 @@
 - Questions inline: when a squadmate asks you to choose (`AskUserQuestion`), its tile shows each question with its
   options (one choice or several, as the question allows) and an Other box for your own answer. Submit sends the
   answers; Skip tells the squadmate to ask in chat instead.
+- MCP requests inline: when a squadmate's MCP server or connector asks for input, its tile shows the server's
+  message and either a form (text, numbers, yes/no, one or several choices) or a link to open, e.g. to sign in.
+  Submit (or Done, for a link) accepts; Decline declines; stopping the squadmate cancels.
 - Peer messages marked in the chat (⇠ from / ⇢ to).
 - Shell commands: `!cmd` asks the squadmate to run it with its Bash tool; `$ cmd` has Squad run it in your `$SHELL`
   (POSIX shells such as sh/bash/zsh/dash/ksh, fish, nushell or PowerShell; anything else falls back to `/bin/sh`) in the squadmate's folder, streamed live with a Kill button, and passed to the squadmate with your next message (or when

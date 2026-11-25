@@ -257,7 +257,7 @@ export function buildApp(opts: {
       case "models.get":
         return out(ws, { t: "models", models: models ? await models.get() : null });
       case "approval.answer":
-        return sup.answer(m.approvalId, m.decision, m.answers);
+        return sup.answer(m.approvalId, m.decision, m.answers, m.content);
       case "layout.save":
       {
         // Stored and sent back in the shape every page can render (e.g. no maximised tile that isn't open).

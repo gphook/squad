@@ -160,6 +160,58 @@ describe("AgentRunner", () => {
     });
   });
 
+  describe("MCP elicitation", () => {
+    const form = {
+      serverName: "linear", message: "Pick a team", mode: "form" as const,
+      requestedSchema: { type: "object", required: ["team"], properties: { team: { type: "string", enum: ["eng", "ops"] }, notify: { type: "boolean" } } },
+    };
+    const elicit = (req: any = form, ctl = new AbortController()) => q().options.onElicitation(req, { signal: ctl.signal, requestId: "r1" });
+
+    it("shows the form and accepts with the user's content", async () => {
+      await runner.launch();
+      await init();
+      const result = elicit();
+      await tick();
+      const a = runner.pendingApprovals()[0];
+      expect(a.elicitation).toMatchObject({ serverName: "linear", mode: "form", fields: [{ name: "team", type: "choice", required: true }, { name: "notify", type: "boolean" }] });
+      expect(runner.state.status).toBe("awaiting");
+      runner.answer(a.id, "allow", undefined, { team: "eng", notify: true, extra: "x" });
+      expect(await result).toEqual({ action: "accept", content: { team: "eng", notify: true } });
+    });
+
+    it("declines on deny or a missing required field, and cancels on abort", async () => {
+      await runner.launch();
+      await init();
+      const denied = elicit();
+      await tick();
+      runner.answer(runner.pendingApprovals()[0].id, "deny");
+      expect(await denied).toEqual({ action: "decline" });
+      const missing = elicit();
+      await tick();
+      runner.answer(runner.pendingApprovals()[0].id, "allow", undefined, { team: "nope" });
+      expect(await missing).toEqual({ action: "decline" });
+      const ctl = new AbortController();
+      const aborted = elicit(form, ctl);
+      await tick();
+      ctl.abort();
+      expect(await aborted).toEqual({ action: "cancel" });
+    });
+
+    it("accepts a url request without content and drops non-http links", async () => {
+      await runner.launch();
+      await init();
+      const ok = elicit({ serverName: "gh", message: "Sign in", mode: "url", url: "https://example.com/auth" });
+      await tick();
+      const a = runner.pendingApprovals()[0];
+      expect(a.elicitation).toMatchObject({ mode: "url", url: "https://example.com/auth" });
+      runner.answer(a.id, "allow");
+      expect(await ok).toEqual({ action: "accept" });
+      void elicit({ serverName: "gh", message: "x", mode: "url", url: "javascript:alert(1)" });
+      await tick();
+      expect(runner.pendingApprovals()[0].elicitation?.url).toBeUndefined();
+    });
+  });
+
   it("denies pending approvals when stopped", async () => {
     await runner.launch();
     await init();
