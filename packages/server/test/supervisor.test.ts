@@ -322,7 +322,7 @@ describe("$ cmd output", () => {
 
 describe("signed out", () => {
   const MSG = "Not signed in to Claude: click the account in the top bar";
-  const authWith = (state: "signedIn" | "signedOut" | "unknown") => {
+  const authWith = (state: AuthStatus["state"]) => {
     const auth = { current: { state } as AuthStatus, refreshes: 0, refresh: async () => { auth.refreshes++; return auth.current; } };
     sup.setAuth(auth);
     return auth;
@@ -363,6 +363,13 @@ describe("signed out", () => {
     auth.refresh = async () => { await tick(); auth.current = { state: "signedIn" }; return auth.current; };
     await Promise.all([sup.action(a.id, "launch"), sup.action(a.id, "launch")]);
     expect(f.queries).toHaveLength(1);
+  });
+
+  it("refuses to launch on a claude.ai subscription (#43)", async () => {
+    authWith("subscription");
+    await sup.action(a.id, "launch");
+    expect(sup.runner(a.id).state).toMatchObject({ status: "error", error: expect.stringContaining("Claude subscription") });
+    expect(f.queries).toHaveLength(0);
   });
 
   it("launches when the account state is unknown", async () => {

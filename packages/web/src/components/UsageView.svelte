@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { FIVE_HOUR_MS, SEVEN_DAY_MS, USAGE_RANGES, errorMessage, projectedPct, type PlanWindow, type UsageRange, type UsageReport } from "@squad/shared";
+  import { USAGE_RANGES, errorMessage, type UsageRange, type UsageReport } from "@squad/shared";
   import { agentById, ui } from "../lib/state.svelte.ts";
-  import { fetchUsage, formatCost, formatReset, formatTokens, localDay, ringTone, stackDaily } from "../lib/usage.ts";
+  import { fetchUsage, formatCost, formatTokens, localDay, stackDaily } from "../lib/usage.ts";
   import DailyChart from "./DailyChart.svelte";
 
   let { onjump }: { onjump: (agentId: string) => void } = $props();
@@ -12,7 +12,6 @@
   let report = $state<UsageReport | null>(null);
   let error = $state<string | null>(null);
 
-  const plan = $derived(ui.s.plan?.available ? ui.s.plan : null);
   const allProjects = $derived(scope === "all");
 
   $effect(() => {
@@ -27,24 +26,11 @@
     return () => { current = false; };
   });
 
-  const now = $derived((ui.s.plan, Date.now())); // re-read the clock whenever new plan numbers arrive
   const chart = $derived(report ? stackDaily(report.daily, days, localDay(Date.now()), metric) : null);
   const tokens = (t: { input: number; output: number; cacheRead: number; cacheWrite: number }) =>
     `${formatTokens(t.input + t.cacheRead + t.cacheWrite)} / ${formatTokens(t.output)}`;
   const pct = (share: number) => `${Math.round(share * 100)}%`;
-  /** An upper bound: the window's % also includes Claude use outside Squad, which can't be told apart. */
-  const ofLimit = (share: number, w: PlanWindow | undefined) => (w ? `≤ ${Math.round(share * w.pct)}%` : "–");
-  const ago = (t: number) => {
-    const m = Math.round((Date.now() - t) / 60_000);
-    return m < 1 ? "just now" : `${m} min ago`;
-  };
   const time = (at: number) => new Date(at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
-
-  const windows = $derived(plan ? [
-    ...(plan.fiveHour ? [{ name: "Session (5 hours)", w: plan.fiveHour, ms: FIVE_HOUR_MS }] : []),
-    ...(plan.sevenDay ? [{ name: "Weekly (all models)", w: plan.sevenDay, ms: SEVEN_DAY_MS }] : []),
-    ...plan.perModel.map((m) => ({ name: `Weekly (${m.label})`, w: m as PlanWindow, ms: SEVEN_DAY_MS })),
-  ] : []);
 </script>
 
 <main class="view">
@@ -63,32 +49,6 @@
 
   {#if error}<p class="err" role="alert">Couldn't load usage: {error}</p>{/if}
 
-  <section>
-    <h3>Plan limits</h3>
-    {#if !ui.s.plan}
-      <p class="hint">Reading plan limits…</p>
-    {:else if !plan}
-      <p class="hint">Plan limits aren't available for this sign-in. Squad's own usage is still shown below.</p>
-    {:else}
-      {#each windows as { name, w, ms }}
-        {@const projected = projectedPct(w, ms, now)}
-        <div class="limit {ringTone(w.pct)}">
-          <span class="name">{name}</span>
-          <span class="bar"><span style="width:{Math.min(100, w.pct)}%"></span></span>
-          <span class="num">{w.pct}%</span>
-          <span class="hint">
-            {#if w.resetsAt}resets {formatReset(w.resetsAt, Date.now())}{/if}
-            {#if projected !== null} · projected {projected}% at reset{/if}
-          </span>
-        </div>
-      {/each}
-      {#if plan.extra?.enabled}
-        <p class="hint">Extra usage: {plan.extra.used ?? 0} of {plan.extra.limit ?? "unlimited"} {plan.extra.currency ?? ""} credits.</p>
-      {/if}
-      <p class="hint">Updated {ago(plan.fetchedAt)}{plan.stale ? " · couldn't refresh, showing the last reading" : ""}.</p>
-    {/if}
-  </section>
-
   {#if report}
     <section>
       <h3>Current windows by squadmate</h3>
@@ -97,7 +57,7 @@
         <table>
           <thead><tr>
             <th>Squadmate</th><th class="n">Turns</th><th class="n">Tokens in / out</th><th class="n">Est. cost</th>
-            <th class="n">Share 5h</th><th class="n">Share 7d</th><th class="n">Max % of 5h</th><th class="n">Max % of 7d</th>
+            <th class="n">Share 5h</th><th class="n">Share 7d</th>
           </tr></thead>
           <tbody>
             {#each report.windows as a (a.agentId)}
@@ -105,14 +65,11 @@
                 <td>{a.agentName}{#if allProjects}<span class="hint"> · {a.projectName}</span>{/if}</td>
                 <td class="n">{a.turns}</td><td class="n">{tokens(a)}</td><td class="n">{formatCost(a.cost)}</td>
                 <td class="n">{pct(a.share5h)}</td><td class="n">{pct(a.share7d)}</td>
-                <td class="n">{ofLimit(a.share5h, plan?.fiveHour)}</td><td class="n">{ofLimit(a.share7d, plan?.sevenDay)}</td>
               </tr>
             {/each}
           </tbody>
         </table>
-        <p class="hint">Costs are API-equivalent estimates. Shares split Squad's own usage. "Max % of" is an upper bound:
-          it gives each squadmate its share of the whole window, but other Claude use on your account (claude.ai, Claude Code
-          outside Squad) also counts toward the limits, so a squadmate's real part can be lower.</p>
+        <p class="hint">Costs are API-equivalent estimates. Shares split Squad's own usage in the last 5 hours and 7 days.</p>
       {/if}
     </section>
 
@@ -176,13 +133,6 @@
   .seg button { border: 0; border-radius: 0; }
   .on { background: var(--accent); color: var(--on-accent); }
   .err { color: var(--bad); }
-  .limit { display: grid; grid-template-columns: 170px minmax(120px, 1fr) 44px minmax(0, 280px); gap: 10px; align-items: center; padding: 4px 0; }
-  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
-  .bar span { display: block; height: 100%; background: var(--tone); }
-  .num { font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
-  .ok { --tone: var(--accent); }
-  .warn { --tone: var(--warn); }
-  .bad { --tone: var(--bad); }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
   th { color: var(--muted); font-weight: 500; font-size: 12px; }

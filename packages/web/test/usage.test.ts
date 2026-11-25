@@ -1,31 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { FIVE_HOUR_MS, SEVEN_DAY_MS } from "@squad/shared";
-import { contextLabel, fetchUsage, formatCost, liveContextPct, formatReset, formatTokens, ringLabel, ringTone, stackDaily } from "../src/lib/usage.ts";
-
-const now = new Date(2026, 10, 23, 12, 0).getTime();
+import { contextLabel, fetchUsage, formatCost, liveContextPct, formatTokens, ringTone, stackDaily } from "../src/lib/usage.ts";
 
 describe("rings", () => {
   it("ringTone thresholds at 74/75/89/90", () => {
     expect([74, 75, 89, 90].map(ringTone)).toEqual(["ok", "warn", "warn", "bad"]);
-  });
-
-  it("ringLabel includes the reset time and projection", () => {
-    const w = { pct: 30, resetsAt: now + 0.5 * FIVE_HOUR_MS };
-    expect(ringLabel("Session", w, FIVE_HOUR_MS, now))
-      .toBe(`Session: 30% used, resets ${formatReset(w.resetsAt, now)}, projected 60%`);
-  });
-
-  it("ringLabel omits the projection when there is none", () => {
-    const w = { pct: 2, resetsAt: now + 0.95 * SEVEN_DAY_MS };
-    expect(ringLabel("Weekly", w, SEVEN_DAY_MS, now)).toBe(`Weekly: 2% used, resets ${formatReset(w.resetsAt, now)}`);
-    expect(ringLabel("Weekly", { pct: 2, resetsAt: null }, SEVEN_DAY_MS, now)).toBe("Weekly: 2% used");
-  });
-
-  it("formatReset shows a time today and a weekday further out", () => {
-    const today = formatReset(new Date(2026, 10, 23, 15, 40).getTime(), now);
-    expect(today).toMatch(/\b(3|15):40/);
-    expect(today).not.toMatch(/Mon/);
-    expect(formatReset(new Date(2026, 10, 27, 9, 0).getTime(), now)).toMatch(/Fri/);
   });
 });
 

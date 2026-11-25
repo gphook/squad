@@ -62,9 +62,13 @@ export interface Agent {
 
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 
-/** The Claude account squadmates run on, as the CLI reports it. `unknown`: the CLI couldn't be run or read. */
+/**
+ * The Claude account squadmates run on, as the CLI reports it. `unknown`: the CLI couldn't be run or read.
+ * `subscription`: signed in with a claude.ai plan, which Anthropic's terms don't let SDK apps run on (#43),
+ * so squadmates won't start until the user signs in with the Console, an API key or a cloud provider.
+ */
 export interface AuthStatus {
-  state: "signedIn" | "signedOut" | "unknown";
+  state: "signedIn" | "signedOut" | "subscription" | "unknown";
   method?: string;
   email?: string;
   organization?: string;

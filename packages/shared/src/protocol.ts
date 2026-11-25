@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { PlanUsage } from "./usage.ts";
 import type { SlashCommandInfo } from "./commands.ts";
 import type { AvailablePlugin, InstalledPlugin, Marketplace, PluginSwitch } from "./plugins.ts";
 import type {
@@ -131,7 +130,6 @@ export type ServerMsg =
   | { t: "share.added"; share: SharedFile }
   | { t: "share.removed"; shareId: string }
   | { t: "layout"; projectId: string; layout: Layout }
-  | { t: "usage.plan"; plan: PlanUsage }
   | { t: "models"; models: ModelOption[] | null }
   | { t: "auth"; status: AuthStatus }
   | { t: "auth.login"; login: LoginState }

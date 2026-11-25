@@ -12,7 +12,6 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { Store } from "../src/store.ts";
 import { Supervisor } from "../src/supervisor.ts";
-import { PlanUsageTracker } from "../src/planUsage.ts";
 import { fakeFactory, tick } from "./fakeQuery.ts";
 import { FakePluginSource } from "../src/plugins/fakeSource.ts";
 import { PluginService, kitPlugin } from "../src/plugins/service.ts";
@@ -24,7 +23,7 @@ import type { ConnectorTemplate } from "../src/connectors/template.ts";
 
 const hashOf = (c: Record<string, string>): string => hashId(Object.values(c)[0]!);
 
-let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fakeFactory>, plan: PlanUsageTracker;
+let app: FastifyInstance, store: Store, sup: Supervisor, f: ReturnType<typeof fakeFactory>;
 let port: number, projectId: string, agentId: string, folder: string;
 let plugins: PluginService;
 let signin: SignIn, cookies: Record<string, string>;
@@ -43,7 +42,6 @@ beforeEach(async () => {
   symlinkSync("/etc/hostname", join(folder, "link"));
   projectId = store.saveProject({ name: "P", rules: "", permissionMode: "default" }).id;
   agentId = store.saveAgent({ projectId, name: "starfade", role: "r", folder, model: null }).id;
-  plan = new PlanUsageTracker({ queryFactory: f.factory, source: () => null, probeCwd: process.env.SQUAD_HOME });
   plugins = new PluginService(new FakePluginSource({ delayMs: 0 }), store, kitPlugin(join(import.meta.dirname, "../../../kit")));
   signin = createSignIn(store, { dev: false });
   update = new UpdateNotice();
@@ -77,7 +75,7 @@ beforeEach(async () => {
       return child;
     },
   });
-  app = buildApp({ store, supervisor: sup, signin, plan, plugins, update, login, connectors });
+  app = buildApp({ store, supervisor: sup, signin, plugins, update, login, connectors });
   await app.listen({ port: 0, host: "127.0.0.1" });
   port = (app.server.address() as { port: number }).port;
   cookies = signedInCookie(signin, port);
@@ -85,7 +83,6 @@ beforeEach(async () => {
 afterEach(async () => {
   open.splice(0).forEach((w) => w.close());
   await app.close();
-  plan.dispose();
 });
 
 function connect(origin: string | null = `http://127.0.0.1:${port}`, path = "/ws"): Promise<{ ws: WebSocket; msgs: ServerMsg[]; next: (t: string) => Promise<ServerMsg> }> {
@@ -484,7 +481,6 @@ describe("websocket", () => {
 });
 
 describe("usage", () => {
-  const rateLimit = { unifiedWindows: { five_hour: { utilization: 0.5, resetsAt: 1800000000 } } };
   const usage = (qs: string, c: Record<string, string> = cookies) => app.inject({ url: `/api/usage?${qs}`, cookies: c, headers: host() });
 
   it("GET /api/usage returns the report for a project", async () => {
@@ -503,41 +499,9 @@ describe("usage", () => {
     expect((await usage("days=7", {})).statusCode).toBe(401);
   });
 
-  it("broadcasts usage.plan to all clients on change, including rate limits from agents", async () => {
-    plan.refresh = async () => null; // only the rate-limit change should broadcast here
-    const [c1, c2] = [await connect(), await connect()];
-    sup.emit("rateLimit", rateLimit);
-    const [m1, m2] = await Promise.all([c1.next("usage.plan"), c2.next("usage.plan")]);
-    expect(m1).toEqual(m2);
-    expect(m1).toMatchObject({ plan: { available: true, fiveHour: { pct: 50, resetsAt: 1800000000000 } } });
-  });
-
-  it("sends the current plan on connect", async () => {
-    plan.refresh = async () => null;
-    plan.applyRateLimit(rateLimit);
-    const c = await connect();
-    expect(await c.next("usage.plan")).toMatchObject({ plan: { fiveHour: { pct: 50 } } });
-  });
-
-  it("polls only while a client is connected", async () => {
-    const calls: boolean[] = [];
-    plan.setPolling = (on: boolean) => { calls.push(on); };
-    const c = await connect();
-    c.ws.close();
-    await new Promise((r) => setTimeout(r, 50));
-    expect(calls).toEqual([true, false]);
-  });
 });
 
-describe("usage freshness", () => {
-  it("refreshes the plan when the first browser connects", async () => {
-    let refreshes = 0;
-    plan.refresh = async () => { refreshes++; return null; };
-    await connect();
-    await connect();
-    expect(refreshes).toBe(1);
-  });
-
+describe("rate limits", () => {
   it("a malformed rate-limit event is ignored", () => {
     expect(() => sup.emit("rateLimit", undefined)).not.toThrow();
   });

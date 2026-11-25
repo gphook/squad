@@ -5,12 +5,14 @@
 ### Projects
 - Create, edit, delete and switch between any number of projects.
 - Project-wide rules (markdown) given to every agent in the project.
-- The Claude account squadmates run on, in the top bar (from `claude auth status`). When nobody is signed in,
-  launches are refused with a clear message. Click the account chip to sign in with the Anthropic Console (API
-  billing) from Squad: it runs `claude auth login --console`, gives you the sign-in link and takes the code the page
-  shows. Squad doesn't offer claude.ai (subscription) or SSO sign-in, because Anthropic's terms don't allow Agent SDK
-  apps to; to use a subscription, sign in to Claude Code yourself in a terminal (`claude auth login`) and Squad picks
-  it up. When signed in, the chip offers Switch account and Sign out (both also change Claude Code in your terminal).
+- The Claude account squadmates run on, in the top bar (from `claude auth status`). When nobody is signed in, or
+  Claude Code is signed in with a claude.ai subscription, launches are refused with a clear message: Anthropic's terms
+  don't allow Agent SDK apps to run on claude.ai login or subscription limits. Click the account chip to sign in with
+  the Anthropic Console (API billing) from Squad: it runs `claude auth login --console`, gives you the sign-in link and
+  takes the code the page shows. An `ANTHROPIC_API_KEY` or a cloud provider (Bedrock, Vertex, Foundry) set when Squad
+  starts works too (see docs/INSTALL.md). When signed in, the chip offers Switch account and Sign out (both also change
+  Claude Code in your terminal).
+- Usage (top bar): Squad's own usage and API-equivalent cost by squadmate, day, model and costliest turn.
 - Per squadmate, a model picked from your account's models (fetched from the SDK) and an effort level (Low to
   Max, as the model allows), applied at launch.
 - Activities: a project's areas of work, each with an owner, optional reviewers and a description. Squad

@@ -88,17 +88,6 @@ describe("reduce", () => {
   });
 });
 
-describe("usage plan", () => {
-  const plan = { available: true, fiveHour: { pct: 10, resetsAt: 1 }, perModel: [], fetchedAt: 1, stale: false };
-  it("reducer stores usage.plan", () => {
-    expect(reduce(emptyState(), { t: "usage.plan", plan }).plan).toEqual(plan);
-  });
-  it("switching project keeps the plan and the project list but drops project data", () => {
-    const s = forProject({ ...subscribed(), plan }, "q");
-    expect(s).toMatchObject({ plan, projects: [project], projectId: "q", agents: [] });
-  });
-});
-
 describe("shell blocks", () => {
   const ev = (event: AgentEvent) => ({ t: "agent.event" as const, agentId: "a", event });
   const start = (id = "s1"): AgentEvent => ({ kind: "shell", id, command: "ls", chunks: [], running: true, code: null, signal: null });

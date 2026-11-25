@@ -36,13 +36,28 @@ If it's missing:
 
 ```bash
 curl -fsSL https://claude.ai/install.sh | bash
-claude                  # run once interactively and sign in
 ```
 
-The SDK uses the same sign-in as the `claude` CLI. You can also sign in later from inside Squad with an Anthropic
-Console account (API billing): click the account chip in the top bar. Squad doesn't offer claude.ai (subscription)
-sign-in itself, because Anthropic's terms don't allow apps built on the Agent SDK to; sign in to Claude Code in a
-terminal instead (`claude auth login`).
+### Signing in
+
+Squadmates run on your own Anthropic API account, billed at API rates. Anthropic's terms don't allow apps built on
+the Agent SDK, like Squad, to run on a claude.ai subscription (Pro, Max), so Squad won't start squadmates while
+Claude Code is signed in with one. Use one of these instead:
+
+- **Anthropic Console.** Click the account chip in the top bar and choose Sign in with Anthropic Console (it runs
+  `claude auth login --console`). This also changes the account Claude Code uses in your terminal.
+- **An API key.** Create one in the [Claude Console](https://platform.claude.com/) and start Squad with it set:
+  `ANTHROPIC_API_KEY=sk-ant-… squad`. This leaves your terminal's Claude Code sign-in alone.
+- **A cloud provider.** Start Squad with your provider turned on and its credentials configured:
+
+  | Provider | Environment |
+  |---|---|
+  | Amazon Bedrock | `CLAUDE_CODE_USE_BEDROCK=1`, AWS credentials |
+  | Claude Platform on AWS | `CLAUDE_CODE_USE_ANTHROPIC_AWS=1`, `ANTHROPIC_AWS_WORKSPACE_ID`, AWS credentials |
+  | Google Cloud (Vertex) | `CLAUDE_CODE_USE_VERTEX=1`, Google Cloud credentials |
+  | Microsoft Foundry | `CLAUDE_CODE_USE_FOUNDRY=1`, Azure credentials |
+
+  See the [Agent SDK quickstart](https://code.claude.com/docs/en/agent-sdk/quickstart) for each provider's setup.
 
 ## 3. git
 

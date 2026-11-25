@@ -1,4 +1,4 @@
-import { projectedPct, type AgentState, type PlanWindow, type UsageRange, type UsageReport } from "@squad/shared";
+import type { AgentState, UsageRange, UsageReport } from "@squad/shared";
 
 export type RingTone = "ok" | "warn" | "bad";
 
@@ -15,21 +15,6 @@ export function liveContextPct(state: AgentState | undefined): number | null {
 export const contextLabel = (pct: number): string => `Context: ${pct}% used`;
 
 const DAY_MS = 86400_000;
-
-/** A reset time: just the time when it's within a day, with the weekday when further out. */
-export function formatReset(resetsAt: number, now: number): string {
-  const opts: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
-  if (resetsAt - now >= DAY_MS || new Date(resetsAt).getDate() !== new Date(now).getDate()) opts.weekday = "short";
-  return new Date(resetsAt).toLocaleString(undefined, opts);
-}
-
-export function ringLabel(name: "Session" | "Weekly", w: PlanWindow, windowMs: number, now: number): string {
-  const parts = [`${name}: ${w.pct}% used`];
-  if (w.resetsAt !== null) parts.push(`resets ${formatReset(w.resetsAt, now)}`);
-  const projected = projectedPct(w, windowMs, now);
-  if (projected !== null) parts.push(`projected ${projected}%`);
-  return parts.join(", ");
-}
 
 export async function fetchUsage(projectId: string | null, days: UsageRange): Promise<UsageReport> {
   const r = await fetch(`/api/usage?projectId=${encodeURIComponent(projectId ?? "")}&days=${days}`);

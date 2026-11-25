@@ -36,8 +36,8 @@ export interface RunnerDeps {
   /** This squadmate's plugins besides squad-kit, worked out at each launch. */
   launchPlugins?: () => Promise<LaunchPlugins>;
   shareDir: string;
-  /** Resolves true when nobody is signed in to Claude, so a launch would only fail. */
-  signedOut?: () => Promise<boolean>;
+  /** Why a launch can't run on the current Claude sign-in (signed out, or a claude.ai plan), or null when it can. */
+  notRunnable?: () => Promise<string | null>;
   /** Runs `$ cmd`; tests swap in a fake. */
   runShell?: typeof runShell;
 }
@@ -53,6 +53,7 @@ type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
 const SHELL_FLUSH_MS = 50;
 
 export const NOT_SIGNED_IN = "Not signed in to Claude: click the account in the top bar";
+export const SUBSCRIPTION = "Squadmates can't run on a Claude subscription: sign in with the Anthropic Console (click the account in the top bar)";
 const DENY_MESSAGE = "Denied by user in Squad";
 const SKIP_MESSAGE = "The user skipped these questions in Squad. Ask them in chat instead, as a normal message.";
 const ASK_TOOL = "AskUserQuestion";
@@ -220,8 +221,9 @@ export class AgentRunner extends EventEmitter {
       this.setStatus("error", `Folder not found: ${this.agent.folder}`);
       return;
     }
-    if (await this.deps.signedOut?.()) {
-      this.setStatus("error", NOT_SIGNED_IN);
+    const blocked = await this.deps.notRunnable?.();
+    if (blocked) {
+      this.setStatus("error", blocked);
       return;
     }
     let plugins: LaunchPlugins = { paths: [], off: [] };
