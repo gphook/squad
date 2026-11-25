@@ -70,7 +70,10 @@ const clientMsg = z.discriminatedUnion("t", [
   z.object({ t: z.literal("auth.code"), code: z.string().min(1).max(4096) }),
   z.object({ t: z.literal("auth.cancel") }),
   z.object({ t: z.literal("auth.logout") }),
-  /** `answers` / `annotations` only for an AskUserQuestion approval, `content` only for an elicitation; both with decision "allow". */
+  /**
+   * `answers` / `annotations` only for an AskUserQuestion approval, `content` only for an elicitation; both with decision "allow".
+   * `feedback` only for a plan approval, with decision "deny" (Keep planning).
+   */
   z.object({
     t: z.literal("approval.answer"), approvalId: id, decision: z.enum(APPROVAL_DECISIONS),
     answers: z.record(z.string().max(4096), z.string().max(16384)).optional(),
@@ -82,6 +85,7 @@ const clientMsg = z.discriminatedUnion("t", [
       z.string().max(256),
       z.union([z.string().max(16384), z.number(), z.boolean(), z.array(z.string().max(4096)).max(256)]),
     ).optional(),
+    feedback: z.string().max(16384).optional(),
   }),
   z.object({ t: z.literal("layout.save"), projectId: id, layout }),
   z.object({ t: z.literal("share.delete"), shareId: id }),

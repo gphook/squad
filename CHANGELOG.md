@@ -5,6 +5,8 @@
 ### Added
 - **Answer MCP servers' requests for input.** When an MCP server or connector asks the user for something, the tile
   shows its message with a form to fill in or a link to open (e.g. to sign in), instead of the request going unanswered.
+- **Plan approval card.** A squadmate's plan (`ExitPlanMode`) shows as markdown with Approve and Keep planning,
+  instead of a generic Allow/Deny. Keep planning takes optional feedback that's sent back so the squadmate revises.
 
 ### Fixed
 - **Squadmates' questions can be answered.** `AskUserQuestion` used to show as a plain Allow/Deny approval and
