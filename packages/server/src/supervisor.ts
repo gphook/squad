@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import {
   errorMessage, firstLine, isExternalUrl, parseSlashCommand, routeCommand, shareFileName, SQUAD_COMMANDS, isUnavailableCommand,
   type SlashCommandInfo,
-  type AgentAction, type AgentEvent, type AgentState, type AuthStatus, type Approval, type ApprovalDecision, type QuestionAnswers, type QuestionAnnotations, type ElicitContent, type LoggedMessage, type SharedFile,
+  type AgentAction, type AgentEvent, type AgentState, type AuthStatus, type Approval, type ApprovalDecision, type ApprovalReply, type LoggedMessage, type SharedFile,
 } from "@squad/shared";
 import { shareDir } from "./paths.ts";
 import { renamePeers } from "./normalise.ts";
@@ -191,11 +191,9 @@ export class Supervisor extends EventEmitter {
     return [...this.runners.entries()].filter(([id]) => ids.has(id)).flatMap(([, r]) => r.pendingApprovals());
   }
 
-  answer(
-    approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers, content?: ElicitContent, annotations?: QuestionAnnotations,
-  ): void {
+  answer(approvalId: string, decision: ApprovalDecision, reply: ApprovalReply = {}): void {
     for (const r of this.runners.values()) {
-      if (r.pendingApprovals().some((a) => a.id === approvalId)) return r.answer(approvalId, decision, answers, content, annotations);
+      if (r.pendingApprovals().some((a) => a.id === approvalId)) return r.answer(approvalId, decision, reply);
     }
   }
 

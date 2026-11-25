@@ -122,7 +122,7 @@ describe("AgentRunner", () => {
       const decision = ask();
       await tick();
       expect(approvals[0]).toMatchObject({ toolName: "AskUserQuestion", questions });
-      runner.answer(approvals[0].id, "allow", { "Which colour?": "Blue" });
+      runner.answer(approvals[0].id, "allow", { answers: { "Which colour?": "Blue" } });
       expect(await decision).toEqual({ behavior: "allow", updatedInput: { questions, answers: { "Which colour?": "Blue" } } });
       expect(runner.state.status).toBe("working");
     });
@@ -136,7 +136,7 @@ describe("AgentRunner", () => {
       const a = runner.pendingApprovals()[0];
       expect(a.questions?.[0].options).toEqual([{ label: "Red", description: "", preview: "#f00" }, { label: "Blue", description: "" }]);
       const annotations = { "Which colour?": { notes: "brighter", preview: "#f00" } };
-      runner.answer(a.id, "allow", { "Which colour?": "Red" }, undefined, annotations);
+      runner.answer(a.id, "allow", { answers: { "Which colour?": "Red" }, annotations });
       expect(await decision).toEqual({
         behavior: "allow", updatedInput: { questions: withPreview, answers: { "Which colour?": "Red" }, annotations },
       });
@@ -175,6 +175,46 @@ describe("AgentRunner", () => {
     });
   });
 
+  describe("ExitPlanMode", () => {
+    const input = { plan: "# Plan\n\n1. Do it" };
+    const exit = (i: Record<string, unknown> = input, ctl = new AbortController()) =>
+      q().options.canUseTool("ExitPlanMode", i, { signal: ctl.signal, suggestions: [], toolUseID: "p1" });
+
+    it("sends the plan and lets the squadmate go ahead on Approve", async () => {
+      await runner.launch();
+      await init();
+      const decision = exit();
+      await tick();
+      const a = runner.pendingApprovals()[0];
+      expect(a).toMatchObject({ toolName: "ExitPlanMode", plan: "# Plan\n\n1. Do it" });
+      runner.answer(a.id, "allow");
+      expect(await decision).toEqual({ behavior: "allow", updatedInput: input });
+    });
+
+    it("sends Keep planning's feedback back as the deny message", async () => {
+      await runner.launch();
+      await init();
+      const first = exit();
+      await tick();
+      runner.answer(runner.pendingApprovals()[0].id, "deny", { feedback: "  Add tests first.  " });
+      const r = await first;
+      expect(r).toMatchObject({ behavior: "deny", message: expect.stringContaining("keep planning") });
+      expect((r as { message: string }).message).toMatch(/Their feedback:\n\nAdd tests first\.$/);
+      const second = exit();
+      await tick();
+      runner.answer(runner.pendingApprovals()[0].id, "deny");
+      expect(await second).toEqual({ behavior: "deny", message: expect.not.stringContaining("feedback") });
+    });
+
+    it("keeps a call without a plan as a plain approval", async () => {
+      await runner.launch();
+      await init();
+      void exit({});
+      await tick();
+      expect(runner.pendingApprovals()[0].plan).toBeUndefined();
+    });
+  });
+
   it("declares no dialog kinds and leaves an undeclared dialog unanswered", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await runner.launch();
@@ -200,7 +240,7 @@ describe("AgentRunner", () => {
       const a = runner.pendingApprovals()[0];
       expect(a.elicitation).toMatchObject({ serverName: "linear", mode: "form", fields: [{ name: "team", type: "choice", required: true }, { name: "notify", type: "boolean" }] });
       expect(runner.state.status).toBe("awaiting");
-      runner.answer(a.id, "allow", undefined, { team: "eng", notify: true, extra: "x" });
+      runner.answer(a.id, "allow", { content: { team: "eng", notify: true, extra: "x" } });
       expect(await result).toEqual({ action: "accept", content: { team: "eng", notify: true } });
     });
 
@@ -213,7 +253,7 @@ describe("AgentRunner", () => {
       expect(await denied).toEqual({ action: "decline" });
       const missing = elicit();
       await tick();
-      runner.answer(runner.pendingApprovals()[0].id, "allow", undefined, { team: "nope" });
+      runner.answer(runner.pendingApprovals()[0].id, "allow", { content: { team: "nope" } });
       expect(await missing).toEqual({ action: "decline" });
       const ctl = new AbortController();
       const aborted = elicit(form, ctl);

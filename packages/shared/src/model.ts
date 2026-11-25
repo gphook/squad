@@ -139,6 +139,19 @@ export interface Approval {
   questions?: AskQuestion[];
   /** Set for an MCP server's request for input: the page shows a form (or a link) instead of Allow / Deny. */
   elicitation?: Elicitation;
+  /** Set for ExitPlanMode: the plan (markdown); the page shows it with Approve / Keep planning instead of Allow / Deny. */
+  plan?: string;
+}
+
+/** What comes with an approval's answer, besides the decision. */
+export interface ApprovalReply {
+  /** AskUserQuestion's answers and notes. */
+  answers?: QuestionAnswers;
+  annotations?: QuestionAnnotations;
+  /** An elicitation form's content. */
+  content?: ElicitContent;
+  /** ExitPlanMode's "Keep planning": what to change, sent to the squadmate as the deny message. */
+  feedback?: string;
 }
 
 /** An MCP server asking the user for input: fields to fill in ("form"), or a page to visit ("url"). */

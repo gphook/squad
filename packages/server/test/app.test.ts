@@ -333,6 +333,19 @@ describe("websocket", () => {
     expect(await decision).toEqual({ behavior: "allow", updatedInput: { questions, answers: { "Q?": "A, mine" }, annotations } });
   });
 
+  it("passes Keep planning's feedback from the page to the squadmate", async () => {
+    await sup.action(agentId, "launch");
+    f.queries[0].emit({ type: "system", subtype: "init", session_id: "s" });
+    await tick();
+    const decision = f.queries[0].options.canUseTool("ExitPlanMode", { plan: "Do it" }, { signal: new AbortController().signal });
+    const c = await connect();
+    send(c.ws, { t: "subscribe", projectId });
+    const state = (await c.next("state")) as Extract<ServerMsg, { t: "state" }>;
+    expect(state.approvals[0].plan).toBe("Do it");
+    send(c.ws, { t: "approval.answer", approvalId: state.approvals[0].id, decision: "deny", feedback: "Smaller steps" });
+    expect(await decision).toMatchObject({ behavior: "deny", message: expect.stringContaining("Smaller steps") });
+  });
+
   it("passes an MCP elicitation's form content from the page to the server", async () => {
     await sup.action(agentId, "launch");
     f.queries[0].emit({ type: "system", subtype: "init", session_id: "s" });

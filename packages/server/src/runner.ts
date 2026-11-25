@@ -7,7 +7,7 @@ import type {
 import {
   SHELL_CONTEXT_CAP, SQUAD_TOOL_NAMES, SQUAD_TOOL_PREFIX, agentShellPrompt, appendShellOutput, bashContextBlock, errorMessage,
   parseShellInput,
-  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type AskQuestion, type QuestionAnswers, type QuestionAnnotations, type ElicitContent, type Project, type SlashCommandInfo,
+  type Agent, type AgentEvent, type AgentState, type ShellChunk, type AgentStatus, type Approval, type ApprovalDecision, type ApprovalReply, type AskQuestion, type Project, type SlashCommandInfo,
 } from "@squad/shared";
 import { cleanContent, toElicitation } from "./elicitation.ts";
 import { AsyncQueue } from "./inputQueue.ts";
@@ -45,7 +45,7 @@ export interface RunnerDeps {
 interface Pending {
   approval: Approval;
   /** Answers the SDK. `aborted` is true when the request was withdrawn or the session stopped. */
-  settle: (decision: ApprovalDecision, extra: { answers?: QuestionAnswers; annotations?: QuestionAnnotations; content?: ElicitContent; aborted?: boolean }) => void;
+  settle: (decision: ApprovalDecision, extra: ApprovalReply & { aborted?: boolean }) => void;
 }
 
 type ShellEvent = Extract<AgentEvent, { kind: "shell" }>;
@@ -56,6 +56,19 @@ export const NOT_SIGNED_IN = "Not signed in to Claude: click the account in the 
 const DENY_MESSAGE = "Denied by user in Squad";
 const SKIP_MESSAGE = "The user skipped these questions in Squad. Ask them in chat instead, as a normal message.";
 const ASK_TOOL = "AskUserQuestion";
+const PLAN_TOOL = "ExitPlanMode";
+const KEEP_PLANNING_MESSAGE = "The user wants to keep planning. Stay in plan mode and revise the plan.";
+
+/** ExitPlanMode's plan; undefined when the input has none, so it stays a plain approval. */
+export function exitPlan(input: Record<string, unknown>): string | undefined {
+  return typeof input.plan === "string" && input.plan.trim() ? input.plan : undefined;
+}
+
+/** The deny message for "Keep planning": the user's feedback, or a plain request to revise. */
+export function keepPlanningMessage(feedback?: string): string {
+  const f = feedback?.trim();
+  return f ? `${KEEP_PLANNING_MESSAGE} Their feedback:\n\n${f}` : KEEP_PLANNING_MESSAGE;
+}
 
 /** AskUserQuestion's questions, kept to the fields the page shows; undefined when the input isn't usable. */
 export function askQuestions(input: Record<string, unknown>): AskQuestion[] | undefined {
@@ -330,8 +343,11 @@ export class AgentRunner extends EventEmitter {
       };
       const questions = toolName === ASK_TOOL ? askQuestions(input) : undefined;
       if (questions) approval.questions = questions;
-      this.addPending(approval, signal, (decision, { answers, annotations }) => {
-        if (questions && decision !== "deny" && answers && Object.keys(answers).length) {
+      const plan = toolName === PLAN_TOOL ? exitPlan(input) : undefined;
+      if (plan) approval.plan = plan;
+      this.addPending(approval, signal, (decision, { answers, annotations, feedback, aborted }) => {
+        if (plan && decision === "deny" && !aborted) resolve({ behavior: "deny", message: keepPlanningMessage(feedback) });
+        else if (questions && decision !== "deny" && answers && Object.keys(answers).length) {
           const notes = annotations && Object.keys(annotations).length ? { annotations } : {};
           resolve({ behavior: "allow", updatedInput: { ...input, answers, ...notes } });
         } else if (decision === "deny" || questions) resolve({ behavior: "deny", message: questions ? SKIP_MESSAGE : DENY_MESSAGE });
@@ -376,12 +392,11 @@ export class AgentRunner extends EventEmitter {
 
   /**
    * `answers` answers an AskUserQuestion approval (without them, it is skipped), with optional `annotations`;
-   * `content` fills in an elicitation's form (a required field left empty declines it).
+   * `content` fills in an elicitation's form (a required field left empty declines it);
+   * `feedback` is what to change when the user keeps planning (a plan approval denied).
    */
-  answer(
-    approvalId: string, decision: ApprovalDecision, answers?: QuestionAnswers, content?: ElicitContent, annotations?: QuestionAnnotations,
-  ): void {
-    if (this.resolveApproval(approvalId, decision, { answers, annotations, content }) && this.pending.size === 0 && this.state.status === "awaiting") {
+  answer(approvalId: string, decision: ApprovalDecision, reply: ApprovalReply = {}): void {
+    if (this.resolveApproval(approvalId, decision, reply) && this.pending.size === 0 && this.state.status === "awaiting") {
       this.setStatus("working");
     }
   }
