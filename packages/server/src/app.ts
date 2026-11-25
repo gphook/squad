@@ -15,7 +15,6 @@ import type { PluginService } from "./plugins/service.ts";
 import type { ConnectorService } from "./connectors/service.ts";
 import { loadHistory } from "./history.ts";
 import { shareDir } from "./paths.ts";
-import type { PlanUsageTracker } from "./planUsage.ts";
 import type { ModelCatalog } from "./models.ts";
 import type { AuthTracker } from "./auth.ts";
 import type { ClaudeLogin } from "./claudeLogin.ts";
@@ -37,10 +36,10 @@ const MIME: Record<string, string> = {
 };
 
 export function buildApp(opts: {
-  store: Store; supervisor: Supervisor; signin: SignIn; webDist?: string; plan?: PlanUsageTracker; models?: ModelCatalog; auth?: AuthTracker; login?: ClaudeLogin;
+  store: Store; supervisor: Supervisor; signin: SignIn; webDist?: string; models?: ModelCatalog; auth?: AuthTracker; login?: ClaudeLogin;
   plugins?: PluginService; update?: UpdateNotice; connectors?: ConnectorService;
 }): FastifyInstance {
-  const { store, supervisor: sup, signin, plan, models, auth, login, plugins, update, connectors } = opts;
+  const { store, supervisor: sup, signin, models, auth, login, plugins, update, connectors } = opts;
   const app = Fastify();
   app.register(websocket);
   app.register(multipart, { limits: { fileSize: 200 * 1024 * 1024 } });
@@ -86,11 +85,6 @@ export function buildApp(opts: {
   update?.on("change", (info: UpdateInfo) => broadcast(null, { t: "update", ...info }));
   connectors?.on("connectors", (list: ConnectorView[]) => broadcast(null, { t: "connectors", connectors: list }));
   connectors?.on("login", (state: ConnectorLogin) => broadcast(null, { t: "connector.login", login: state }));
-  if (plan) {
-    plan.on("change", (p) => broadcast(null, { t: "usage.plan", plan: p }));
-    sup.on("rateLimit", (info) => plan.applyRateLimit(info));
-    sup.on("turnEnd", () => plan.afterTurn());
-  }
 
   const stateMsg = (projectId: string): ServerMsg => ({
     t: "state", projectId, agents: store.listAgents(projectId), states: sup.states(projectId),
@@ -274,22 +268,13 @@ export function buildApp(opts: {
     scoped.get("/ws", { websocket: true }, (ws, req) => {
       sockets.set(ws, { projectId: null, sessionHash: req.session?.idHash ?? null });
       out(ws, { t: "projects", projects: store.listProjects() });
-      if (plan?.current) out(ws, { t: "usage.plan", plan: plan.current });
       if (auth?.current) out(ws, { t: "auth", status: auth.current });
       if (login && login.current.phase !== "idle") out(ws, { t: "auth.login", login: login.current });
       // Even when idle: a page reconnecting after a restart may still show a sign-in that no longer exists.
       if (connectors) out(ws, { t: "connector.login", login: connectors.login });
       if (update?.current) out(ws, { t: "update", ...update.current });
       if (sockets.size === 1) void auth?.refresh(); // someone may have signed in or out while nobody was looking
-      if (sockets.size === 1 && plan) {
-        // The limits are only worth polling while someone is looking; the reading may be hours old by now.
-        plan.setPolling(true);
-        void plan.refresh();
-      }
-      ws.on("close", () => {
-        sockets.delete(ws);
-        if (sockets.size === 0) plan?.setPolling(false);
-      });
+      ws.on("close", () => sockets.delete(ws));
       ws.on("message", async (raw) => {
         const m = parseClientMsg(String(raw));
         if ("error" in m) return out(ws, { t: "error", message: m.error });
@@ -309,7 +294,6 @@ export function buildApp(opts: {
     const q = req.query as { projectId?: string; days?: string };
     const days = Number(q.days) as UsageRange;
     if (!USAGE_RANGES.includes(days)) return reply.code(400).send({ error: `days must be one of ${USAGE_RANGES.join(", ")}` });
-    void plan?.refresh(); // the page shows the plan windows too: bring them up to date
     return store.usageReport({ projectId: q.projectId || null, days, now: Date.now() });
   });
 

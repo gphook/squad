@@ -6,9 +6,7 @@
   let { now }: { now: number } = $props();
 
   const CHECK_EVERY_MS = 5_000;
-  const COMMAND = "claude auth login";
   let open = $state(false);
-  let copied = $state(false);
   let confirmSignOut = $state(false);
   let code = $state("");
   let root = $state<HTMLElement>();
@@ -62,15 +60,6 @@
     confirmSignOut = false;
     send({ t: "auth.logout" });
   }
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(COMMAND);
-      copied = true;
-      setTimeout(() => (copied = false), 2000);
-    } catch {
-      copied = false; // clipboard blocked: the command is still there to select
-    }
-  }
 </script>
 
 <div class="account" bind:this={root}>
@@ -106,14 +95,16 @@
         {/if}
         <p class="hint">Also changes the account Claude Code uses in your terminal.</p>
       {:else}
-        <p>{status?.state === "signedOut" ? "Squadmates can't start until you sign in to Claude." : "Squad couldn't read the Claude sign-in."}</p>
+        {#if status?.state === "subscription"}
+          <p>You're signed in with a Claude subscription{#if status.email} ({status.email}){/if}. Anthropic's terms don't let apps built on the Agent SDK, like Squad, run on one, so squadmates can't start.</p>
+        {:else}
+          <p>{status?.state === "signedOut" ? "Squadmates can't start until you sign in to Claude." : "Squad couldn't read the Claude sign-in."}</p>
+        {/if}
         <button class="primary" onclick={() => start("console")}>Sign in with Anthropic Console</button>
-        <p class="hint">Uses an API key, billed to your Console account.</p>
+        <p class="hint">Billed at API rates to your Console account. Also changes the account Claude Code uses in your terminal.</p>
         <details>
-          <summary class="hint">Using a Claude subscription?</summary>
-          <p class="hint">Sign in to Claude Code yourself, in a terminal:</p>
-          <div class="cmd"><code>{COMMAND}</code><button onclick={copy}>{copied ? "Copied" : "Copy"}</button></div>
-          <p class="hint">Checking every few seconds… this updates once you're signed in.</p>
+          <summary class="hint">Use an API key or a cloud provider instead</summary>
+          <p class="hint">Start Squad with <code>ANTHROPIC_API_KEY</code> set, or with Bedrock, Vertex or Foundry turned on. See the install guide.</p>
         </details>
       {/if}
     </div>

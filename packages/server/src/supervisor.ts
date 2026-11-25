@@ -10,7 +10,7 @@ import {
 import { shareDir } from "./paths.ts";
 import { renamePeers } from "./normalise.ts";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
-import { AgentRunner, type QueryFactory, type TurnResult } from "./runner.ts";
+import { AgentRunner, NOT_SIGNED_IN, SUBSCRIPTION, type QueryFactory, type TurnResult } from "./runner.ts";
 import { resolveInside } from "./safePath.ts";
 import { formatSkills } from "./skillsList.ts";
 import { createSquadTools } from "./squadTools.ts";
@@ -73,15 +73,20 @@ export class Supervisor extends EventEmitter {
     return checked.filter((x) => x !== null);
   }
 
-  /** Where the Claude account is read from; launches are refused while it says signed out. */
+  /** Where the Claude account is read from; launches are refused while it's signed out or a claude.ai plan. */
   setAuth(auth: AuthSource): void {
     this.auth = auth;
   }
 
-  /** Signed out, checked again first: the cached status may predate a sign-in in a terminal. */
-  private async isSignedOut(): Promise<boolean> {
-    if (this.auth?.current?.state !== "signedOut") return false;
-    return (await this.auth.refresh()).state === "signedOut";
+  /**
+   * Why squadmates can't start, or null: signed out, or signed in with a claude.ai plan (#43).
+   * Checked again first: the cached status may predate a sign-in in a terminal.
+   */
+  private async notRunnable(): Promise<string | null> {
+    const blocked = (s: AuthStatus | null | undefined) => s?.state === "signedOut" || s?.state === "subscription";
+    if (!this.auth || !blocked(this.auth.current)) return null;
+    const s = await this.auth.refresh();
+    return s.state === "signedOut" ? NOT_SIGNED_IN : s.state === "subscription" ? SUBSCRIPTION : null;
   }
 
   /** The runner for an agent, created on first use and refreshed with current store data. */
@@ -102,7 +107,7 @@ export class Supervisor extends EventEmitter {
       mcpServer: createSquadTools(this, pid, nameOf),
       kitPluginPath: this.kitPluginPath,
       shareDir: shareDir(pid),
-      signedOut: () => this.isSignedOut(),
+      notRunnable: () => this.notRunnable(),
       launchPlugins: () => (this.launchSet ? this.launchSet(agentId) : Promise.resolve({ paths: [], off: [] })),
     });
     let last: AgentState["status"] = "stopped";

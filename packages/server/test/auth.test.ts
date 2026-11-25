@@ -9,9 +9,9 @@ const SIGNED_IN = {
 const SIGNED_OUT = { loggedIn: false, authMethod: "none", apiProvider: "firstParty" };
 
 describe("toAuthStatus", () => {
-  it("reads a claude.ai sign-in", () => {
+  it("reads a claude.ai sign-in as a subscription squadmates can't run on", () => {
     expect(toAuthStatus(SIGNED_IN)).toEqual({
-      state: "signedIn", method: "claude.ai", email: "someone@example.com", organization: "Example Org",
+      state: "subscription", method: "claude.ai", email: "someone@example.com", organization: "Example Org",
       plan: "pro", provider: "firstParty", expiresAt: Date.parse("2026-12-05T14:10:12.390Z"),
     });
   });
@@ -20,8 +20,9 @@ describe("toAuthStatus", () => {
     expect(toAuthStatus(SIGNED_OUT)).toEqual({ state: "signedOut", method: "none", provider: "firstParty" });
   });
 
-  it("counts an API key or another provider as signed in", () => {
+  it("counts an API key, Console login or another provider as signed in", () => {
     expect(toAuthStatus({ authMethod: "api_key", apiProvider: "firstParty" })).toMatchObject({ state: "signedIn", method: "api_key" });
+    expect(toAuthStatus({ loggedIn: true, authMethod: "oauth_token", apiProvider: "firstParty" })).toMatchObject({ state: "signedIn" });
     expect(toAuthStatus({ loggedIn: false, authMethod: "bedrock", apiProvider: "bedrock" })).toMatchObject({ state: "signedIn", provider: "bedrock" });
   });
 
@@ -38,7 +39,7 @@ describe("AuthTracker", () => {
     const t = new AuthTracker(async () => { runs++; return JSON.stringify(SIGNED_IN); });
     const [a, b] = await Promise.all([t.refresh(), t.refresh()]);
     expect(runs).toBe(1);
-    expect(a.state).toBe("signedIn");
+    expect(a.state).toBe("subscription");
     expect(b).toBe(a);
     expect(t.current).toBe(a);
   });
@@ -57,6 +58,6 @@ describe("AuthTracker", () => {
     await t.refresh();
     out = JSON.stringify(SIGNED_IN);
     await t.refresh();
-    expect(changes).toEqual(["signedOut", "signedIn"]);
+    expect(changes).toEqual(["signedOut", "subscription"]);
   });
 });

@@ -1,7 +1,7 @@
 import {
   MAX_EVENTS, defaultLayout,
   type Agent, type AgentEvent, type AgentState, type Approval, type Layout, type LoggedMessage, type Project,
-  type AuthStatus, type LoginState, type ModelOption, type PlanUsage, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
+  type AuthStatus, type LoginState, type ModelOption, type ServerMsg, type SharedFile, type SlashCommandInfo, appendShellOutput,
   type AvailablePlugin, type InstalledPlugin, type ConnectorLogin, type ConnectorView,
 } from "@squad/shared";
 import { pruneLayout } from "./layout.ts";
@@ -25,8 +25,6 @@ export interface UiState {
   approvals: Approval[];
   messages: LoggedMessage[];
   shares: SharedFile[];
-  /** Account-wide plan limits: kept when the project changes. */
-  plan: PlanUsage | null;
   /** The account's models: undefined until asked for, null when they couldn't be loaded. */
   models: ModelOption[] | null | undefined;
   /** The Claude account squadmates run on; null until the server says. */
@@ -45,14 +43,14 @@ export function emptyState(): UiState {
   return {
     projects: [], projectId: null, agents: [], states: {}, events: {}, commands: {},
     plugins: null, pluginResults: null, pluginDetails: null, pluginError: null, pluginRestarts: [],
-    approvals: [], messages: [], shares: [], plan: null, models: undefined, auth: null, login: { phase: "idle" },
+    approvals: [], messages: [], shares: [], models: undefined, auth: null, login: { phase: "idle" },
     connectors: null, connectorLogin: { phase: "idle" }, connectorError: null, error: null,
   };
 }
 
 /** Fresh state for another project, keeping what isn't tied to a project. */
 export function forProject(s: UiState, projectId: string): UiState {
-  return { ...emptyState(), projects: s.projects, plan: s.plan, models: s.models, auth: s.auth, login: s.login,
+  return { ...emptyState(), projects: s.projects, models: s.models, auth: s.auth, login: s.login,
     connectors: s.connectors, connectorLogin: s.connectorLogin, connectorError: s.connectorError, projectId };
 }
 
@@ -162,8 +160,6 @@ export function reduce(s: UiState, m: ServerMsg): UiState {
       return { ...s, connectorError: m.message };
     case "models":
       return { ...s, models: m.models };
-    case "usage.plan":
-      return { ...s, plan: m.plan };
     case "error":
       return { ...s, error: m.message };
   }

@@ -9,7 +9,6 @@ import { appPaths, appVersion, squadHome } from "./paths.ts";
 import { helpText, nodeTooOld, parseCli } from "./cli.ts";
 import { listenOrExplain } from "./listen.ts";
 import { UpdateNotice, checkForUpdate, updateMessage } from "./updateCheck.ts";
-import { PlanUsageTracker } from "./planUsage.ts";
 import { ModelCatalog } from "./models.ts";
 import { AuthTracker } from "./auth.ts";
 import { ClaudeLogin } from "./claudeLogin.ts";
@@ -50,7 +49,6 @@ const supervisor = new Supervisor(store, query, paths.kit);
 const webDist = paths.web;
 const startup = parseStartupArgs(process.argv.slice(2), process.env);
 const signin = createSignIn(store, { dev: startup.dev });
-const plan = new PlanUsageTracker({ queryFactory: query, source: () => supervisor.usageSource(), probeCwd: squadHome() });
 const auth = new AuthTracker();
 supervisor.setAuth(auth);
 const login = new ClaudeLogin({ finished: () => auth.refresh() });
@@ -60,7 +58,7 @@ supervisor.setPlugins((agentId) => plugins.launchSet(agentId));
 const update = new UpdateNotice();
 const connectors = new ConnectorService({ store, templates: makeTemplates(realExec) });
 void connectors.init().catch((err) => console.error(`Couldn't check connectors: ${(err as Error).message}`));
-const app = buildApp({ store, supervisor, signin, plan, models, auth, login, plugins, update, connectors, webDist: existsSync(webDist) ? webDist : undefined });
+const app = buildApp({ store, supervisor, signin, models, auth, login, plugins, update, connectors, webDist: existsSync(webDist) ? webDist : undefined });
 
 if (!(await listenOrExplain(() => app.listen({ port, host: "127.0.0.1" }), port, (s) => console.error(s)))) {
   await supervisor.stopAll();
@@ -82,10 +80,8 @@ if (process.env.SQUAD_PACKAGED === "1" && !startup.dev && process.env.SQUAD_NO_U
     update.set({ latest, current: version });
   });
 }
-void plan.refresh(); // fill the rings before the first page load asks
 
 const shutdown = async () => {
-  plan.dispose();
   await supervisor.stopAll();
   await app.close();
   process.exit(0);

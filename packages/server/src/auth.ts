@@ -16,7 +16,10 @@ export function cliPath(): string {
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
-/** `claude auth status --json` output as an AuthStatus. An API key or another provider counts as signed in. */
+/**
+ * `claude auth status --json` output as an AuthStatus. An API key, Console login or another provider counts as
+ * signed in; a claude.ai login is `subscription`, which squadmates can't run on (#43).
+ */
 export function toAuthStatus(raw: unknown): AuthStatus {
   if (!raw || typeof raw !== "object") return { state: "unknown" };
   const r = raw as Record<string, unknown>;
@@ -24,7 +27,7 @@ export function toAuthStatus(raw: unknown): AuthStatus {
   if (typeof r.loggedIn !== "boolean" && !method) return { state: "unknown" };
   const signedIn = r.loggedIn === true || (method !== undefined && method !== "none");
   const expires = str(r.loginExpiresAt) ? Date.parse(r.loginExpiresAt as string) : NaN;
-  const status: AuthStatus = { state: signedIn ? "signedIn" : "signedOut" };
+  const status: AuthStatus = { state: !signedIn ? "signedOut" : method === "claude.ai" ? "subscription" : "signedIn" };
   if (method) status.method = method;
   if (str(r.email)) status.email = r.email as string;
   if (str(r.orgName)) status.organization = r.orgName as string;
