@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Sign-in from Squad uses the Anthropic Console.** The account chip now signs in with the Anthropic Console (API
+  billing) only. Anthropic's terms don't allow apps built on the Agent SDK to offer claude.ai (subscription) sign-in,
+  so the Sign in to Claude and SSO options are gone. A subscription still works: sign in to Claude Code in a terminal
+  (`claude auth login`) and Squad picks it up.
+
 ## 0.3.0 — 2026-11-25
 
 ### Added

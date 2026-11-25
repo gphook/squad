@@ -47,7 +47,7 @@ describe("ClaudeLogin", () => {
 
   it("passes a pasted code to the CLI and finishes when it exits 0", async () => {
     const { login, children, finished } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     await tick();
     login.submitCode("  the-code#state \n");
@@ -61,7 +61,7 @@ describe("ClaudeLogin", () => {
 
   it("finishes without a code when the browser completes it", async () => {
     const { login, children, finished } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     await tick();
     children[0].exit(0);
@@ -72,7 +72,7 @@ describe("ClaudeLogin", () => {
 
   it("asks again when the CLI prompts for another code", async () => {
     const { login, children } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     await tick();
     login.submitCode("wrong");
@@ -83,7 +83,7 @@ describe("ClaudeLogin", () => {
 
   it("asks again when the CLI complains about the code without prompting", async () => {
     const { login, children } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     await tick();
     login.submitCode("no-hash");
@@ -96,7 +96,7 @@ describe("ClaudeLogin", () => {
 
   it("keeps verifying through a success message", async () => {
     const { login, children } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     await tick();
     login.submitCode("good#code");
@@ -107,7 +107,7 @@ describe("ClaudeLogin", () => {
 
   it("fails with the CLI's last words when it exits non-zero", async () => {
     const { login, children, finished } = setup();
-    login.start("sso");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     children[0].stderr.write("OAuth error: bad request\n");
     await tick();
@@ -119,7 +119,7 @@ describe("ClaudeLogin", () => {
 
   it("fails when the CLI can't be run", async () => {
     const { login, children } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].emit("error", new Error("spawn claude ENOENT"));
     await tick();
     expect(login.current).toEqual({ phase: "failed", message: "Couldn't run Claude Code: spawn claude ENOENT" });
@@ -127,7 +127,7 @@ describe("ClaudeLogin", () => {
 
   it("cancel kills the CLI and goes back to idle", async () => {
     const { login, children, finished } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].stdout.write(PRINTED);
     await tick();
     login.cancel();
@@ -139,7 +139,7 @@ describe("ClaudeLogin", () => {
 
   it("runs one sign-in at a time: a new start replaces the old one", async () => {
     const { login, children } = setup();
-    login.start("claudeai");
+    login.start("console");
     login.start("console");
     expect(children[0].killed).toBe(true);
     expect(children).toHaveLength(2);
@@ -152,7 +152,7 @@ describe("ClaudeLogin", () => {
     vi.useFakeTimers();
     try {
       const { login, children } = setup(1000);
-      login.start("claudeai");
+      login.start("console");
       vi.advanceTimersByTime(1001);
       expect(children[0].killed).toBe(true);
       expect(login.current).toEqual({ phase: "failed", message: "Sign-in timed out. Try again." });
@@ -169,7 +169,7 @@ describe("ClaudeLogin", () => {
 
   it("cancel dismisses a failed sign-in", async () => {
     const { login, children } = setup();
-    login.start("claudeai");
+    login.start("console");
     children[0].exit(1);
     await tick();
     login.cancel();
@@ -178,7 +178,7 @@ describe("ClaudeLogin", () => {
 
   it("signs out, stopping any sign-in first, then rechecks", async () => {
     const { login, children, signOut, finished } = setup();
-    login.start("claudeai");
+    login.start("console");
     await login.signOut();
     expect(children[0].killed).toBe(true);
     expect(signOut).toHaveBeenCalledOnce();
