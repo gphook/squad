@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 — 2026-11-25
+
+### Changed
+- **Squadmates don't run on a claude.ai subscription.** Anthropic's terms don't allow apps built on the Agent SDK to
+  run on claude.ai login or subscription limits, wherever the sign-in happens. When Claude Code is signed in with a
+  subscription, launches are refused and the account chip says so. Sign in with the Anthropic Console from the chip,
+  or start Squad with `ANTHROPIC_API_KEY` or a cloud provider (Bedrock, Claude Platform on AWS, Vertex, Foundry) set;
+  see the install guide. This replaces 0.4.0's advice to sign in with a subscription in a terminal.
+- **Usage has its own top-bar button.** The Usage view still shows Squad's own tokens and API-equivalent cost by
+  squadmate, day, model and costliest turn.
+
+### Removed
+- **Plan limits.** The 5h and 7d rings, the Usage view's plan section and its "Max % of" columns were claude.ai
+  subscription limits, so they're gone.
+
 ## 0.4.0 — 2026-11-25
 
 ### Changed
