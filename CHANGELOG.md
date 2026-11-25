@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-11-25
 
 ### Changed
 - **Sign-in from Squad uses the Anthropic Console.** The account chip now signs in with the Anthropic Console (API
