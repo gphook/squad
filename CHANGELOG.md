@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-25
 
 ### Added
 - **Answer MCP servers' requests for input.** When an MCP server or connector asks the user for something, the tile
@@ -12,6 +12,8 @@
 - **Squadmates' questions can be answered.** `AskUserQuestion` used to show as a plain Allow/Deny approval and
   reached the squadmate unanswered. The tile now shows the questions with their options and an Other box; Submit
   sends your answers, Skip tells the squadmate to ask in chat instead.
+  Questions whose options carry previews show them beside the options, with an optional notes box sent back with
+  the answer.
 
 ## 0.2.0 — 2026-11-24
 
