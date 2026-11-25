@@ -175,12 +175,12 @@ describe("AgentRunner", () => {
     });
   });
 
-  it("cancels user dialogs and logs their kind", async () => {
+  it("declares no dialog kinds and leaves an undeclared dialog unanswered", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await runner.launch();
-    expect(q().options.supportedDialogKinds).toEqual(["refusal_fallback_prompt"]);
+    expect(q().options).not.toHaveProperty("supportedDialogKinds");
     const result = await q().options.onUserDialog({ dialogKind: "refusal_fallback_prompt", payload: { model: "x" } }, { signal: new AbortController().signal });
-    expect(result).toEqual({ behavior: "cancelled" });
+    expect(result).toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("refusal_fallback_prompt"));
     warn.mockRestore();
   });
